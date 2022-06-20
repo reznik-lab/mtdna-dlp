@@ -1266,7 +1266,7 @@ mean_expression_shuffle <- read.table('../data/processed_data/KEGGpathway_activi
 pvalres <- read.table('../data/processed_data/KEGGpathway_activity_shuffle_pvalue2000.txt',header=T,row.names=1,sep='\t')
 
 # Import the clone-specific MYC expression information for SA906a
-clonalexp_MYC = read.table('/Users/minsookim/Desktop/clonalexpMYC.tsv',header=T,row.names=1,sep='\t')
+clonalexp_MYC = read.table('../data/processed_data/clonalexpMYC.tsv',header=T,row.names=1,sep='\t')
 
 # Import the UMAP coordinate of the SA906a scRNA-seq data
 umapdat <- read.table('../data/processed_data/umap_coord.txt',header = T,sep='\t',stringsAsFactors=F)
@@ -1463,7 +1463,7 @@ fgseanalysis <- function(deg,pathways.hallmark,mtOXPHOS,nuOXPHOS){
 }
 
 # Import Pearson correlation coefficients for TCGA
-TCGAcorr <- read.table('/Users/minsookim/Desktop/corrTCGA.tsv',header=T,quote='',stringsAsFactors=F)
+TCGAcorr <- read.table('../dat/processed_data/corrTCGA.tsv',header=T,quote='',stringsAsFactors=F)
 
 ```
 
