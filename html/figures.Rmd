@@ -1260,27 +1260,13 @@ OXPHOSgenes = c(mtOXPHOS,nuOXPHOS)
 # Importing clone labels
 clonelabels <- read.table('../data/processed_data/clonelabels.tsv',header=T,quote='',stringsAsFactors=F)
 
-# Importing TCGA dataset
-TCGAfile <- read.csv('../data/ext/BRCA__gene_normalized.txt',header=T,sep='\t')
-mtOXPHOSTCGAfile <- read.csv('../data/ext/mtOXPHOS_TCGA.csv',header=T,row.names = 1,sep=',')
-mtcopyTCGAfile <- read.csv('../data/ext/mtcopy_TCGA.csv',header=T,sep=',')
-metaTCGAfile <- read.csv('../data/ext/BRCA.clin.merged.txt',header=F,row.names = 1,sep='\t',stringsAsFactors=F)
-
 # Importing result from metabolic pathway analysis
 mean_expression_noshuffle <- read.table('../data/processed_data/KEGGpathway_activity_noshuffle2000.txt',header=T,row.names=1,sep='\t')
 mean_expression_shuffle <- read.table('../data/processed_data/KEGGpathway_activity_shuffle2000.txt',header=T,row.names=1,sep='\t')
 pvalres <- read.table('../data/processed_data/KEGGpathway_activity_shuffle_pvalue2000.txt',header=T,row.names=1,sep='\t')
 
-# Obtain the count matrix from the data
-sa906a_expr <- read.table('../data/processed_data/sa906a_df.tsv',header=T,quote='',stringsAsFactors=F)
-sa906a_expr = t(sa906a_expr)
-
-# Subsetting the expression data frame by clones
-sa906a_a = sa906a_expr[,clonelabels$cell_id[which(clonelabels$clone == 'A')]]
-sa906a_f = sa906a_expr[,clonelabels$cell_id[which(clonelabels$clone == 'F')]]
-sa906a_g0 = sa906a_expr[,clonelabels$cell_id[which(clonelabels$clone == 'G0')]]
-sa906a_g1 = sa906a_expr[,clonelabels$cell_id[which(clonelabels$clone == 'G1')]]
-sa906a_k = sa906a_expr[,clonelabels$cell_id[which(clonelabels$clone == 'K')]]
+# Import the clone-specific MYC expression information for SA906a
+clonalexp_MYC = read.table('/Users/minsookim/Desktop/clonalexpMYC.tsv',header=T,row.names=1,sep='\t')
 
 # Import the UMAP coordinate of the SA906a scRNA-seq data
 umapdat <- read.table('../data/processed_data/umap_coord.txt',header = T,sep='\t',stringsAsFactors=F)
@@ -1476,6 +1462,9 @@ fgseanalysis <- function(deg,pathways.hallmark,mtOXPHOS,nuOXPHOS){
   return(c(fgseaResTidy$NES[which(fgseaResTidy$pathway == "HALLMARK_MT_OXIDATIVE_PHOSPHORYLATION")],fgseaResTidy$NES[which(fgseaResTidy$pathway == "HALLMARK_OXIDATIVE_PHOSPHORYLATION")]))
 }
 
+# Import Pearson correlation coefficients for TCGA
+TCGAcorr <- read.table('/Users/minsookim/Desktop/corrTCGA.tsv',header=T,quote='',stringsAsFactors=F)
+
 ```
 
 
@@ -1500,28 +1489,14 @@ fig6a
 # MYC expression shown by clones
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-# Select the nuDNA-encoded OXPHOS genes
-finalnuOXPHOS = rownames(sa906a_expr)[match(nuOXPHOS,rownames(sa906a_expr))]
-finalnuOXPHOS = finalnuOXPHOS[-which(is.na(finalnuOXPHOS))]
-
-# Iterate through clones for clone-specific MYC expression
-combinedres = data.frame(t(c(1,1)))
-colnames(combinedres) = c("Expression","Clone")
-for (eachclone in c("sa906a_a","sa906a_f","sa906a_g0","sa906a_g1","sa906a_k")){
-  tempres = data.frame(get(eachclone)[which(rownames(get(eachclone)) == "MYC"),], toupper(gsub("sa906a_","",eachclone)))
-  colnames(tempres) = c("Expression","Clone")
-  combinedres = rbind(combinedres, tempres)
-}
-combinedres = combinedres[-1,]
-
 # Comparisons across subclone G1 vs. rest of the clones
 my_comparisons = list(c("G1","G0"),c("G1","A"),c("G1","K"),c("G1","F"))
 
 # Setting the order of the clones
-combinedres$Clone = factor(combinedres$Clone, levels = c("G0","G1","F","K","A"))
+clonalexp_MYC$Clone = factor(clonalexp_MYC$Clone, levels = c("G0","G1","F","K","A"))
 
 # Plot
-fig6b = ggplot(combinedres, aes(x=Clone,y=Expression)) + scale_y_continuous(limits = c(0,4.2)) + geom_violin(aes(fill=Clone)) + geom_boxplot(width = 0.05) +
+fig6b = ggplot(clonalexp_MYC, aes(x=Clone,y=Expression)) + scale_y_continuous(limits = c(0,4.2)) + geom_violin(aes(fill=Clone)) + geom_boxplot(width = 0.05) +
   stat_compare_means(comparisons = my_comparisons, label.y = c(3.8,3.4,3)) + theme_classic() + xlab("Clones") + ylab("MYC gene expression") +
   scale_fill_manual(values=c("#FF886B","#D6514D","#E7BA5C","#B077B6","#7A4644"))
 
@@ -1547,6 +1522,10 @@ fig6b
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Comparison of clone G against clones A, F, and K
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+# Subsetting SA906a sample and removing any cells that are not assigned to a clone
+SA906a_cells = allcellsfile[which(allcellsfile$group=='184hTERT(TP53-/-)(SA906a)'),]
+SA906a_cells = SA906a_cells[-which((SA906a_cells$clone=='Un') | (SA906a_cells$clone=='')),]
 
 # Calculate the median mtDNA copy number across clones
 SA906a_clones <- SA906a_cells %>% group_by(clone) %>% mutate(medcopynumber = median(copynumber)) %>%
@@ -1658,114 +1637,12 @@ fig6e
 # Distribution of Pearson correlation coefficient between mtDNA copy number and mtDNA-encoded or nuDNA-encoded OXPHOS genes in TCGA breast cancer samples
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-# Process nuOXPHOS data and mtOXPHOS data
-mtOXPHOSTCGAfile = t(mtOXPHOSTCGAfile)
-colnames(TCGAfile) = gsub('[.]','-',colnames(TCGAfile))
-
-# Make Hybridization-REF as rownames of TCGAfile and remove Hybridization-REF
-rownames(TCGAfile) = TCGAfile$`Hybridization-REF`
-TCGAfile$Hybridization.REF = NULL
-
-# Set the column names of TCGAfile
-colnames(TCGAfile) = gsub('[.]','-',colnames(TCGAfile))
-
-# Take the intersect between column names of TCGAfile and mtOXPHOSTCGAfile and merge the two datasets
-inboth = intersect(colnames(TCGAfile),colnames(mtOXPHOSTCGAfile))
-combinedfile = rbind(TCGAfile[,inboth],mtOXPHOSTCGAfile[,inboth])
-combinedfile = data.frame(t(combinedfile))
-combinedfile$SampleID = tolower(rownames(combinedfile))
-
-# Process mtDNA copy number
-mtcopyTCGAfile = mtcopyTCGAfile[which(mtcopyTCGAfile$Study=='BRCA'),]
-compare.res = data.frame(mtcopyTCGAfile$Sample.ID,mtcopyTCGAfile$Log10.Corrected.Tumor)
-colnames(compare.res) = c('SampleID','Copynumber')
-compare.res$SampleID = tolower(paste0('TCGA-',compare.res$SampleID))
-
-# Process meta data
-metaTCGAfile = data.frame(metaTCGAfile[which(rownames(metaTCGAfile) %in% c('patient.samples.sample.portions.portion.analytes.analyte-2.aliquots.aliquot-2.bcr_aliquot_barcode','patient.bcr_patient_barcode')),])
-metaTCGAfile = data.frame(t(metaTCGAfile))
-
-# Filter for samples in both
-inboth = intersect(metaTCGAfile$patient.bcr_patient_barcode,compare.res$SampleID)
-metaTCGAfile = metaTCGAfile[which(metaTCGAfile$patient.bcr_patient_barcode %in% inboth),]
-compare.res = compare.res[which(compare.res$SampleID %in% inboth),]
-
-# Merging between meta data and the combined file
-combinedres = merge(metaTCGAfile,compare.res,by.x = 'patient.bcr_patient_barcode',by.y = 'SampleID',all = T)
-colnames(combinedres) = c('patient_barcode','aliquot_barcode','Copynumber')
-
-# Keep only the samples with matching barcodes and samples
-inboth = intersect(combinedres$aliquot_barcode,combinedfile$SampleID)
-combinedres = combinedres[which(combinedres$aliquot_barcode %in% inboth),]
-combinedfile = combinedfile[which(combinedfile$SampleID %in% inboth),]
-final = merge(combinedres,combinedfile,by.x='aliquot_barcode',by.y='SampleID',all = T)
-final$aliquot_barcode = NULL
-final$gene_id = NULL
-sampleids = final[,1]
-
-# Checking the correlation
-cortest = as.data.frame(sapply(final[,which(colnames(final) != 'SampleID')],as.numeric))
-
-# Keep only the OXPHOS genes
-cor.df = data.frame(t(c(1,1,1,1)))
-colnames(cor.df) = c('gene','corr','pvals','OXPHOS')
-mtgenespresent <- colnames(cortest)[apply(data.frame(mtOXPHOS),1,function(x) grep(x,colnames(cortest))[1])]
-nugenespresent <- colnames(cortest)[apply(data.frame(nuOXPHOS),1,function(x) grep(x,colnames(cortest))[1])]
-if(any(is.na(mtgenespresent))){mtgenespresent <- mtgenespresent[-which(is.na(mtgenespresent))]}
-if(any(is.na(nugenespresent))){nugenespresent <- nugenespresent[-which(is.na(nugenespresent))]}
-
-# Iterate through mtDNA-encoded OXPHOS genes
-for (eachmtgene in mtgenespresent){
-  resultval = cor.test(cortest[,'Copynumber'],cortest[,eachmtgene],method='spearman')
-  tempres = data.frame(eachmtgene,as.numeric(resultval$estimate),resultval$p.value,'mtOXPHOS')
-  colnames(tempres) = colnames(cor.df)
-  cor.df = rbind(cor.df,tempres)
-}
-
-# Iterate through nuDNA-encoded OXPHOS genes
-for (eachnugene in nugenespresent){
-  resultval = cor.test(cortest[,'Copynumber'],cortest[,eachnugene],method='spearman')
-  tempres = data.frame(eachnugene,as.numeric(resultval$estimate),resultval$p.value,'nuOXPHOS')
-  colnames(tempres) = colnames(cor.df)
-  cor.df = rbind(cor.df,tempres)
-}
-cor.df = cor.df[-1,]
-
-# Bonferroni correction
-newalpha = 0.05/(length(mtgenespresent) + length(nugenespresent))
-cor.df$signif = cor.df$pvals <= newalpha
-
-# Keep the existing OXPHOS genes and mtDNA copy number columns
-cortest = cortest[,c(mtgenespresent,nugenespresent,'Copynumber')]
-
-# Calculate correlation matrix and select the row for mtDNA copy number
-cortest.res = cor(cortest,method = 'spearman')
-check = cortest.res[which(rownames(cortest.res)=='Copynumber'),]
-genenames = names(check)
-
-# Correlation
-check = data.frame(check)
-genenames = gsub('MT.','MT-',genenames)
-genenames = apply(data.frame(genenames),1,function(x) strsplit(x,'[.]')[[1]][1])
-check$genes = genenames
-check = check[-which(duplicated(check$genes)),]
-rownames(check) = check$genes
-check$genes = NULL
-colnames(check) = c('corr')
-
-# Updating the labels
-check$col='nuOXPHOS'
-check$col[which(rownames(check) %in% gsub('[.]','-',mtOXPHOS))] = 'mtOXPHOS'
-check$col[which(rownames(check)=='Copynumber')] = 'mtDNAcopy'
-check$col = factor(check$col,levels=c('nuOXPHOS','mtOXPHOS','mtDNAcopy'))
-check = check[-which(check$col=='mtDNAcopy'),]
-
 # Wilcoxon test of correlation coefficients between mtDNA-encoded OXPHOS genes and nuDNA-encoded OXPHOS genes
-res <- wilcox.test(check$corr[which(check$col=='mtOXPHOS')],check$corr[which(check$col=='nuOXPHOS')])
+res <- wilcox.test(TCGAcorr$corr[which(TCGAcorr$col=='mtOXPHOS')],TCGAcorr$corr[which(TCGAcorr$col=='nuOXPHOS')])
 label = paste0('Wilcoxon,p = ',formatC(res$p.value,format = 'e',digits = 2))
 
 # Plot
-fig6f <- ggplot(check,aes(x=corr,fill=col)) + geom_histogram(aes(y=(..density..)/sum(..density..)),alpha = 0.8,position='identity',lwd=0.2) + xlab('Correlation Coefficient') + ylab('Proportion') +
+fig6f <- ggplot(TCGAcorr,aes(x=corr,fill=col)) + geom_histogram(aes(y=(..density..)/sum(..density..)),alpha = 0.8,position='identity',lwd=0.2) + xlab('Correlation Coefficient') + ylab('Proportion') +
   theme_classic() + scale_fill_manual(name='Pairwise Corr',labels=c('nuOXPHOS','mtOXPHOS','mtDNAcopy'),values=c('#00798c','#edae49','#d1495b')) + annotate(geom='text',x=0,y=0.1,label=label) +
   theme(legend.position = c(0.2,0.85),
         legend.title=element_blank())
