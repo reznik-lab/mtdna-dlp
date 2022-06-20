@@ -1,0 +1,40 @@
+G	A	F
+Glycolysis / Gluconeogenesis	1.01135696694844	1.01182014343204	0.976822889619521
+Citrate cycle (TCA cycle)	1.01934302251463	NA	NA
+Galactose metabolism	NA	1.02178686188265	NA
+Pyruvate metabolism	1.02281189553652	NA	NA
+Inositol phosphate metabolism	0.990806060274822	1.01694547429609	NA
+Oxidative phosphorylation	1.0151071398822	NA	0.980113322061048
+Nitrogen metabolism	0.975786467645792	1.0713195439784	0.952893988375808
+Sulfur metabolism	NA	1.05495868880559	0.951721652076572
+Fatty acid biosynthesis	1.02791128373048	NA	NA
+Fatty acid degradation	NA	1.02753730545337	NA
+Steroid biosynthesis	NA	0.980578359007601	NA
+Steroid hormone biosynthesis	0.981929470698745	NA	NA
+Sphingolipid metabolism	NA	0.980210606853398	1.02369990420369
+Arachidonic acid metabolism	0.976883962473173	1.03486731794291	NA
+alpha-Linolenic acid metabolism	0.979787319037611	NA	NA
+Biosynthesis of unsaturated fatty acids	NA	0.977076129721005	1.03211902669677
+Purine metabolism	1.00938085454519	0.991641660104639	NA
+Pyrimidine metabolism	1.01838487811567	0.987922882882973	NA
+Alanine, aspartate and glutamate metabolism	1.01797682326821	0.981706028978669	NA
+Glycine, serine and threonine metabolism	1.03028645543603	NA	0.951406276275746
+Cysteine and methionine metabolism	1.01337186414627	0.977146350389125	NA
+Valine, leucine and isoleucine degradation	NA	1.01834250114657	NA
+Lysine degradation	NA	1.01446406238857	0.978054063927933
+Tyrosine metabolism	NA	1.02970881575596	NA
+Phenylalanine metabolism	NA	1.03928730749634	NA
+Tryptophan metabolism	0.980428315866056	NA	NA
+Phosphonate and phosphinate metabolism	1.0281503136538	NA	NA
+Selenocompound metabolism	1.03852177952638	0.96358647725457	NA
+Glutathione metabolism	NA	1.01420725082925	NA
+Glycosphingolipid biosynthesis - lacto and neolacto series	NA	1.0378190025061	NA
+Glycosphingolipid biosynthesis - globo and isoglobo series	NA	1.03138407978682	NA
+Other glycan degradation	0.980912151430527	NA	NA
+Thiamine metabolism	NA	0.972681179121416	NA
+Riboflavin metabolism	NA	0.957265891011087	NA
+Nicotinate and nicotinamide metabolism	NA	1.03123218451335	0.967663393508039
+One carbon pool by folate	NA	0.977008543545404	NA
+Terpenoid backbone biosynthesis	NA	0.982951942051894	NA
+Metabolism of xenobiotics by cytochrome P450	0.962043819279988	1.02451526153741	NA
+Drug metabolism - cytochrome P450	0.967527790901086	1.03328423901131	NA

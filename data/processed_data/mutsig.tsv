@@ -1,0 +1,13 @@
+strand	CR	motifs	variable	value
+Heavy	ControlRegion	C>T	count	2
+Heavy	ControlRegion	T>C	count	3
+Heavy	ControlRegion	others	count	6
+Light	ControlRegion	C>T	count	4
+Light	ControlRegion	T>C	count	2
+Light	ControlRegion	others	count	3
+Heavy	Non-ControlRegion	C>T	count	38
+Heavy	Non-ControlRegion	T>C	count	24
+Heavy	Non-ControlRegion	others	count	11
+Light	Non-ControlRegion	C>T	count	28
+Light	Non-ControlRegion	T>C	count	26
+Light	Non-ControlRegion	others	count	19
