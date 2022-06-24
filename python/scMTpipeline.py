@@ -764,7 +764,6 @@ if __name__ == "__main__":
     # Parse necessary arguments
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("-d", "--datadir",type=str, help="Directory for BAM files")
-    parser.add_argument("-c", "--allcells",type=str, help="Directory for all cells file")
     parser.add_argument("-r", "--reffile",type=str, help="Reference fasta file")
     parser.add_argument("-q","--mapq",type=int,help="Minimum mapping quality, default = 20",default = 20)
     parser.add_argument("-Q","--baseq",type=int,help="Minimum base quality, default = 20",default = 20)
@@ -780,7 +779,6 @@ if __name__ == "__main__":
     # read in arguments    
     args = parser.parse_args()
     datadir = args.datadir
-    allcells = args.allcells
     reffile = args.reffile
     minmapq = args.mapq
     minbq = args.baseq
@@ -800,10 +798,10 @@ if __name__ == "__main__":
 
     # Filtering of cells
     genome = "GRCh37"
-    # variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,homedir,vepdir,vepcache,resultsdir)
-    # variant_processing(datadir,libraryid,reffile,patternlist,resultsdir)
-    # runhaplogrep(datadir,libraryid,reffile,homedir,resultsdir)
-    # processfillout(libraryid,threshold,resultsdir)
+    variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,homedir,vepdir,vepcache,resultsdir)
+    variant_processing(datadir,libraryid,reffile,patternlist,resultsdir)
+    runhaplogrep(datadir,libraryid,reffile,homedir,resultsdir)
+    processfillout(libraryid,threshold,resultsdir)
     genmaster(libraryid,reffile,resultsdir)
 
 # EXAMPLE:
