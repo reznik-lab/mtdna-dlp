@@ -170,7 +170,7 @@ for ii in range(bamfiles.shape[0]):
                 fasta + " - 2>/dev/null | bcftools query --format '%CHROM\t%POS\t%REF\t%ALT[\t%AD\t%DP\t%ADF\t%ADR]\n'", ">", vcfdir + "/" + f + "_temp.maf"])
             mafcall = ' '.join( ["perl " + workingdir + "/vcf2maf/maf2maf.pl --vep-data " + vepcache + " --vep-path " + vepdir + 
                 "/ --species mus_musculus --input-maf", vcfdir + "/" + f + "_temp2.maf","--output-maf", outdir + "/" + f + ".maf",
-                "--retain-cols", retaincols, "--ncbi-build GRCm38 --ref-fasta",fasta, "--vep-data /opt/common/CentOS_6-dev/vep/cache"] )
+                "--retain-cols", retaincols, "--ncbi-build GRCm38 --ref-fasta",fasta] )
 
         else:
             countcall = ' '.join(["samtools mpileup --region", mtchrom, "--count-orphans --no-BAQ --min-MQ",str(minmapq), "--min-BQ", str(minbq), 
@@ -180,7 +180,7 @@ for ii in range(bamfiles.shape[0]):
                 " - 2>/dev/null | bcftools query --format '%CHROM\t%POS\t%REF\t%ALT[\t%AD\t%DP\t%ADF\t%ADR]\n'", ">", vcfdir + "/" + f + "_temp.maf"])
             mafcall = ' '.join( ["perl " + workingdir + "/vcf2maf/maf2maf.pl --vep-data " + vepcache + " --vep-path " + vepdir + 
                 "/ --input-maf", vcfdir + "/" + f + "_temp2.maf","--output-maf", outdir + "/" + f + ".maf"," --retain-cols", retaincols, 
-                "--ncbi-build", ncbibuild, '--ref-fasta',maf2maf_fasta, "--vep-data /opt/common/CentOS_6-dev/vep/cache"])
+                "--ncbi-build", ncbibuild, '--ref-fasta',maf2maf_fasta])
         
     if not normalflag:
         # We don't have a normal bam
@@ -193,7 +193,7 @@ for ii in range(bamfiles.shape[0]):
                 workingdir + "/vt normalize -r " + fasta + " - 2>/dev/null | bcftools query --format '%CHROM\t%POS\t%REF\t%ALT[\t%AD\t%DP\t%ADF\t%ADR]\n'", ">", vcfdir + "/" + f + "_temp.maf"])
             mafcall = ' '.join( ["perl " + workingdir + "/vcf2maf/maf2maf.pl --vep-data " + vepcache + " --vep-path " + vepdir + 
                 "/ --species mus_musculus --input-maf", vcfdir + "/" + f + "_temp2.maf","--output-maf", outdir + "/" + f + ".maf",
-                "--retain-cols", retaincols, "--ncbi-build GRCm38 --ref-fasta",fasta, "--vep-data /opt/common/CentOS_6-dev/vep/cache"])
+                "--retain-cols", retaincols, "--ncbi-build GRCm38 --ref-fasta",fasta])
 
         else:
             countcall = ' '.join(["samtools mpileup --region", mtchrom, "--count-orphans --no-BAQ --min-MQ",str(minmapq), "--min-BQ", str(minbq), 
