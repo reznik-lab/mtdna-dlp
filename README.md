@@ -40,7 +40,7 @@ conda install pandas
 conda install -c conda-forge matplotlib
 ```
 
-Additionally, a VEP offline cache needs to be installed (NOTE: cache must be same version as VEP version). Please refer to https://uswest.ensembl.org/info/docs/tools/vep/script/vep_cache.html for instructions on how to install a VEP cache. Due to the size of the caches, it will likely take several hours to install.
+Additionally, a VEP offline cache needs to be installed __(NOTE: CACHE MUST BE SAME VERSION AS VEP VERSION)__. Please refer to https://uswest.ensembl.org/info/docs/tools/vep/script/vep_cache.html for instructions on how to install a VEP cache. Due to the size of the caches, it will likely take several hours to install.
 
 ## Running the single cell pipeline (in the command line)
 
