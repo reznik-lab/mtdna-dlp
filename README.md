@@ -1,7 +1,7 @@
 # mtdna-dlp
 scripts to generate figures/tables for mtDNA DLP+ paper
 
-## Installation
+## Installation (in the command line)
 
 Clone this repository (`git clone https://github.com/reznik-lab/mtdna-dlp.git`)
 
@@ -42,7 +42,7 @@ conda install -c conda-forge matplotlib
 
 Additionally, a VEP offline cache needs to be installed (NOTE: cache must be same version as VEP version). Please refer to https://uswest.ensembl.org/info/docs/tools/vep/script/vep_cache.html for instructions on how to install a VEP cache. Due to the size of the caches, it will likely take several hours to install.
 
-## Running the single cell pipeline
+## Running the single cell pipeline (in the command line)
 
 Navigate to the directory with the `scMTpipeline.py` file and run the following (replace all brackets):
 
