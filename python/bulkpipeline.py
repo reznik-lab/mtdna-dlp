@@ -6,10 +6,8 @@ Created on Sat Jan  4 22:14:05 2020
 @author: minsookim
 """
 
-from cmath import exp
 import os
 import argparse
-import re
 import pandas as pd
 import numpy as np
 import subprocess
@@ -20,32 +18,32 @@ from Bio.Seq import Seq
 def variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand, homedir, vepdir, vepcache):
     try:
         os.makedirs(f"{resultsdir}/MuTect2_results")
-    except OSError as error:
-        print(error)
+    except OSError:
+        pass
     try:
         os.makedirs(f"{resultsdir}/MTvariant_results")
-    except OSError as error:
-        print(error)
+    except OSError:
+        pass
 
     # Running MTvariantpipeline without matched normal
     print("Running MTvariantpipeline..")
-    subprocess.call("python3 " + homedir + "MTvariantpipeline.py -d " + datadir + "/ -v " + homedir + "TEMPMAFfiles/ -o " + 
-        resultsdir + "MTvariant_results/ -b " + libraryid + ".bam -g " + genome + " -q " + str(minmapq) + " -Q " + str(minbq) + 
-        " -s " + str(minstrand) + " -hd " + homedir + " -vd " + vepdir + " -vc " + vepcache, shell=True)
+    subprocess.call("python3 " + homedir + "/MTvariantpipeline.py -d " + datadir + "/ -v " + homedir + "/TEMPMAFfiles/ -o " + 
+        resultsdir + "/MTvariant_results/ -b " + libraryid + ".bam -g " + genome + " -q " + str(minmapq) + " -Q " + str(minbq) + 
+        " -s " + str(minstrand) + " -hd " + homedir + "/ -vd " + vepdir + " -vc " + vepcache, shell=True)
 
     # MuTect2 mitochondrial mode
     print("Running MuTect2..")
     subprocess.call("gatk --java-options -Xmx4g Mutect2 -R " + reffile + " --mitochondria-mode true -L MT -mbq " + str(minbq) + 
         " --minimum-mapping-quality " + str(minmapq) + " -I " + datadir + "/" + libraryid + ".bam -tumor " + libraryid.replace("-","_") + 
-        " -O " + resultsdir + "MuTect2_results/" + libraryid + ".bam.vcf.gz", shell=True)
+        " -O " + resultsdir + "/MuTect2_results/" + libraryid + ".bam.vcf.gz", shell=True)
 
     # Left align MuTect2 results
-    subprocess.call("bcftools norm -m - -f " + reffile + " " + resultsdir + "MuTect2_results/" + libraryid + ".bam.vcf.gz" + 
-        " -o " + resultsdir + "MuTect2_results/" + libraryid + ".bam.vcf", shell=True)
+    subprocess.call("bcftools norm -m - -f " + reffile + " " + resultsdir + "/MuTect2_results/" + libraryid + ".bam.vcf.gz" + 
+        " -o " + resultsdir + "/MuTect2_results/" + libraryid + ".bam.vcf", shell=True)
     
     # Convert the MuTect2 result from vcf to maf file
-    subprocess.call("perl " + homedir + "vcf2maf/vcf2maf.pl --vep-data " + vepcache + " --vep-path " + vepdir + " --input-vcf " + 
-        resultsdir + "MuTect2_results/" + libraryid + ".bam.vcf" + " --output-maf " + resultsdir + "MuTect2_results/" + libraryid + 
+    subprocess.call("perl " + homedir + "/vcf2maf/vcf2maf.pl --vep-data " + vepcache + " --vep-path " + vepdir + " --input-vcf " + 
+        resultsdir + "/MuTect2_results/" + libraryid + ".bam.vcf" + " --output-maf " + resultsdir + "/MuTect2_results/" + libraryid + 
         ".bam.maf" + " --ncbi-build " + genome + ' --ref-fasta ' + reffile, shell=True)
 
 
@@ -58,11 +56,11 @@ def variant_processing(libraryid,resultsdir):
 
     # Overlap between MuTect and MTvariantpipeline
     # Read in MTvariantpipeline result
-    MTvarfile = pd.read_csv(resultsdir + "MTvariant_results/" + libraryid + ".bam.maf", sep = "\t", comment='#', low_memory=False)
+    MTvarfile = pd.read_csv(resultsdir + "/MTvariant_results/" + libraryid + ".bam.maf", sep = "\t", comment='#', low_memory=False)
 
     # Read in MuTect result
-    mutectfile = pd.read_csv(resultsdir + "MuTect2_results/" + libraryid + ".bam.maf", sep = "\t", header=1, low_memory=False)
-    saveasthis = resultsdir + libraryid + ".fillout"
+    mutectfile = pd.read_csv(resultsdir + "/MuTect2_results/" + libraryid + ".bam.maf", sep = "\t", header=1, low_memory=False)
+    saveasthis = resultsdir + "/" + libraryid + ".fillout"
 
     # Filter out variants falling in the repeat regions of 302-315, 513-525, and 3105-3109 (black listed regions)
     # Make sure End_Position is also not in the region
@@ -74,13 +72,6 @@ def variant_processing(libraryid,resultsdir):
         MTvarfile = MTvarfile[~rmthese]
     mutectfile.index = range(len(mutectfile.index))
     MTvarfile.index = range(len(MTvarfile.index))
-
-    # Possible solution for filtering blacklited regions
-    # rmregions = list(range(301,314)) + list(range(513,524)) + list(range(3105,3109))
-    # mutectfile = mutectfile.loc[~mutectfile['Start_Position'].isin(rmregions)]
-    # MTvarfile = MTvarfile.loc[~MTvarfile['Start_Position'].isin(rmregions)]
-    # mutectfile.index = range(len(mutectfile.index))
-    # MTvarfile.index = range(len(MTvarfile.index))
     
     # Output the overlap as final maf file
     combinedfile = pd.merge(mutectfile, MTvarfile, how='inner', on=['Chromosome','Start_Position','Reference_Allele',
@@ -106,28 +97,28 @@ def runhaplogrep(datadir,libraryid,reffile, homedir, resultsdir):
     print("Running haplogrep..")
     
     # Filter the bam file for unmapped reads and mapping quality less than 1
-    subprocess.call("samtools view -bF 4 -q 1 " + datadir + "/" + libraryid + ".bam > " + resultsdir + libraryid + "_filtered.bam", shell=True)
+    subprocess.call("samtools view -bF 4 -q 1 " + datadir + "/" + libraryid + ".bam > " + resultsdir + "/" + libraryid + "_filtered.bam", shell=True)
     
     # Index the filtered bam file
-    subprocess.call("samtools index " + resultsdir + libraryid + "_filtered.bam", shell=True)
+    subprocess.call("samtools index " + resultsdir + "/" + libraryid + "_filtered.bam", shell=True)
     
     # Edit the RG of the filtered bam file
     subprocess.call("java -Xms8G -Xmx8G -jar " + homedir + "/reference/picard.jar AddOrReplaceReadGroups I=" + 
-        resultsdir + libraryid + "_filtered.bam O=" + datadir + libraryid + ".bam RGID=" + libraryid.replace("-", "_") + 
+        resultsdir + "/" + libraryid + "_filtered.bam O=" + datadir + "/" + libraryid + ".bam RGID=" + libraryid.replace("-", "_") + 
         " RGLB=" + libraryid + " RGPL=illumina RGPU=unit1 RGSM=" + libraryid, shell=True)
     
     # Index the resulting bam file
-    subprocess.call("samtools index " + datadir + libraryid + ".bam", shell=True)
+    subprocess.call("samtools index " + datadir + "/" + libraryid + ".bam", shell=True)
     
     # Run MuTect2
     subprocess.call("gatk --java-options -Xmx4g Mutect2 -R " + reffile + " --mitochondria-mode true -L MT -mbq " + str(minbq) + 
-        " --minimum-mapping-quality " + str(minmapq) + " -I " + datadir + libraryid + ".bam -tumor result" + libraryid.replace("-","_") + 
-        " -O " + resultsdir + "MuTect2_results/" + libraryid + ".bam.vcf.gz", shell=True)
+        " --minimum-mapping-quality " + str(minmapq) + " -I " + datadir + "/" + libraryid + ".bam -tumor result" + libraryid.replace("-","_") + 
+        " -O " + resultsdir + "/MuTect2_results/" + libraryid + ".bam.vcf.gz", shell=True)
 
     # Run haplogrep2.1
     subprocess.call("java -jar " + homedir + "/reference/haplogrep/haplogrep-2.1.20.jar --in " + resultsdir + 
-        "MuTect2_results/" + libraryid + ".bam.vcf.gz" + " --format vcf --extend-report --out " + resultsdir + "/" + 
-        libraryid + "_haplogroups.txt", shell=True)
+        "/MuTect2_results/" + libraryid + ".bam.vcf.gz" + " --format vcf --extend-report --out " + resultsdir + 
+        "/" + libraryid + "_haplogroups.txt", shell=True)
 
 
 def processfillout(libraryid, resultsdir):
@@ -139,14 +130,14 @@ def processfillout(libraryid, resultsdir):
     print("Running the mutation estimation on the fillout..")
     
     # Import the final fillout file
-    filloutfile = pd.read_csv(resultsdir + libraryid + '.fillout', sep='\t')
+    filloutfile = pd.read_csv(resultsdir + "/" + libraryid + '.fillout', sep='\t')
     
     # Set rownames
     filloutfile.index = [str(filloutfile['Ref'][i]) + ':' + str(int(filloutfile['Start'][i])) + ':' + 
         str(filloutfile['Alt'][i]) for i in range(len(filloutfile))]
     
     # Import haplogrep result
-    haplogrepfile = pd.read_csv(os.path.join(resultsdir + libraryid + '_haplogroups.txt'), sep='\t')
+    haplogrepfile = pd.read_csv(os.path.join(resultsdir + "/" + libraryid + '_haplogroups.txt'), sep='\t')
     germlinepos = [x[:-1] for x in haplogrepfile['Found_Polys'][0].split(" ")]
 
     # Assign variants with >95% VAF as germline if they are used in haplogroup assignment and as homoplasmic otherwise
@@ -158,7 +149,7 @@ def processfillout(libraryid, resultsdir):
     
     # Output filtered variant file
     filteredvar = filloutfile.loc[:,['Sample','NormalUsed','Chrom','Start','Ref','Alt','VariantClass','Gene','Exon','somaticstatus']]
-    filteredvar.to_csv(resultsdir + libraryid + '_variants.tsv',sep = '\t')
+    filteredvar.to_csv(resultsdir + "/" + libraryid + '_variants.tsv',sep = '\t')
     
 
 def genmaster(libraryid,reffile,resultsdir):
@@ -170,8 +161,8 @@ def genmaster(libraryid,reffile,resultsdir):
     print('Generating a master file and a binary matrix of somatic variants for the sample..')
     
     # Import the relevant files
-    variantsfile = pd.read_csv(os.path.join(resultsdir + libraryid + '_variants.tsv'), sep='\t', index_col=0)
-    filloutfile = pd.read_csv(os.path.join(resultsdir + libraryid + '.fillout'), sep='\t')
+    variantsfile = pd.read_csv(os.path.join(resultsdir + "/" + libraryid + '_variants.tsv'), sep='\t', index_col=0)
+    filloutfile = pd.read_csv(os.path.join(resultsdir + "/" + libraryid + '.fillout'), sep='\t')
 
     # Obtaining all the unique positions
     allpos = np.array([variants[1] for variants in pd.Series(variantsfile.index.values).str.split(':')])
@@ -302,13 +293,13 @@ def genmaster(libraryid,reffile,resultsdir):
     variantsfile['mutsig'] = mutsigmotifs
     
     # Saving the mutation signature
-    mutsigfile.to_csv(resultsdir + libraryid + '_mutsig.tsv',sep = '\t')
+    mutsigfile.to_csv(resultsdir + "/" + libraryid + '_mutsig.tsv',sep = '\t')
     
     # combine the matrix with the resulting matrix
     resultMT = pd.concat([variantannot,masterfile],axis=1,sort=False) # concatenate everything together
     
     # Saving the final masterfile
-    resultMT.to_csv(resultsdir + libraryid + '_master.tsv',sep = '\t')
+    resultMT.to_csv(resultsdir + "/" + libraryid + '_master.tsv',sep = '\t')
 
 if __name__ == "__main__":
     # Parse necessary arguments
@@ -325,7 +316,6 @@ if __name__ == "__main__":
     parser.add_argument("-v", "--vepdir", type=str, help="Directory for vep")
     parser.add_argument("-vc", "--vepcache", type=str, help="Directory for vep cache")
     parser.add_argument("-re", "--resultsdir", type=str, help="Directory for results")
-
     
     # read in arguments
     args = parser.parse_args()
@@ -355,7 +345,3 @@ if __name__ == "__main__":
     genmaster(libraryid,reffile,resultsdir)
 
     print("DONE WITH BULKPIPELINE")
-
-
-# EXAMPLE:
-#python3 /juno/work/shah/kimm/project/scripts/scMTpipeline.py -d /juno/work/shah/users/kimm/project/scDNA/test/SA1161-A98202A/all_cells/ -r /juno/work/shah/users/kimm/reference/b37/b37_MT.fa

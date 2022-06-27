@@ -6,7 +6,6 @@ Created on Sat Jan  4 22:14:05 2020
 @author: minsookim
 """
 
-from doctest import master
 import os
 import argparse
 import pandas as pd
@@ -23,38 +22,36 @@ from pybedtools import BedTool
 
 def variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,homedir,vepdir,vepcache,resultsdir):
     try:
-        os.makedirs(f"{resultsdir}/merged_files/MuTect2_results")
-    except OSError as error:
-        # print(error)
+        os.makedirs(f"{resultsdir}/MuTect2_results")
+    except OSError:
         pass
     try:
-        os.makedirs(f"{resultsdir}/merged_files/MTvariant_results")
-    except OSError as error:
-        # print(error)
+        os.makedirs(f"{resultsdir}/MTvariant_results")
+    except OSError:
         pass
 
     # MTvariantpipeline without matched normal
     print("Running MTvariantpipeline..")
 
     # Running MTvariantpipeline
-    subprocess.call("python3 " + homedir + "MTvariantpipeline.py -d " + datadir + "merged_files/ -v " + homedir + "TEMPMAFfiles/ -o " + 
-        resultsdir + "merged_files/MTvariant_results/ -b " + libraryid + "-merged.bam -g " + genome + " -q " + str(minmapq) + " -Q " + 
-        str(minbq) + " -s " + str(minstrand) + " -hd " + homedir + " -vd " + vepdir + " -vc " + vepcache, shell=True)
+    subprocess.call("python3 " + homedir + "/MTvariantpipeline.py -d " + datadir + "/ -v " + homedir + "/TEMPMAFfiles/ -o " + 
+        resultsdir + "/MTvariant_results/ -b " + libraryid + "-merged.bam -g " + genome + " -q " + str(minmapq) + " -Q " + 
+        str(minbq) + " -s " + str(minstrand) + " -hd " + homedir + "/ -vd " + vepdir + " -vc " + vepcache, shell=True)
 
     # MuTect2 mitochondrial mode
     print("Running MuTect2..")
     subprocess.call("gatk --java-options -Xmx4g Mutect2 -R " + reffile + " --mitochondria-mode true -L MT -mbq " + str(minbq) + 
-        " --minimum-mapping-quality " + str(minmapq) + " -I " + datadir + "merged_files/" + libraryid + "-merged.bam -tumor " + 
-        libraryid.replace("-","_") + " -O " + resultsdir + "merged_files/MuTect2_results/" + libraryid + "-merged.bam.vcf.gz", shell=True)
+        " --minimum-mapping-quality " + str(minmapq) + " -I " + datadir + "/" + libraryid + "-merged.bam -tumor " + 
+        libraryid.replace("-","_") + " -O " + resultsdir + "/MuTect2_results/" + libraryid + "-merged.bam.vcf.gz", shell=True)
     
     # Left align MuTect2 results
-    subprocess.call("bcftools norm -m - -f " + reffile + " " + resultsdir + "merged_files/MuTect2_results/" + libraryid + "-merged.bam.vcf.gz" + 
-        " -o " + resultsdir + "merged_files/MuTect2_results/" + libraryid + "-merged.bam.vcf", shell=True)
+    subprocess.call("bcftools norm -m - -f " + reffile + " " + resultsdir + "/MuTect2_results/" + libraryid + "-merged.bam.vcf.gz" + 
+        " -o " + resultsdir + "/MuTect2_results/" + libraryid + "-merged.bam.vcf", shell=True)
 
     # Convert the MuTect2 result from vcf to maf file
-    subprocess.call("perl " + homedir + "vcf2maf/vcf2maf.pl --vep-data " + vepcache + " --vep-path " + vepdir + " --input-vcf " + 
-        resultsdir + "merged_files/MuTect2_results/" + libraryid + "-merged.bam.vcf" + " --output-maf " + resultsdir + 
-        "merged_files/MuTect2_results/" + libraryid + "-merged.bam.maf" + " --ncbi-build " + genome + ' --ref-fasta ' + reffile, shell=True)
+    subprocess.call("perl " + homedir + "/vcf2maf/vcf2maf.pl --vep-data " + vepcache + " --vep-path " + vepdir + " --input-vcf " + 
+        resultsdir + "/MuTect2_results/" + libraryid + "-merged.bam.vcf" + " --output-maf " + resultsdir + 
+        "/MuTect2_results/" + libraryid + "-merged.bam.maf" + " --ncbi-build " + genome + ' --ref-fasta ' + reffile, shell=True)
 
 
 def variant_processing(datadir,libraryid,reffile,patternlist,resultsdir):
@@ -64,10 +61,10 @@ def variant_processing(datadir,libraryid,reffile,patternlist,resultsdir):
     """
     # Overlap between MuTect and MTvariantpipeline
     # Read in MTvariantpipeline result
-    MTvarfile = pd.read_csv(resultsdir + "merged_files/MTvariant_results/" + libraryid + "-merged.bam.maf", sep = "\t", comment='#', low_memory=False)
+    MTvarfile = pd.read_csv(resultsdir + "/MTvariant_results/" + libraryid + "-merged.bam.maf", sep = "\t", comment='#', low_memory=False)
     
     # Read in MuTect result
-    mutectfile = pd.read_csv(resultsdir + "merged_files/MuTect2_results/" + libraryid + "-merged.bam.maf", sep = "\t", header=1, low_memory=False)
+    mutectfile = pd.read_csv(resultsdir + "/MuTect2_results/" + libraryid + "-merged.bam.maf", sep = "\t", header=1, low_memory=False)
 
     # Filter out variants falling in the repeat regions of 302-315, 513-525, and 3105-3109 (black listed regions)
     rmregions = list(range(301,314)) + list(range(513,524)) + list(range(3105,3109))
@@ -85,20 +82,6 @@ def variant_processing(datadir,libraryid,reffile,patternlist,resultsdir):
         currheader, currsequence = fasta.id, fasta.seq
         if 'MT' in currheader:
             sequence = [base for base in currsequence]
-    
-    # Output the overlap as final maf file
-    # combinedfile = pd.merge(mutectfile, MTvarfile, how='inner', on=['Chromosome','Start_Position',
-    #     'Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Hugo_Symbol','EXON'])
-    
-    # Final annotation
-    # final_result = combinedfile.loc[:,['Tumor_Sample_Barcode_y','Matched_Norm_Sample_Barcode_y','Chromosome',
-    #     'Start_Position','Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Hugo_Symbol','EXON',
-    #     'n_depth_y','t_depth_y','t_ref_count_y','t_alt_count_y']]
-    # final_result.columns = ['Sample','NormalUsed','Chrom','Start','Ref','Alt','VariantClass','Gene','Exon',
-    #     'N_TotalDepth','T_TotalDepth','T_RefCount','T_AltCount']
-    
-    # output the fillout results
-    # final_result.to_csv(saveasthis,sep = '\t',na_rep='NA',index=False)
     
     # Fix the INDEL positions and alleles and find homopolymers for re-calculating the reference read counts
     indels = pd.DataFrame(index=range(len([i for i,x in enumerate((MTvarfile['Variant_Type'] == 'INS') | (MTvarfile['Variant_Type'] == 'DEL')) if x])), columns = [0,1])
@@ -141,22 +124,21 @@ def variant_processing(datadir,libraryid,reffile,patternlist,resultsdir):
         indelfile = indelfile + 'MT\t'+ str(indels.iloc[eachindels,0]) + '\t' + str(indels.iloc[eachindels,1]) + '\t.\n'
     indels_res = BedTool(indelfile, from_string=True).sort().merge()
     indels = pd.read_csv(indels_res.fn, names=['0', '1'],sep='\t')
-
     indivcol = pd.DataFrame(index=MTvarfile.index.values)
     indivcol = indivcol.fillna(0)
     
     # If the list exists, then read the list
     if patternlist != "":
-        processbams = pd.read_csv(datadir + "merged_files/" + patternlist, header = None, low_memory=False)[0]
-        saveasthis = resultsdir + "merged_files/" + libraryid + "-merged_" + patternlist + ".fillout"
+        processbams = pd.read_csv(datadir + "/" + patternlist, header = None, low_memory=False)[0]
+        saveasthis = resultsdir + "/" + libraryid + "-merged_" + patternlist + ".fillout"
     else:
-        processbams = glob.glob(datadir + 'TEMPMAFfiles/*.bam_temp.maf')
-        saveasthis = resultsdir + "merged_files/" + libraryid + "-merged.fillout"
+        processbams = glob.glob(datadir + '/TEMPMAFfiles/*.bam_temp.maf')
+        saveasthis = resultsdir + "/" + libraryid + "-merged.fillout"
     for filepath in processbams:
         file = os.path.basename(filepath)
-        if os.stat(os.path.join(datadir + 'TEMPMAFfiles/' + file)).st_size != 0:
+        if os.stat(os.path.join(datadir + '/TEMPMAFfiles/' + file)).st_size != 0:
             print("Processing " + file)
-            indivfile = pd.read_csv(os.path.join(datadir + 'TEMPMAFfiles/' + file), header = None, sep = "\t")
+            indivfile = pd.read_csv(os.path.join(datadir + '/TEMPMAFfiles/' + file), header = None, sep = "\t")
             # for each bam
             for eachrow in MTvarfile.index.values:
                 # if the position is present
@@ -185,7 +167,6 @@ def variant_processing(datadir,libraryid,reffile,patternlist,resultsdir):
                             rd = int(indivfile.iloc[max(corrrow),4].split(',')[0])
                             ad = 0
                             indivcol.loc[eachrow,str(file.split('_')[0])] = "DP=" + str(dp) + ";" + "RD=" + str(rd) + ";" + "AD="  + str(ad)
-
                     # if the position is present and it is an INS, check the alt reads
                     elif MTvarfile.loc[eachrow,'Variant_Type'] == 'INS':
                         posmatch = indivfile.index[indivfile.iloc[:,1] == int(MTvarfile.loc[eachrow,'Start_Position'])]
@@ -207,7 +188,7 @@ def variant_processing(datadir,libraryid,reffile,patternlist,resultsdir):
                             bedfile = BedTool('MT\t'+ str(startpos-1) + '\t' + str(endpos+1) + '\t.', from_string=True)
                             x = 0
                             # for each read
-                            for i in BedTool(datadir + "filteredfiles/filtered" + file.replace('_temp.maf','')).intersect(bedfile,F=1):
+                            for i in BedTool(datadir + "/filteredfiles/filtered" + file.replace('_temp.maf','')).intersect(bedfile,F=1):
                                 # for each indel position
                                 x = x + 1
                             dp = x
@@ -240,7 +221,7 @@ def variant_processing(datadir,libraryid,reffile,patternlist,resultsdir):
                             bedfile = BedTool('MT\t'+ str(startpos-1) + '\t' + str(endpos+1) + '\t.', from_string=True)
                             x = 0
                             # for each read
-                            for i in BedTool(datadir + "filteredfiles/filtered" + file.replace('_temp.maf','')).intersect(bedfile,F=1):
+                            for i in BedTool(datadir + "/filteredfiles/filtered" + file.replace('_temp.maf','')).intersect(bedfile,F=1):
                                 # for each indel position
                                 x = x + 1
                             dp = x
@@ -331,30 +312,30 @@ def runhaplogrep(datadir,libraryid,reffile,homedir,resultsdir):
     print("Preparing haplogrep..")
     
     # Filter the bam file for unmapped reads and mapping quality less than 1
-    subprocess.call("samtools view -bF 4 -q 1 " + datadir + "merged_files/" + libraryid + "-merged.bam > " + 
-        resultsdir + "merged_files/filtered" + libraryid + "-merged.bam", shell=True)
+    subprocess.call("samtools view -bF 4 -q 1 " + datadir + "/" + libraryid + "-merged.bam > " + 
+        resultsdir + "/filtered" + libraryid + "-merged.bam", shell=True)
 
     # Index the filtered bam file
-    subprocess.call("samtools index " + resultsdir + "/merged_files/filtered" + libraryid + "-merged.bam", shell=True)
+    subprocess.call("samtools index " + resultsdir + "/filtered" + libraryid + "-merged.bam", shell=True)
     
     # Edit the RG of the filtered bam file
     subprocess.call("java -Xms8G -Xmx8G -jar " + homedir + "/reference/picard.jar AddOrReplaceReadGroups I=" + 
-        resultsdir + "merged_files/filtered" + libraryid + "-merged.bam O=" + datadir + "merged_files/result" + 
-        libraryid + "-merged.bam RGID=" + libraryid.replace("-", "_") + " RGLB=" + libraryid + 
+        resultsdir + "/filtered" + libraryid + "-merged.bam O=" + datadir + "/result" + libraryid + 
+        "-merged.bam RGID=" + libraryid.replace("-", "_") + " RGLB=" + libraryid + 
         " RGPL=illumina RGPU=unit1 RGSM=" + libraryid, shell=True)
 
     # Index the resulting bam file
-    subprocess.call("samtools index " + datadir + "/merged_files/result" + libraryid + "-merged.bam", shell=True)
+    subprocess.call("samtools index " + datadir + "/result" + libraryid + "-merged.bam", shell=True)
     
     # Run MuTect2
     subprocess.call("gatk --java-options -Xmx4g Mutect2 -R " + reffile + " --mitochondria-mode true -L MT -mbq " + str(minbq) + 
-        " --minimum-mapping-quality " + str(minmapq) + " -I " + datadir + "merged_files/result"  + libraryid + "-merged.bam -tumor result" + libraryid.replace("-","_") + 
-        " -O " + resultsdir + "merged_files/MuTect2_results/result" + libraryid + "-merged.bam.vcf.gz", shell=True)
+        " --minimum-mapping-quality " + str(minmapq) + " -I " + datadir + "/result"  + libraryid + "-merged.bam -tumor result" + 
+        libraryid.replace("-","_") + " -O " + resultsdir + "/MuTect2_results/result" + libraryid + "-merged.bam.vcf.gz", shell=True)
 
     # Run haplogrep2.1
     subprocess.call("java -jar " + homedir + "/reference/haplogrep/haplogrep-2.1.20.jar --in " + resultsdir + 
-        "merged_files/MuTect2_results/result" + libraryid + "-merged.bam.vcf.gz" + " --format vcf --extend-report --out " + 
-        resultsdir + "merged_files/" + libraryid + "_haplogroups.txt", shell=True)
+        "/MuTect2_results/result" + libraryid + "-merged.bam.vcf.gz" + " --format vcf --extend-report --out " + 
+        resultsdir + "/" + libraryid + "_haplogroups.txt", shell=True)
 
 
 def calcprob(depth,hetprob):
@@ -436,11 +417,11 @@ def processfillout(libraryid,threshold,resultsdir):
     print("Running the mutation estimation on the fillout..")
     
     # Import the final fillout file
-    filloutfile = os.path.join(resultsdir + 'merged_files/' + libraryid + '-merged.fillout')
+    filloutfile = os.path.join(resultsdir + "/" + libraryid + '-merged.fillout')
     res = makeMTdf(filloutfile)
     
     # Import haplogrep result
-    haplogrepfile = pd.read_csv(os.path.join(resultsdir + 'merged_files/' + libraryid + '_haplogroups.txt'), sep='\t')
+    haplogrepfile = pd.read_csv(os.path.join(resultsdir + "/" + libraryid + '_haplogroups.txt'), sep='\t')
     germlinepos = [x[:-1] for x in haplogrepfile['Found_Polys'][0].split(" ")]
 
     # Remove variants that are not present in all cells
@@ -450,8 +431,8 @@ def processfillout(libraryid,threshold,resultsdir):
         res[0]['depth'].drop(res[0]['depth'].index[removethese])
     
     # Output VAF and read depth files
-    res[0]['vaf'].to_csv(resultsdir + 'merged_files/' + libraryid + '_vaf.tsv',sep = '\t',na_rep='NA')
-    res[0]['depth'].to_csv(resultsdir + 'merged_files/' + libraryid + '_depth.tsv',sep = '\t')
+    res[0]['vaf'].to_csv(resultsdir + "/" + libraryid + '_vaf.tsv',sep = '\t',na_rep='NA')
+    res[0]['depth'].to_csv(resultsdir + "/" + libraryid + '_depth.tsv',sep = '\t')
     
     # Initialize mutation probability matrix
     mutprob = np.zeros((len(res[0]['vaf'].index),len(res[0]['vaf'].columns)))
@@ -463,7 +444,6 @@ def processfillout(libraryid,threshold,resultsdir):
     for varid in mutprob.index.values:
         # Identify mutant cells
         mutcells = res[0]['vaf'].columns[res[0]['vaf'].loc[varid] > 0]
-        
         # Skip the variant if no mutant cells
         if len(mutcells) == 0:
             print('Skipping ' + varid)
@@ -477,11 +457,10 @@ def processfillout(libraryid,threshold,resultsdir):
         mutprob.loc[varid,wtcells] = tempres.loc[wtcells]
 
     # Output mutation probability matrix
-    mutprob.to_csv(resultsdir + 'merged_files/' + libraryid + '_mutprob.tsv',sep = '\t')
+    mutprob.to_csv(resultsdir + "/" + libraryid + '_mutprob.tsv',sep = '\t')
     
     # Calculate the average read depth for each variant
     ad = round(res[0]['vaf']*res[0]['depth'])
-    
     filteredvar = np.zeros((0,0))
     filteredvar = pd.DataFrame(filteredvar)
     
@@ -510,7 +489,7 @@ def processfillout(libraryid,threshold,resultsdir):
         prevpos = int(varid.split(":")[1])
 
     # Output filtered variant file
-    filteredvar.to_csv(resultsdir + 'merged_files/' + libraryid + '_variants.tsv',sep = '\t')
+    filteredvar.to_csv(resultsdir + "/" + libraryid + '_variants.tsv',sep = '\t')
     
     # Generate a scatterplot with y = x line
     print("Plotting..")
@@ -521,9 +500,7 @@ def processfillout(libraryid,threshold,resultsdir):
     plt.axhline(y=0.95,linestyle='dashed')
     plt.xlabel("Proportion of Cells with Mutation")
     plt.ylabel("Bulk Heteroplasmy")
-    
-    # Output the result as pdf
-    plt.savefig(resultsdir + 'merged_files/' + libraryid + '_heteroplasmy.pdf')
+    plt.savefig(resultsdir + "/" + libraryid + '_heteroplasmy.pdf')
     plt.clf()
     
 
@@ -537,14 +514,13 @@ def genmaster(libraryid,reffile,resultsdir):
     
     # Import the relevant files
     # allcellsfile = pd.read_csv(os.path.join(allcells), sep='\t')
-    variantsfile = pd.read_csv(os.path.join(resultsdir + 'merged_files/' + libraryid + '_variants.tsv'), sep='\t', index_col=0)
-    filloutfile = pd.read_csv(os.path.join(resultsdir + 'merged_files/' + libraryid + '-merged.fillout'), sep='\t')
-    vaffile = pd.read_csv(os.path.join(resultsdir + 'merged_files/' + libraryid + '_vaf.tsv'), sep='\t', index_col=0)
-    depthfile = pd.read_csv(os.path.join(resultsdir + 'merged_files/' + libraryid + '_depth.tsv'), sep='\t', index_col=0)
+    variantsfile = pd.read_csv(os.path.join(resultsdir + "/" + libraryid + '_variants.tsv'), sep='\t', index_col=0)
+    filloutfile = pd.read_csv(os.path.join(resultsdir + "/" + libraryid + '-merged.fillout'), sep='\t')
+    vaffile = pd.read_csv(os.path.join(resultsdir + "/" + libraryid + '_vaf.tsv'), sep='\t', index_col=0)
+    depthfile = pd.read_csv(os.path.join(resultsdir + "/" + libraryid + '_depth.tsv'), sep='\t', index_col=0)
     vaffile.index=list(depthfile.index.values)
     varfile = vaffile.mul(depthfile, fill_value=0)
-    
-    # print("checkpoint1")
+
     # Obtaining all the unique positions
     allpos = np.array([variants[1] for variants in pd.Series(variantsfile.index.values).str.split(':')])
     _, idx = np.unique(allpos, return_index=True)
@@ -567,7 +543,6 @@ def genmaster(libraryid,reffile,resultsdir):
             fixthese.extend(curridx)
     variantsfile.rename(index=dict(zip(variantsfile.index.values,fixthese)), inplace=True)
     
-    # print("checkpoint2")
     # Update the row names of other files to be consistent with the variants file
     varfile.index=list(variantsfile.index.values)
     depthfile.index=list(variantsfile.index.values)
@@ -580,32 +555,20 @@ def genmaster(libraryid,reffile,resultsdir):
     
     # Interpreting Picard results that are in metrics.txt file
     resultMTcoverage = pd.DataFrame(index=[], columns=['sampleid','MTreadcounts'])
-    totfiles = filter(lambda fname: 'temp.maf' in fname, os.listdir(os.path.join(datadir + "TEMPMAFfiles/")))
+    totfiles = filter(lambda fname: 'temp.maf' in fname, os.listdir(os.path.join(datadir + "/TEMPMAFfiles/")))
     for file in totfiles:
         sampleid = file.replace('_MT.bam_temp.maf','')
-        # if (sum(allcellsfile['cell_id'] == file.replace("_MT.bam_temp.maf", "")) > 0):
-        #     resultcount = int(allcellsfile['mtDNAreadcount'][allcellsfile['cell_id'] == file.replace("_MT.bam_temp.maf", "")])
-        #     currrow = pd.DataFrame([sampleid, resultcount]).T
-        #     currrow.columns = ['sampleid','MTreadcounts']
-        #     resultMTcoverage = pd.concat([resultMTcoverage,currrow],axis=0)
         currrow = pd.DataFrame([sampleid]).T
         currrow.columns = ['sampleid']
         resultMTcoverage = pd.concat([resultMTcoverage,currrow],axis=0)
     
-    # print("checkpoint3")
     # Fix the depth matrix to filter variants that are uncertain and order them based on filteredvariants matrix
     masterfile = pd.DataFrame(index=variantsfile.index.values, columns=depthfile.columns)
     masterfile = masterfile.fillna(0)
     
     # Fix the read counts for individual cells for each row accounting for the germline variants
     masterfile = varfile.astype(int).astype(str) + '/' + depthfile.astype(int).astype(str)
-    #for eachrow in masterfile.index:
-    #    num = round(varfile.loc[eachrow])
-    #    num[num.isnull()] = 0
-    #    denom = depthfile.loc[eachrow]
-    #    masterfile.loc[eachrow] = num.astype(int).astype(str).str.cat(denom.astype(int).astype(str),sep='/')
     
-    # print("checkpoint4")
     # Create a variant annotations file based on the fillout file
     variantannot = pd.DataFrame(index=filloutfile.index.values, columns=filloutfile[['Start','Ref','Alt',
         'VariantClass','Gene','T_AltCount','T_RefCount','S_AltCount','S_RefCount']].columns)
@@ -640,10 +603,8 @@ def genmaster(libraryid,reffile,resultsdir):
     # Initialize the counts and mutation sigature matrix
     motifs_C = ["ACA","ACC","ACG","ACT","CCA","CCC","CCG","CCT","GCA","GCC","GCG","GCT","TCA","TCC","TCG","TCT"]
     motifs_T = ["ATA","ATC","ATG","ATT","CTA","CTC","CTG","CTT","GTA","GTC","GTG","GTT","TTA","TTC","TTG","TTT"]
-    
     mutsigfile = pd.DataFrame(index=['counts_CA','counts_CG','counts_CT','counts_TA','counts_TC','counts_TG'], columns=range(16))
     mutsigfile = mutsigfile.fillna(0)
-    
     counts_CA = np.zeros(16)
     counts_CG = np.zeros(16)
     counts_CT = np.zeros(16)
@@ -660,11 +621,9 @@ def genmaster(libraryid,reffile,resultsdir):
     # Account for germline variants
     for eachone in range(len(pos)):
         sequence[int(pos[eachone])-1] = start[eachone]
-    
     varref = [variants[0] for variants in pd.Series(variantsfile.index.values).str.split(':')]
     varpos = [variants[1] for variants in pd.Series(variantsfile.index.values).str.split(':')]
     varalt = [variants[2] for variants in pd.Series(variantsfile.index.values).str.split(':')]
-    
     mutsigmotifs = []
     for eachone in range(len(varpos)):
         prevpos = int(varpos[eachone])-2
@@ -702,7 +661,6 @@ def genmaster(libraryid,reffile,resultsdir):
                 counts_TC[motifs_T.index(motif)] += 1
             elif varalt[eachone] == 'T':
                 counts_TA[motifs_T.index(motif)] += 1
-    
     mutsigfile.loc['counts_CA'] = counts_CA
     mutsigfile.loc['counts_CG'] = counts_CG
     mutsigfile.loc['counts_CT'] = counts_CT
@@ -714,26 +672,9 @@ def genmaster(libraryid,reffile,resultsdir):
     variantsfile['mutsig'] = mutsigmotifs
     
     # Saving the mutation signature
-    mutsigfile.to_csv(resultsdir + 'merged_files/' + libraryid + '_mutsig.tsv',sep = '\t')
+    mutsigfile.to_csv(resultsdir + "/" + libraryid + '_mutsig.tsv',sep = '\t')
     
     # prepare the coverage and copy number information for each cell and combine the matrix with the resulting matrix
-    # allcellsfile = allcellsfile.T
-    # allcellsfile.columns = allcellsfile.loc['cell_id'] 
-    # allcellsfile = allcellsfile.drop('cell_id')
-    # allcellsfile = allcellsfile.drop('libraryid')
-    # allcellsfile = allcellsfile.drop('nuclear_ploidylab')
-    # allcellsfile = allcellsfile.drop('group')
-    # allcellsfile = allcellsfile.drop('timepoint')
-    # allcellsfile = allcellsfile.drop('clone')
-    # filler1 = pd.DataFrame(0, index=list(allcellsfile.index.values), columns=list(variantannot.columns)) # filler for the variantannot
-    # filler2 = pd.DataFrame(0, index=list(allcellsfile.index.values), columns=list(variantsfile.columns)) # filler for the variantsfile
-    # resultMT1 = pd.concat([filler1,variantannot],axis=0,sort=False) # concatenate the filler and the variant annotation
-    # resultMT2 = pd.concat([filler2,variantsfile],axis=0,sort=False) # concatenate the filler and the variant file
-    # resultMT3 = pd.concat([resultMT1,resultMT2],axis=1,sort=False) # concatenate the variant annotation and the variant file
-    # resultMT4 = pd.concat([allcellsfile[allcellsfile.columns[allcellsfile.columns.isin(masterfile.columns)]], 
-    #     masterfile[masterfile.columns[masterfile.columns.isin(allcellsfile.columns)]]], axis=0, sort=False) # concatenate the coverage file and the master file
-    # resultMT = pd.concat([resultMT3,resultMT4],axis=1,sort=False) # concatenate everything together
-
     resultMT1 = pd.concat([variantannot, variantsfile],axis=1,sort=False)
     resultMT = pd.concat([resultMT1,masterfile],axis=1,sort=False)
     
@@ -746,7 +687,7 @@ def genmaster(libraryid,reffile,resultsdir):
         resultMT.loc[varid,'numcells'] = resultMT.loc[varid,'mutant'] + resultMT.loc[varid,'wt']
     
     # Saving the final masterfile
-    resultMT.to_csv(resultsdir + 'merged_files/' + libraryid + '_master.tsv',sep = '\t')
+    resultMT.to_csv(resultsdir + "/" + libraryid + '_master.tsv',sep = '\t')
     
     # Process the master file to generate binary and vaf matrix of filtered variants
     # Iterate through the germline variants to flip the vaf for the individual cells
@@ -754,12 +695,12 @@ def genmaster(libraryid,reffile,resultsdir):
         if eachrow.split(':')[1] in pos: # it's a germline variant position
             vaffile.loc[eachrow] = 1 - vaffile.loc[eachrow]
     # Saving the final vaf file
-    vaffile.to_csv(resultsdir + 'merged_files/' + libraryid + '_vaf.tsv',sep = '\t',na_rep='NA')
+    vaffile.to_csv(resultsdir + "/" + libraryid + '_vaf.tsv',sep = '\t',na_rep='NA')
     
     # Make a binary file from the vaf file
     for eachrow in vaffile.index.values:
         vaffile.loc[eachrow][vaffile.loc[eachrow] > 0] = 1
-    vaffile.to_csv(resultsdir + 'merged_files/' + libraryid + '_binary.tsv',sep = '\t',na_rep='NA')
+    vaffile.to_csv(resultsdir + "/" + libraryid + '_binary.tsv',sep = '\t',na_rep='NA')
 
 
 if __name__ == "__main__":
