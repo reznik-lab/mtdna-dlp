@@ -25,11 +25,13 @@ def variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,hom
     try:
         os.makedirs(f"{resultsdir}/merged_files/MuTect2_results")
     except OSError as error:
-        print(error)
+        # print(error)
+        pass
     try:
         os.makedirs(f"{resultsdir}/merged_files/MTvariant_results")
     except OSError as error:
-        print(error)
+        # print(error)
+        pass
 
     # MTvariantpipeline without matched normal
     print("Running MTvariantpipeline..")
@@ -412,7 +414,7 @@ def makeMTdf(filloutfile):
     
     # Iterate through the variants and calculate the VAF and read depth
     for varid in range(len(fout.index)):
-        print(fout.iloc[varid,startix:endix])
+        # print(fout.iloc[varid,startix:endix])
         tempres = fout.iloc[varid,startix:endix].apply(splitfout,args=(False,))
         vaf.iloc[varid] = [cell[0]['vaf'] for cell in tempres]
         depth.iloc[varid] = [cell[0]['dp'] for cell in tempres]
@@ -542,7 +544,7 @@ def genmaster(libraryid,reffile,resultsdir):
     vaffile.index=list(depthfile.index.values)
     varfile = vaffile.mul(depthfile, fill_value=0)
     
-    print("checkpoint1")
+    # print("checkpoint1")
     # Obtaining all the unique positions
     allpos = np.array([variants[1] for variants in pd.Series(variantsfile.index.values).str.split(':')])
     _, idx = np.unique(allpos, return_index=True)
@@ -565,7 +567,7 @@ def genmaster(libraryid,reffile,resultsdir):
             fixthese.extend(curridx)
     variantsfile.rename(index=dict(zip(variantsfile.index.values,fixthese)), inplace=True)
     
-    print("checkpoint2")
+    # print("checkpoint2")
     # Update the row names of other files to be consistent with the variants file
     varfile.index=list(variantsfile.index.values)
     depthfile.index=list(variantsfile.index.values)
@@ -590,7 +592,7 @@ def genmaster(libraryid,reffile,resultsdir):
         currrow.columns = ['sampleid']
         resultMTcoverage = pd.concat([resultMTcoverage,currrow],axis=0)
     
-    print("checkpoint3")
+    # print("checkpoint3")
     # Fix the depth matrix to filter variants that are uncertain and order them based on filteredvariants matrix
     masterfile = pd.DataFrame(index=variantsfile.index.values, columns=depthfile.columns)
     masterfile = masterfile.fillna(0)
@@ -603,7 +605,7 @@ def genmaster(libraryid,reffile,resultsdir):
     #    denom = depthfile.loc[eachrow]
     #    masterfile.loc[eachrow] = num.astype(int).astype(str).str.cat(denom.astype(int).astype(str),sep='/')
     
-    print("checkpoint4")
+    # print("checkpoint4")
     # Create a variant annotations file based on the fillout file
     variantannot = pd.DataFrame(index=filloutfile.index.values, columns=filloutfile[['Start','Ref','Alt',
         'VariantClass','Gene','T_AltCount','T_RefCount','S_AltCount','S_RefCount']].columns)
@@ -803,6 +805,3 @@ if __name__ == "__main__":
     runhaplogrep(datadir,libraryid,reffile,homedir,resultsdir)
     processfillout(libraryid,threshold,resultsdir)
     genmaster(libraryid,reffile,resultsdir)
-
-# EXAMPLE:
-#python3 /juno/work/shah/kimm/project/scripts/scMTpipeline.py -d /juno/work/shah/kimm/project/scDNA/test/SA1161-A98202A/all_cells/ -c /juno/work/shah/kimm/project/scDNA/bam/coverage/ -m /juno/work/shah/kimm/project/scDNA/bam/cell_info/hmmcopy/ -R /juno/work/shah/kimm/project/scDNA/bam/metrics/ -a /juno/work/shah/kimm/project/scDNA/bam/cell_info/outputs/ -A /juno/work/shah/kimm/project/scDNA/bam/cell_info/allcoverage.tsv -r /juno/work/shah/kimm/reference/b37/b37_MT.fa -p x01
