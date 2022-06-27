@@ -64,11 +64,11 @@ elif genome == 'GRCh38':
 #     ncbibuild = 'mm10'
 #     maf2maf_fasta = fasta
 #     bcfploidy_genome = 'mm10'
-elif genome == 'hg19':
-    # this is the bona fide hg19, with chrM of length 16571
-    fasta = '/ifs/depot/pi/resources/genomes/hg19/fasta/hg19.fasta' #where to get this file?
-    mtchrom = 'chrM'
-    ncbibuild = 'GRCh38'
+# elif genome == 'hg19':
+#     # this is the bona fide hg19, with chrM of length 16571
+#     fasta = '/ifs/depot/pi/resources/genomes/hg19/fasta/hg19.fasta' #where to get this file?
+#     mtchrom = 'chrM'
+#     ncbibuild = 'GRCh38'
     
     # we need the mapping from yoruba to rcrs
     rcrsmapping = pd.read_csv(homedir + 'reference/Yoruba2rCRS.txt',header = 0,index_col = 0)
