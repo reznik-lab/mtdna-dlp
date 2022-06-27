@@ -7,7 +7,7 @@ Clone this repository (`git clone https://github.com/reznik-lab/mtdna-dlp.git`)
 
 Install miniconda: https://docs.conda.io/en/latest/miniconda.html
 
-Create a new conda environment and activate it (make sure it is activated before installing the dependencies):
+Create a new conda environment and activate it __(make sure it is activated before installing the dependencies)__:
 ```
 conda create -n [environment]
 conda activate [environment]
@@ -52,18 +52,18 @@ python3 scMTpipeline.py -d [data_directory] -r [reference_fasta] -w [working_dir
 
 Parameter descriptions:
 
-- Data directory: path to directory with input .bam files
-- Reference fasta: path to fasta file (recommended to use `[working_directory]/reference/b37/b37_MT.fa` for GRCh37 or `[working_directory]/reference/GRCh38/genome_MT.fa` for GRCh38)
-- Working directory: path to directory with `scMTpipeline.py` file in it
-- Library ID: name of .bam file to use as input
-- VEP directory: path to directory with VEP in it (will most likely be something like `/miniconda3/envs/[environment]/bin/`)
-- VEP cache directory: path to directory with VEP cache
-- Results directory: path to directory where results will be stored
-- (OPTIONAL) Mapping quality: minimum mapping quality (default=20)
-- (OPTIONAL) Base qualtiy: minimum base quality (default=20)
-- (OPTIONAL) Strand: minimum number of reads mapping to forward and reverse strand to call mutation (default=2)
-- (OPTIONAL) Patternlist: file containing a list of filenames to process at a time (to be used when there are many files to process)
-- (OPTIONAL) Threshold: critical threshold for calling a cell wild-type (default=0.1)
+- __Data directory__: path to directory with input .bam files
+- __Reference fasta__: path to fasta file (recommended to use `[working_directory]/reference/b37/b37_MT.fa` for GRCh37 or `[working_directory]/reference/GRCh38/genome_MT.fa` for GRCh38)
+- __Working directory__: path to directory with `scMTpipeline.py` file in it
+- __Library ID__: name of .bam file to use as input
+- __VEP directory__: path to directory with VEP in it (will most likely be something like `/miniconda3/envs/[environment]/bin/`)
+- __VEP cache directory__: path to directory with VEP cache
+- __Results directory__: path to directory where results will be stored
+- __(OPTIONAL) Mapping quality__: minimum mapping quality (default=20)
+- __(OPTIONAL) Base qualtiy__: minimum base quality (default=20)
+- __(OPTIONAL) Strand__: minimum number of reads mapping to forward and reverse strand to call mutation (default=2)
+- __(OPTIONAL) Patternlist__: file containing a list of filenames to process at a time (to be used when there are many files to process)
+- __(OPTIONAL) Threshold__: critical threshold for calling a cell wild-type (default=0.1)
 
 For example, a call to run the single cell pipeline with the minimum paramaters could look like this:
 ```
