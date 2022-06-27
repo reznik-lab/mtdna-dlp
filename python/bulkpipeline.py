@@ -15,7 +15,7 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 
 
-def variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand, homedir, vepdir, vepcache):
+def variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand, workingdir, vepdir, vepcache):
     try:
         os.makedirs(f"{resultsdir}/MuTect2_results")
     except OSError:
@@ -27,9 +27,9 @@ def variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand, ho
 
     # Running MTvariantpipeline without matched normal
     print("Running MTvariantpipeline..")
-    subprocess.call("python3 " + homedir + "/MTvariantpipeline.py -d " + datadir + "/ -v " + homedir + "/TEMPMAFfiles/ -o " + 
+    subprocess.call("python3 " + workingdir + "/MTvariantpipeline.py -d " + datadir + "/ -v " + workingdir + "/TEMPMAFfiles/ -o " + 
         resultsdir + "/MTvariant_results/ -b " + libraryid + ".bam -g " + genome + " -q " + str(minmapq) + " -Q " + str(minbq) + 
-        " -s " + str(minstrand) + " -hd " + homedir + "/ -vd " + vepdir + " -vc " + vepcache, shell=True)
+        " -s " + str(minstrand) + " -hd " + workingdir + "/ -vd " + vepdir + " -vc " + vepcache, shell=True)
 
     # MuTect2 mitochondrial mode
     print("Running MuTect2..")
@@ -42,7 +42,7 @@ def variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand, ho
         " -o " + resultsdir + "/MuTect2_results/" + libraryid + ".bam.vcf", shell=True)
     
     # Convert the MuTect2 result from vcf to maf file
-    subprocess.call("perl " + homedir + "/vcf2maf/vcf2maf.pl --vep-data " + vepcache + " --vep-path " + vepdir + " --input-vcf " + 
+    subprocess.call("perl " + workingdir + "/vcf2maf/vcf2maf.pl --vep-data " + vepcache + " --vep-path " + vepdir + " --input-vcf " + 
         resultsdir + "/MuTect2_results/" + libraryid + ".bam.vcf" + " --output-maf " + resultsdir + "/MuTect2_results/" + libraryid + 
         ".bam.maf" + " --ncbi-build " + genome + ' --ref-fasta ' + reffile, shell=True)
 
@@ -90,7 +90,7 @@ def variant_processing(libraryid,resultsdir):
     final_result.to_csv(saveasthis,sep = '\t',na_rep='NA',index=False)
 
 
-def runhaplogrep(datadir,libraryid,reffile, homedir, resultsdir):
+def runhaplogrep(datadir,libraryid,reffile, workingdir, resultsdir):
     """
     Run haplogrep to obtain the haplogroup information from the bam file
     """
@@ -103,7 +103,7 @@ def runhaplogrep(datadir,libraryid,reffile, homedir, resultsdir):
     subprocess.call("samtools index " + resultsdir + "/" + libraryid + "_filtered.bam", shell=True)
     
     # Edit the RG of the filtered bam file
-    subprocess.call("java -Xms8G -Xmx8G -jar " + homedir + "/reference/picard.jar AddOrReplaceReadGroups I=" + 
+    subprocess.call("java -Xms8G -Xmx8G -jar " + workingdir + "/reference/picard.jar AddOrReplaceReadGroups I=" + 
         resultsdir + "/" + libraryid + "_filtered.bam O=" + datadir + "/" + libraryid + ".bam RGID=" + libraryid.replace("-", "_") + 
         " RGLB=" + libraryid + " RGPL=illumina RGPU=unit1 RGSM=" + libraryid, shell=True)
     
@@ -116,7 +116,7 @@ def runhaplogrep(datadir,libraryid,reffile, homedir, resultsdir):
         " -O " + resultsdir + "/MuTect2_results/" + libraryid + ".bam.vcf.gz", shell=True)
 
     # Run haplogrep2.1
-    subprocess.call("java -jar " + homedir + "/reference/haplogrep/haplogrep-2.1.20.jar --in " + resultsdir + 
+    subprocess.call("java -jar " + workingdir + "/reference/haplogrep/haplogrep-2.1.20.jar --in " + resultsdir + 
         "/MuTect2_results/" + libraryid + ".bam.vcf.gz" + " --format vcf --extend-report --out " + resultsdir + 
         "/" + libraryid + "_haplogroups.txt", shell=True)
 
@@ -312,7 +312,7 @@ if __name__ == "__main__":
     parser.add_argument("-s","--strand",type=int,help="Minimum number of reads mapping to forward and reverse strand to call mutation, default=2",default = 2)
     parser.add_argument("-t","--threshold",type=int,help="The critical threshold for calling a cell wild-type, default=0.1",default = 0.1)
     parser.add_argument("-l", "--libraryid",type=str, help="Library ID",default = "")
-    parser.add_argument("-h", "--homedir", type=str, help="Home directory for a lot of stuff")
+    parser.add_argument("-w", "--workingdir", type=str, help="Working directory")
     parser.add_argument("-v", "--vepdir", type=str, help="Directory for vep")
     parser.add_argument("-vc", "--vepcache", type=str, help="Directory for vep cache")
     parser.add_argument("-re", "--resultsdir", type=str, help="Directory for results")
@@ -327,7 +327,7 @@ if __name__ == "__main__":
     minstrand = args.strand
     threshold = args.threshold
     libraryid = args.libraryid
-    homedir = args.homedir
+    workingdir = args.workingdir
     vepdir = args.vepdir
     vepcache = args.vepcache
     resultsdir = args.resultsdir
@@ -338,9 +338,9 @@ if __name__ == "__main__":
     print("Miminum number of reads mapping to forward and reverse strand to call mutation of " + str(minstrand))
 
     # Filtering of cells
-    variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand, homedir, vepdir, vepcache)
+    variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand, workingdir, vepdir, vepcache)
     variant_processing(libraryid,resultsdir)
-    runhaplogrep(datadir,libraryid,reffile, homedir, resultsdir)
+    runhaplogrep(datadir,libraryid,reffile, workingdir, resultsdir)
     processfillout(libraryid, resultsdir)
     genmaster(libraryid,reffile,resultsdir)
 

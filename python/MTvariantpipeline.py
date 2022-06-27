@@ -18,7 +18,7 @@ parser.add_argument("-g","--genome",type=str,help="Genome build to use, default 
 parser.add_argument("-s","--strand",type=int,help="Minimum number of reads mapping to forward and reverse strand to call mutation, default=2",default = 2)
 parser.add_argument("-h","--help",action='help', default=argparse.SUPPRESS,
                     help='A simple variant calling and annotation pipeline for mitochondrial DNA variants. Accepts both individual BAM files and paired tumor/normal BAM files. Because of the hairiness of multiallelic calling, we keep all positions in the VCF and then filter to remove any positions without at least 10 reads supporting the putative variant. FIX TO DO THIS FOR BOTH NORMAL AND TUMOR SAMPLES! To send a call to bsub, try bsub -R "rusage[mem=16]" -M 32 -We 120 -W 4800 -e $HOME/work/mtimpact/scratch/ -o /home/reznik/work/mtimpact/scratch/ python MTvariantpipeline.py ... with the suitable options specified. Note that we use the CMO version of b37 (which seems to use rCRS), but is named HG19.')
-parser.add_argument("-hd", "--homedir", type=str, help="Home directory for a lot of stuff")
+parser.add_argument("-w", "--workingdir", type=str, help="Working directory")
 parser.add_argument("-vd", "--vepdir", type=str, help="Directory for vep")
 parser.add_argument("-vc", "--vepcache", type=str, help="Directory for vep cache")
 
@@ -30,7 +30,7 @@ outdir = args.outdir
 genome = args.genome
 minstrand = args.strand
 normalflag = args.normalflag
-homedir = args.homedir
+workingdir = args.workingdir
 vepdir = args.vepdir
 vepcache = args.vepcache
 minmapq = args.mapq
@@ -44,19 +44,19 @@ if not os.path.exists(outdir):
     
 # Set the parameters for the genome build
 if genome == 'GRCh37':
-    fasta = homedir + '/reference/b37/b37_MT.fa'
+    fasta = workingdir + '/reference/b37/b37_MT.fa'
     mtchrom = 'MT'
     ncbibuild = 'GRCh37'
     maf2maf_fasta = fasta
     bcfploidy_genome = 'GRCh37'
 elif genome == 'GRCh38':
-    fasta = homedir + '/reference/GRCh38/genome_MT.fa'
+    fasta = workingdir + '/reference/GRCh38/genome_MT.fa'
     mtchrom = 'MT'
     ncbibuild = 'GRCh38'
     maf2maf_fasta = fasta
     bcfploidy_genome = 'GRCh38'
 # elif genome == 'mm10':
-#     fasta = homedir + '/reference/mm10_genome.fa'
+#     fasta = workingdir + '/reference/mm10_genome.fa'
 #     mtchrom = 'chrM'
 #     ncbibuild = 'mm10'
 #     maf2maf_fasta = fasta
@@ -68,7 +68,7 @@ elif genome == 'GRCh38':
 #     ncbibuild = 'GRCh38'
     
     # we need the mapping from yoruba to rcrs
-    rcrsmapping = pd.read_csv(homedir + '/reference/Yoruba2rCRS.txt',header = 0,index_col = 0)
+    rcrsmapping = pd.read_csv(workingdir + '/reference/Yoruba2rCRS.txt',header = 0,index_col = 0)
     
     # we also need to make sure maf2maf uses the correct hg38 fasta
     maf2maf_fasta = '/ifs/depot/pi/resources/genomes/GRCh38/fasta/GRCh38.d1.vd1.fa' #where to get this file?
@@ -86,8 +86,8 @@ mafnamedict = {4:['t_ref_count','t_alt_count'], 6:['t_ref_fwd','t_alt_fwd'], 7:[
 retaincols = ','.join( ['Tumor_Sample_Barcode', 'Matched_Norm_Sample_Barcode', 't_ref_count','t_alt_count','t_ref_fwd','t_alt_fwd','t_ref_rev','t_alt_rev', 'n_ref_count','n_alt_count','n_ref_fwd','n_alt_fwd','n_ref_rev','n_alt_rev'] )
     
 # Read in the annotations
-trna = pd.read_csv(homedir + '/reference/MitoTIP_August2017.txt',header = 0,sep = '\t')
-mitimpact = pd.read_csv(homedir + '/reference/MitImpact_db_2.7.txt',header = 0,sep = '\t',decimal = ',') # note that the decimal point here is indicated as a comma, mitimpact is funnypontrna
+trna = pd.read_csv(workingdir + '/reference/MitoTIP_August2017.txt',header = 0,sep = '\t')
+mitimpact = pd.read_csv(workingdir + '/reference/MitImpact_db_2.7.txt',header = 0,sep = '\t',decimal = ',') # note that the decimal point here is indicated as a comma, mitimpact is funnypontrna
 
 # Make the indices searchable for annotation for tRNA data
 trna.index = [trna.at[item,'rCRS base'] + str(trna.at[item,'Position']) + 
@@ -111,7 +111,7 @@ mitimpact_cols = ['APOGEE_boost_mean_prob', 'Mitomap_Dec2016_Status', 'Mitomap_D
 badmuts = ['Nonsense_Mutation','Nonstop_Mutation','Frame_Shift_Del','Frame_Shift_Ins']
 
 # Read in the gene positions
-genepos = pd.read_csv(homedir + '/reference/GenePositions_imported.csv',header = 0,index_col = 0)
+genepos = pd.read_csv(workingdir + '/reference/GenePositions_imported.csv',header = 0,index_col = 0)
 
 # Read in the paired BAM files
 if args.bamfiles.endswith('.csv') or args.bamfiles.endswith('.txt'):
@@ -166,20 +166,20 @@ for ii in range(bamfiles.shape[0]):
             countcall = ' '.join(["samtools mpileup --region", mtchrom, "--count-orphans --no-BAQ --min-MQ", str(minmapq), "--min-BQ", str(minbq), 
                 "--ignore-RG --excl-flags UNMAP,SECONDARY,QCFAIL,DUP --BCF --output-tags DP,AD,ADF,ADR --gap-frac 0.005 --tandem-qual 80 -L 1000000 -d 1000000 --open-prob 30 --fasta-ref", 
                 fasta, datadir + "/" + f , datadir + "/" + normalbam + "| bcftools call --multiallelic-caller --ploidy-file " + 
-                homedir + "/chrM_ploidy --keep-alts | bcftools norm --multiallelics -any --do-not-normalize | " + homedir + "/vt normalize -r " + 
-                fasta + " - 2>/dev/null | bcftools query --format '%CHROM\t%POS\t%REF\t%ALT[\t%AD\t%DP\t%ADF\t%ADR]\n'", ">", vcfdir + f + "_temp.maf"])
-            mafcall = ' '.join( ["perl " + homedir + "/vcf2maf/maf2maf.pl --vep-data " + vepcache + " --vep-path " + vepdir + 
-                "/ --species mus_musculus --input-maf", vcfdir + f + "_temp2.maf","--output-maf", outdir + "/" + f + ".maf",
+                workingdir + "/chrM_ploidy --keep-alts | bcftools norm --multiallelics -any --do-not-normalize | " + workingdir + "/vt normalize -r " + 
+                fasta + " - 2>/dev/null | bcftools query --format '%CHROM\t%POS\t%REF\t%ALT[\t%AD\t%DP\t%ADF\t%ADR]\n'", ">", vcfdir + "/" + f + "_temp.maf"])
+            mafcall = ' '.join( ["perl " + workingdir + "/vcf2maf/maf2maf.pl --vep-data " + vepcache + " --vep-path " + vepdir + 
+                "/ --species mus_musculus --input-maf", vcfdir + "/" + f + "_temp2.maf","--output-maf", outdir + "/" + f + ".maf",
                 "--retain-cols", retaincols, "--ncbi-build GRCm38 --ref-fasta",fasta, "--vep-data /opt/common/CentOS_6-dev/vep/cache"] )
 
         else:
             countcall = ' '.join(["samtools mpileup --region", mtchrom, "--count-orphans --no-BAQ --min-MQ",str(minmapq), "--min-BQ", str(minbq), 
                 "--ignore-RG --excl-flags UNMAP,SECONDARY,QCFAIL,DUP --BCF --output-tags DP,AD,ADF,ADR --gap-frac 0.005 --tandem-qual 80 -L 1000000 -d 1000000 --open-prob 30 --fasta-ref", 
                 fasta, datadir + "/" + f, datadir + "/" + normalbam + "| bcftools call --multiallelic-caller --ploidy", bcfploidy_genome, 
-                "--keep-alts | bcftools norm --multiallelics -any --do-not-normalize | " + homedir + "/vt normalize -r " + fasta + 
-                " - 2>/dev/null | bcftools query --format '%CHROM\t%POS\t%REF\t%ALT[\t%AD\t%DP\t%ADF\t%ADR]\n'", ">", vcfdir + f + "_temp.maf"])
-            mafcall = ' '.join( ["perl " + homedir + "/vcf2maf/maf2maf.pl --vep-data " + vepcache + " --vep-path " + vepdir + 
-                "/ --input-maf", vcfdir + f + "_temp2.maf","--output-maf", outdir + "/" + f + ".maf"," --retain-cols", retaincols, 
+                "--keep-alts | bcftools norm --multiallelics -any --do-not-normalize | " + workingdir + "/vt normalize -r " + fasta + 
+                " - 2>/dev/null | bcftools query --format '%CHROM\t%POS\t%REF\t%ALT[\t%AD\t%DP\t%ADF\t%ADR]\n'", ">", vcfdir + "/" + f + "_temp.maf"])
+            mafcall = ' '.join( ["perl " + workingdir + "/vcf2maf/maf2maf.pl --vep-data " + vepcache + " --vep-path " + vepdir + 
+                "/ --input-maf", vcfdir + "/" + f + "_temp2.maf","--output-maf", outdir + "/" + f + ".maf"," --retain-cols", retaincols, 
                 "--ncbi-build", ncbibuild, '--ref-fasta',maf2maf_fasta, "--vep-data /opt/common/CentOS_6-dev/vep/cache"])
         
     if not normalflag:
@@ -189,19 +189,19 @@ for ii in range(bamfiles.shape[0]):
         if bcfploidy_genome == 'mm10':
             countcall = ' '.join(["samtools mpileup --region", mtchrom, "--count-orphans --no-BAQ --min-MQ",str(minmapq), "--min-BQ", str(minbq), 
                 "--ignore-RG --excl-flags UNMAP,SECONDARY,QCFAIL,DUP --BCF --output-tags DP,AD,ADF,ADR --gap-frac 0.005 --tandem-qual 80 -L 1000000000 -d 1000000000 --open-prob 30 --fasta-ref", 
-                fasta, datadir + "/" + f + "| bcftools call --multiallelic-caller --ploidy-file " + homedir + "/chrM_ploidy --keep-alts | bcftools norm --multiallelics -any --do-not-normalize | " + 
-                homedir + "/vt normalize -r " + fasta + " - 2>/dev/null | bcftools query --format '%CHROM\t%POS\t%REF\t%ALT[\t%AD\t%DP\t%ADF\t%ADR]\n'", ">", vcfdir + f + "_temp.maf"])
-            mafcall = ' '.join( ["perl " + homedir + "/vcf2maf/maf2maf.pl --vep-data " + vepcache + " --vep-path " + vepdir + 
-                "/ --species mus_musculus --input-maf", vcfdir + f + "_temp2.maf","--output-maf", outdir + "/" + f + ".maf",
+                fasta, datadir + "/" + f + "| bcftools call --multiallelic-caller --ploidy-file " + workingdir + "/chrM_ploidy --keep-alts | bcftools norm --multiallelics -any --do-not-normalize | " + 
+                workingdir + "/vt normalize -r " + fasta + " - 2>/dev/null | bcftools query --format '%CHROM\t%POS\t%REF\t%ALT[\t%AD\t%DP\t%ADF\t%ADR]\n'", ">", vcfdir + "/" + f + "_temp.maf"])
+            mafcall = ' '.join( ["perl " + workingdir + "/vcf2maf/maf2maf.pl --vep-data " + vepcache + " --vep-path " + vepdir + 
+                "/ --species mus_musculus --input-maf", vcfdir + "/" + f + "_temp2.maf","--output-maf", outdir + "/" + f + ".maf",
                 "--retain-cols", retaincols, "--ncbi-build GRCm38 --ref-fasta",fasta, "--vep-data /opt/common/CentOS_6-dev/vep/cache"])
 
         else:
             countcall = ' '.join(["samtools mpileup --region", mtchrom, "--count-orphans --no-BAQ --min-MQ",str(minmapq), "--min-BQ", str(minbq), 
                 "--ignore-RG --excl-flags UNMAP,SECONDARY,QCFAIL,DUP --BCF --output-tags DP,AD,ADF,ADR --gap-frac 0.005 --tandem-qual 80 -L 1000000000 -d 1000000000 --open-prob 30 --fasta-ref", 
                 fasta, datadir + "/" + f + "| bcftools call --multiallelic-caller --ploidy", bcfploidy_genome, "--keep-alts | bcftools norm --multiallelics -any --do-not-normalize |",
-                "bcftools query --format '%CHROM\t%POS\t%REF\t%ALT[\t%AD\t%DP\t%ADF\t%ADR]\n'", ">", vcfdir + f + "_temp.maf"])
-            mafcall = ' '.join( ["perl " + homedir + "/vcf2maf/maf2maf.pl --vep-data " + vepcache + " --vep-path " + vepdir + 
-                "/ --input-maf", vcfdir + f + "_temp2.maf","--output-maf", outdir + "/" + f + ".maf","--retain-cols", retaincols, 
+                "bcftools query --format '%CHROM\t%POS\t%REF\t%ALT[\t%AD\t%DP\t%ADF\t%ADR]\n'", ">", vcfdir + "/" + f + "_temp.maf"])
+            mafcall = ' '.join( ["perl " + workingdir + "/vcf2maf/maf2maf.pl --vep-data " + vepcache + " --vep-path " + vepdir + 
+                "/ --input-maf", vcfdir + "/" + f + "_temp2.maf","--output-maf", outdir + "/" + f + ".maf","--retain-cols", retaincols, 
                 "--ncbi-build", ncbibuild, '--ref-fasta',fasta])        
 
     print("COUNTCALL: ", countcall)
@@ -209,7 +209,7 @@ for ii in range(bamfiles.shape[0]):
     print("DONE WITH COUNTCALL")
     
     # Read in the prelim MAF file, and remove any rows that have 0 non-ref reads.
-    tempmaf = pd.read_csv(vcfdir + f + "_temp.maf",header = None,sep = '\t')
+    tempmaf = pd.read_csv(vcfdir + "/" + f + "_temp.maf",header = None,sep = '\t')
     tempmaf = tempmaf[ tempmaf[3] != '.' ]
         
     if normalflag:
@@ -247,7 +247,7 @@ for ii in range(bamfiles.shape[0]):
         tempmaf['Start_Position'] = tempmaf['Start_Position'].map(int)
     
     # Write out to a second temporary MAF file, and then call maf2maf
-    tempmaf.to_csv(vcfdir + f + "_temp2.maf",index = None,sep = '\t')
+    tempmaf.to_csv(vcfdir + "/" + f + "_temp2.maf",index = None,sep = '\t')
     if tempmaf.shape[0] == 0:
         print('Skipping ' + f + '...no MT variants.')
         continue

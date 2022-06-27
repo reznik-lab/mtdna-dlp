@@ -20,7 +20,7 @@ import glob
 from pybedtools import BedTool
 
 
-def variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,homedir,vepdir,vepcache,resultsdir):
+def variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepdir,vepcache,resultsdir):
     try:
         os.makedirs(f"{resultsdir}/MuTect2_results")
     except OSError:
@@ -34,9 +34,9 @@ def variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,hom
     print("Running MTvariantpipeline..")
 
     # Running MTvariantpipeline
-    subprocess.call("python3 " + homedir + "/MTvariantpipeline.py -d " + datadir + "/ -v " + homedir + "/TEMPMAFfiles/ -o " + 
+    subprocess.call("python3 " + workingdir + "/MTvariantpipeline.py -d " + datadir + "/ -v " + resultsdir + "/TEMPMAFfiles/ -o " + 
         resultsdir + "/MTvariant_results/ -b " + libraryid + "-merged.bam -g " + genome + " -q " + str(minmapq) + " -Q " + 
-        str(minbq) + " -s " + str(minstrand) + " -hd " + homedir + "/ -vd " + vepdir + " -vc " + vepcache, shell=True)
+        str(minbq) + " -s " + str(minstrand) + " -hd " + workingdir + "/ -vd " + vepdir + " -vc " + vepcache, shell=True)
 
     # MuTect2 mitochondrial mode
     print("Running MuTect2..")
@@ -49,7 +49,7 @@ def variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,hom
         " -o " + resultsdir + "/MuTect2_results/" + libraryid + "-merged.bam.vcf", shell=True)
 
     # Convert the MuTect2 result from vcf to maf file
-    subprocess.call("perl " + homedir + "/vcf2maf/vcf2maf.pl --vep-data " + vepcache + " --vep-path " + vepdir + " --input-vcf " + 
+    subprocess.call("perl " + workingdir + "/vcf2maf/vcf2maf.pl --vep-data " + vepcache + " --vep-path " + vepdir + " --input-vcf " + 
         resultsdir + "/MuTect2_results/" + libraryid + "-merged.bam.vcf" + " --output-maf " + resultsdir + 
         "/MuTect2_results/" + libraryid + "-merged.bam.maf" + " --ncbi-build " + genome + ' --ref-fasta ' + reffile, shell=True)
 
@@ -129,16 +129,16 @@ def variant_processing(datadir,libraryid,reffile,patternlist,resultsdir):
     
     # If the list exists, then read the list
     if patternlist != "":
-        processbams = pd.read_csv(datadir + "/" + patternlist, header = None, low_memory=False)[0]
+        processbams = pd.read_csv(resultsdir + "/" + patternlist, header = None, low_memory=False)[0]
         saveasthis = resultsdir + "/" + libraryid + "-merged_" + patternlist + ".fillout"
     else:
-        processbams = glob.glob(datadir + '/TEMPMAFfiles/*.bam_temp.maf')
+        processbams = glob.glob(resultsdir + '/TEMPMAFfiles/*.bam_temp.maf')
         saveasthis = resultsdir + "/" + libraryid + "-merged.fillout"
     for filepath in processbams:
         file = os.path.basename(filepath)
-        if os.stat(os.path.join(datadir + '/TEMPMAFfiles/' + file)).st_size != 0:
+        if os.stat(os.path.join(resultsdir + '/TEMPMAFfiles/' + file)).st_size != 0:
             print("Processing " + file)
-            indivfile = pd.read_csv(os.path.join(datadir + '/TEMPMAFfiles/' + file), header = None, sep = "\t")
+            indivfile = pd.read_csv(os.path.join(resultsdir + '/TEMPMAFfiles/' + file), header = None, sep = "\t")
             # for each bam
             for eachrow in MTvarfile.index.values:
                 # if the position is present
@@ -305,7 +305,7 @@ def variant_processing(datadir,libraryid,reffile,patternlist,resultsdir):
     final_result.to_csv(saveasthis,sep = '\t',na_rep='NA',index=False)
     
 
-def runhaplogrep(datadir,libraryid,reffile,homedir,resultsdir):
+def runhaplogrep(datadir,libraryid,reffile,workingdir,resultsdir):
     """
     Run haplogrep to obtain the haplogroup information from the merged bam file
     """
@@ -319,7 +319,7 @@ def runhaplogrep(datadir,libraryid,reffile,homedir,resultsdir):
     subprocess.call("samtools index " + resultsdir + "/filtered" + libraryid + "-merged.bam", shell=True)
     
     # Edit the RG of the filtered bam file
-    subprocess.call("java -Xms8G -Xmx8G -jar " + homedir + "/reference/picard.jar AddOrReplaceReadGroups I=" + 
+    subprocess.call("java -Xms8G -Xmx8G -jar " + workingdir + "/reference/picard.jar AddOrReplaceReadGroups I=" + 
         resultsdir + "/filtered" + libraryid + "-merged.bam O=" + datadir + "/result" + libraryid + 
         "-merged.bam RGID=" + libraryid.replace("-", "_") + " RGLB=" + libraryid + 
         " RGPL=illumina RGPU=unit1 RGSM=" + libraryid, shell=True)
@@ -333,7 +333,7 @@ def runhaplogrep(datadir,libraryid,reffile,homedir,resultsdir):
         libraryid.replace("-","_") + " -O " + resultsdir + "/MuTect2_results/result" + libraryid + "-merged.bam.vcf.gz", shell=True)
 
     # Run haplogrep2.1
-    subprocess.call("java -jar " + homedir + "/reference/haplogrep/haplogrep-2.1.20.jar --in " + resultsdir + 
+    subprocess.call("java -jar " + workingdir + "/reference/haplogrep/haplogrep-2.1.20.jar --in " + resultsdir + 
         "/MuTect2_results/result" + libraryid + "-merged.bam.vcf.gz" + " --format vcf --extend-report --out " + 
         resultsdir + "/" + libraryid + "_haplogroups.txt", shell=True)
 
@@ -555,7 +555,7 @@ def genmaster(libraryid,reffile,resultsdir):
     
     # Interpreting Picard results that are in metrics.txt file
     resultMTcoverage = pd.DataFrame(index=[], columns=['sampleid','MTreadcounts'])
-    totfiles = filter(lambda fname: 'temp.maf' in fname, os.listdir(os.path.join(datadir + "/TEMPMAFfiles/")))
+    totfiles = filter(lambda fname: 'temp.maf' in fname, os.listdir(os.path.join(resultsdir + "/TEMPMAFfiles/")))
     for file in totfiles:
         sampleid = file.replace('_MT.bam_temp.maf','')
         currrow = pd.DataFrame([sampleid]).T
@@ -714,7 +714,7 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--patternlist",type=str, help="File containing a list of filenames to process at a time",default = "")
     parser.add_argument("-t","--threshold",type=int,help="The critical threshold for calling a cell wild-type, default=0.1",default = 0.1)
     parser.add_argument("-l", "--libraryid",type=str, help="Library ID")
-    parser.add_argument("-h", "--homedir", type=str, help="Home directory")
+    parser.add_argument("-w", "--workingdir", type=str, help="Working directory")
     parser.add_argument("-v", "--vepdir", type=str, help="Directory for vep")
     parser.add_argument("-vc", "--vepcache", type=str, help="Directory for vep cache")
     parser.add_argument("-re", "--resultsdir", type=str, help="Directory for results")
@@ -729,7 +729,7 @@ if __name__ == "__main__":
     threshold = args.threshold
     libraryid = args.libraryid
     patternlist = args.patternlist
-    homedir = args.homedir
+    workingdir = args.workingdir
     vepdir = args.vepdir
     vepcache = args.vepcache
     resultsdir = args.resultsdir
@@ -741,8 +741,8 @@ if __name__ == "__main__":
 
     # Filtering of cells
     genome = "GRCh37"
-    variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,homedir,vepdir,vepcache,resultsdir)
+    variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepdir,vepcache,resultsdir)
     variant_processing(datadir,libraryid,reffile,patternlist,resultsdir)
-    runhaplogrep(datadir,libraryid,reffile,homedir,resultsdir)
+    runhaplogrep(datadir,libraryid,reffile,workingdir,resultsdir)
     processfillout(libraryid,threshold,resultsdir)
     genmaster(libraryid,reffile,resultsdir)

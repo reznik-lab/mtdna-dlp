@@ -47,14 +47,14 @@ Additionally, a VEP offline cache needs to be installed (NOTE: cache must be sam
 Navigate to the directory with the `scMTpipeline.py` file and run the following (replace all brackets):
 ```
 conda activate [environment]
-python3 scMTpipeline.py -d [data_directory] -r [reference_fasta] -h [home_directory] -l [library_id] -v [vep_directory] -vc [vep_cache_directory] -re [results_directory] -q [optional_mapping_quality] -Q [optional_base_quality] -s [optional_strand] -p [optional_patternlist] -t [optional_threshold]
+python3 scMTpipeline.py -d [data_directory] -r [reference_fasta] -w [working_directory] -l [library_id] -v [vep_directory] -vc [vep_cache_directory] -re [results_directory] -q [optional_mapping_quality] -Q [optional_base_quality] -s [optional_strand] -p [optional_patternlist] -t [optional_threshold]
 ```
 
 Parameter descriptions:
 
 - Data directory: path to directory with input .bam files
-- Reference fasta: path to fasta file (recommended to use `[home_directory]/reference/b37/b37_MT.fa` for GRCh37 or `[home_directory]/reference/GRCh38/genome_MT.fa` for GRCh38)
-- Home directory: path to directory with `scMTpipeline.py` file in it
+- Reference fasta: path to fasta file (recommended to use `[working_directory]/reference/b37/b37_MT.fa` for GRCh37 or `[working_directory]/reference/GRCh38/genome_MT.fa` for GRCh38)
+- Working directory: path to directory with `scMTpipeline.py` file in it
 - Library ID: name of .bam file to use as input
 - VEP directory: path to directory with VEP in it (will most likely be something like `/miniconda3/envs/[environment]/bin/`)
 - VEP cache directory: path to directory with VEP cache
@@ -67,7 +67,7 @@ Parameter descriptions:
 
 For example, a call to run the single cell pipeline with the minimum paramaters could look like this:
 ```
-python3 scMTpipeline.py -d /my_data/ -r /my_home/mtdna_dlp/python/reference/b37/b37_MT.fa/ -h /my_home/mtdna_dlp/python/ -l my_file -v /miniconda3/envs/my_env/bin/ -vc /my_cache/ -re /my_home/mtdna_dlp/results/
+python3 scMTpipeline.py -d /my_data/ -r /my_home/mtdna_dlp/python/reference/b37/b37_MT.fa -h /my_home/mtdna_dlp/python/ -l my_file -v /miniconda3/envs/my_env/bin/ -vc /my_cache/ -re /my_home/mtdna_dlp/results/
 ```
 
 To run `scMTpipeline.py` on the provided example data:
