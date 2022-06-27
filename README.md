@@ -59,17 +59,17 @@ Parameter descriptions:
 - VEP directory: path to directory with VEP in it (will most likely be something like `/miniconda3/envs/[environment]/bin/`)
 - VEP cache directory: path to directory with VEP cache
 - Results directory: path to directory where results will be stored
-- (Optional) Mapping quality: minimum mapping quality (default=20)
-- (Optional) Base qualtiy: minimum base quality (default=20)
-- (Optional) Strand: minimum number of reads mapping to forward and reverse strand to call mutation (default=2)
-- (Optional) Patternlist: file containing a list of filenames to process at a time (to be used when there are many files to process)
-- (Optional) Threshold: critical threshold for calling a cell wild-type (default=0.1)
+- (OPTIONAL) Mapping quality: minimum mapping quality (default=20)
+- (OPTIONAL) Base qualtiy: minimum base quality (default=20)
+- (OPTIONAL) Strand: minimum number of reads mapping to forward and reverse strand to call mutation (default=2)
+- (OPTIONAL) Patternlist: file containing a list of filenames to process at a time (to be used when there are many files to process)
+- (OPTIONAL) Threshold: critical threshold for calling a cell wild-type (default=0.1)
 
 For example, a call to run the single cell pipeline with the minimum paramaters could look like this:
 ```
 python3 scMTpipeline.py -d /my_data/ -r /my_home/mtdna_dlp/python/reference/b37/b37_MT.fa/ -h /my_home/mtdna_dlp/python/ -l my_file -v /miniconda3/envs/my_env/bin/ -vc /my_cache/ -re /my_home/mtdna_dlp/results/
 ```
 
-To run the scMTpipeline on the provided example data:
+To run `scMTpipeline.py` on the provided example data:
 ```
 ```
