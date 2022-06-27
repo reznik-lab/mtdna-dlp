@@ -45,7 +45,6 @@ Additionally, a VEP offline cache needs to be installed (NOTE: cache must be sam
 ## Running the single cell pipeline (in the command line)
 
 Navigate to the directory with the `scMTpipeline.py` file and run the following (replace all brackets):
-
 ```
 conda activate [environment]
 python3 scMTpipeline.py -d [data_directory] -r [reference_fasta] -h [home_directory] -l [library_id] -v [vep_directory] -vc [vep_cache_directory] -re [results_directory] -q [optional_mapping_quality] -Q [optional_base_quality] -s [optional_strand] -p [optional_patternlist] -t [optional_threshold]
@@ -67,7 +66,10 @@ Parameter descriptions:
 - (Optional) Threshold: critical threshold for calling a cell wild-type (default=0.1)
 
 For example, a call to run the single cell pipeline with the minimum paramaters could look like this:
-
 ```
 python3 scMTpipeline.py -d /my_data/ -r /my_home/mtdna_dlp/python/reference/b37/b37_MT.fa/ -h /my_home/mtdna_dlp/python/ -l my_file -v /miniconda3/envs/my_env/bin/ -vc /my_cache/ -re /my_home/mtdna_dlp/results/
+```
+
+To run the scMTpipeline on the provided example data:
+```
 ```
