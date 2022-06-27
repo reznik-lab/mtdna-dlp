@@ -30,7 +30,7 @@ def variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,wor
     f1 = open(f"{resultsdir}/MTvp_out.txt", "w")
     subprocess.call("python3 " + workingdir + "/MTvariantpipeline.py -d " + datadir + "/ -v " + workingdir + "/TEMPMAFfiles/ -o " + 
         resultsdir + "/MTvariant_results/ -b " + libraryid + ".bam -g " + genome + " -q " + str(minmapq) + " -Q " + str(minbq) + 
-        " -s " + str(minstrand) + " -hd " + workingdir + "/ -vd " + vepdir + " -vc " + vepcache, shell=True, stdout=f1, stderr=subprocess.STDOUT)
+        " -s " + str(minstrand) + " -w " + workingdir + "/ -vd " + vepdir + " -vc " + vepcache, shell=True, stdout=f1, stderr=subprocess.STDOUT)
     f1.close()
 
     # MuTect2 mitochondrial mode
