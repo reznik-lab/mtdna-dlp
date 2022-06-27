@@ -19,7 +19,15 @@ from Bio.Seq import Seq
 import glob
 from pybedtools import BedTool
 
+def merging_bams(datadir,libraryid):
+    print("Merging the cells..")
 
+    # Merging filtered cells into pseudobulk and indexing the merged file
+    subprocess.call("samtools merge " + datadir + "/" + libraryid + "-merged.bam " + datadir + "/" + libraryid + "*.bam", shell=True) 
+    subprocess.call("samtools index " + datadir + "/" + libraryid + "-merged.bam", shell=True)
+    
+    print("Done")
+    
 def variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepdir,vepcache,resultsdir):
     try:
         os.makedirs(f"{resultsdir}/MuTect2_results")
@@ -741,6 +749,7 @@ if __name__ == "__main__":
 
     # Filtering of cells
     genome = "GRCh37"
+    merging_bams(datadir,libraryid)
     variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepdir,vepcache,resultsdir)
     variant_processing(datadir,libraryid,reffile,patternlist,resultsdir)
     runhaplogrep(datadir,libraryid,reffile,workingdir,resultsdir)
