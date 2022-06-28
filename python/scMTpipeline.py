@@ -26,9 +26,17 @@ def merging_bams(datadir,libraryid):
     subprocess.call("samtools merge " + datadir + "/" + libraryid + "-merged.bam " + datadir + "/" + libraryid + "*.bam", shell=True) 
     subprocess.call("samtools index " + datadir + "/" + libraryid + "-merged.bam", shell=True)
     
-    print("Done")
+
+def preproccess_bams(datadir, reffile, workingdir, vepcache, resultsdir):
+    print("Preproccessing bams...")
+    for file in os.listdir(datadir):
+        if file.endswith(".bam"):
+            libraryid = file[:-4]
+            subprocess.call("python3 bulkpipeline.py -d " + datadir + " -r " + reffile + " -w " + workingdir + 
+                " -l " + libraryid + " -vc " + vepcache + " -re " + resultsdir, shell=True)
+
     
-def variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepdir,vepcache,resultsdir):
+def variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,resultsdir):
     try:
         os.makedirs(f"{resultsdir}/MuTect2_results")
     except OSError:
@@ -44,7 +52,7 @@ def variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,wor
     # Running MTvariantpipeline
     subprocess.call("python3 " + workingdir + "/MTvariantpipeline.py -d " + datadir + "/ -v " + resultsdir + "/TEMPMAFfiles/ -o " + 
         resultsdir + "/MTvariant_results/ -b " + libraryid + "-merged.bam -g " + genome + " -q " + str(minmapq) + " -Q " + 
-        str(minbq) + " -s " + str(minstrand) + " -w " + workingdir + "/ -vd " + vepdir + " -vc " + vepcache, shell=True)
+        str(minbq) + " -s " + str(minstrand) + " -w " + workingdir + "/ -vc " + vepcache, shell=True)
 
     # MuTect2 mitochondrial mode
     print("Running MuTect2..")
@@ -57,7 +65,7 @@ def variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,wor
         " -o " + resultsdir + "/MuTect2_results/" + libraryid + "-merged.bam.vcf", shell=True)
 
     # Convert the MuTect2 result from vcf to maf file
-    subprocess.call("perl " + workingdir + "/vcf2maf/vcf2maf.pl --vep-data " + vepcache + " --vep-path " + vepdir + " --input-vcf " + 
+    subprocess.call("perl " + workingdir + "/vcf2maf/vcf2maf.pl --vep-data " + vepcache + " --input-vcf " + 
         resultsdir + "/MuTect2_results/" + libraryid + "-merged.bam.vcf" + " --output-maf " + resultsdir + 
         "/MuTect2_results/" + libraryid + "-merged.bam.maf" + " --ncbi-build " + genome + ' --ref-fasta ' + reffile, shell=True)
 
@@ -723,8 +731,7 @@ if __name__ == "__main__":
     parser.add_argument("-t","--threshold",type=int,help="The critical threshold for calling a cell wild-type, default=0.1",default = 0.1)
     parser.add_argument("-l", "--libraryid",type=str, help="Library ID")
     parser.add_argument("-w", "--workingdir", type=str, help="Working directory")
-    parser.add_argument("-v", "--vepdir", type=str, help="Directory for vep")
-    parser.add_argument("-vc", "--vepcache", type=str, help="Directory for vep cache")
+    parser.add_argument("-vc", "--vepcache", type=str, help="Directory for vep cache", default="$HOME/.vep")
     parser.add_argument("-re", "--resultsdir", type=str, help="Directory for results")
     
     # read in arguments    
@@ -738,7 +745,6 @@ if __name__ == "__main__":
     libraryid = args.libraryid
     patternlist = args.patternlist
     workingdir = args.workingdir
-    vepdir = args.vepdir
     vepcache = args.vepcache
     resultsdir = args.resultsdir
 
@@ -750,7 +756,8 @@ if __name__ == "__main__":
     # Filtering of cells
     genome = "GRCh37"
     merging_bams(datadir,libraryid)
-    variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepdir,vepcache,resultsdir)
+    preproccess_bams(datadir,reffile,workingdir,vepcache,resultsdir)
+    variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,resultsdir)
     variant_processing(datadir,libraryid,reffile,patternlist,resultsdir)
     runhaplogrep(datadir,libraryid,reffile,workingdir,resultsdir)
     processfillout(libraryid,threshold,resultsdir)

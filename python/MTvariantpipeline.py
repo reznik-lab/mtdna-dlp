@@ -19,7 +19,6 @@ parser.add_argument("-s","--strand",type=int,help="Minimum number of reads mappi
 parser.add_argument("-h","--help",action='help', default=argparse.SUPPRESS,
                     help='A simple variant calling and annotation pipeline for mitochondrial DNA variants. Accepts both individual BAM files and paired tumor/normal BAM files. Because of the hairiness of multiallelic calling, we keep all positions in the VCF and then filter to remove any positions without at least 10 reads supporting the putative variant. FIX TO DO THIS FOR BOTH NORMAL AND TUMOR SAMPLES! To send a call to bsub, try bsub -R "rusage[mem=16]" -M 32 -We 120 -W 4800 -e $HOME/work/mtimpact/scratch/ -o /home/reznik/work/mtimpact/scratch/ python MTvariantpipeline.py ... with the suitable options specified. Note that we use the CMO version of b37 (which seems to use rCRS), but is named HG19.')
 parser.add_argument("-w", "--workingdir", type=str, help="Working directory")
-parser.add_argument("-vd", "--vepdir", type=str, help="Directory for vep")
 parser.add_argument("-vc", "--vepcache", type=str, help="Directory for vep cache")
 
 # Read in the arguments
@@ -31,7 +30,6 @@ genome = args.genome
 minstrand = args.strand
 normalflag = args.normalflag
 workingdir = args.workingdir
-vepdir = args.vepdir
 vepcache = args.vepcache
 minmapq = args.mapq
 minbq = args.baseq
@@ -156,60 +154,56 @@ for ii in range(bamfiles.shape[0]):
     # If the number of counts is small, just move on
     if int(mt) < 100:
         print('Skipping ' + f + '...no MT reads to call variants with.')
-        continue
-    
+        continue     
+
     if normalflag:
         # We have a matched normal bam
         print('We have a matched normal bam file for ' + f)
-        
         if bcfploidy_genome == 'mm10':
             countcall = ' '.join(["samtools mpileup --region", mtchrom, "--count-orphans --no-BAQ --min-MQ", str(minmapq), "--min-BQ", str(minbq), 
                 "--ignore-RG --excl-flags UNMAP,SECONDARY,QCFAIL,DUP --BCF --output-tags DP,AD,ADF,ADR --gap-frac 0.005 --tandem-qual 80 -L 1000000 -d 1000000 --open-prob 30 --fasta-ref", 
                 fasta, datadir + "/" + f , datadir + "/" + normalbam + "| bcftools call --multiallelic-caller --ploidy-file " + 
-                workingdir + "/chrM_ploidy --keep-alts | bcftools norm --multiallelics -any --do-not-normalize | " + workingdir + "/vt normalize -r " + 
+                workingdir + "/chrM_ploidy --keep-alts | bcftools norm --multiallelics -any --do-not-normalize | " + "/vt normalize -r " + 
                 fasta + " - 2>/dev/null | bcftools query --format '%CHROM\t%POS\t%REF\t%ALT[\t%AD\t%DP\t%ADF\t%ADR]\n'", ">", vcfdir + "/" + f + "_temp.maf"])
-            mafcall = ' '.join( ["perl " + workingdir + "/vcf2maf/maf2maf.pl --vep-data " + vepcache + " --vep-path " + vepdir + 
+            mafcall = ' '.join( ["perl " + workingdir + "/vcf2maf/maf2maf.pl --vep-data " + vepcache + 
                 "/ --species mus_musculus --input-maf", vcfdir + "/" + f + "_temp2.maf","--output-maf", outdir + "/" + f + ".maf",
                 "--retain-cols", retaincols, "--ncbi-build GRCm38 --ref-fasta",fasta] )
-
         else:
             countcall = ' '.join(["samtools mpileup --region", mtchrom, "--count-orphans --no-BAQ --min-MQ",str(minmapq), "--min-BQ", str(minbq), 
                 "--ignore-RG --excl-flags UNMAP,SECONDARY,QCFAIL,DUP --BCF --output-tags DP,AD,ADF,ADR --gap-frac 0.005 --tandem-qual 80 -L 1000000 -d 1000000 --open-prob 30 --fasta-ref", 
                 fasta, datadir + "/" + f, datadir + "/" + normalbam + "| bcftools call --multiallelic-caller --ploidy", bcfploidy_genome, 
-                "--keep-alts | bcftools norm --multiallelics -any --do-not-normalize | " + workingdir + "/vt normalize -r " + fasta + 
+                "--keep-alts | bcftools norm --multiallelics -any --do-not-normalize | " + "/vt normalize -r " + fasta + 
                 " - 2>/dev/null | bcftools query --format '%CHROM\t%POS\t%REF\t%ALT[\t%AD\t%DP\t%ADF\t%ADR]\n'", ">", vcfdir + "/" + f + "_temp.maf"])
-            mafcall = ' '.join( ["perl " + workingdir + "/vcf2maf/maf2maf.pl --vep-data " + vepcache + " --vep-path " + vepdir + 
+            mafcall = ' '.join( ["perl " + workingdir + "/vcf2maf/maf2maf.pl --vep-data " + vepcache +
                 "/ --input-maf", vcfdir + "/" + f + "_temp2.maf","--output-maf", outdir + "/" + f + ".maf"," --retain-cols", retaincols, 
                 "--ncbi-build", ncbibuild, '--ref-fasta',maf2maf_fasta])
         
     if not normalflag:
         # We don't have a normal bam
         print('We do not have a normal bam file for ' + f)
-        
         if bcfploidy_genome == 'mm10':
             countcall = ' '.join(["samtools mpileup --region", mtchrom, "--count-orphans --no-BAQ --min-MQ",str(minmapq), "--min-BQ", str(minbq), 
                 "--ignore-RG --excl-flags UNMAP,SECONDARY,QCFAIL,DUP --BCF --output-tags DP,AD,ADF,ADR --gap-frac 0.005 --tandem-qual 80 -L 1000000000 -d 1000000000 --open-prob 30 --fasta-ref", 
                 fasta, datadir + "/" + f + "| bcftools call --multiallelic-caller --ploidy-file " + workingdir + "/chrM_ploidy --keep-alts | bcftools norm --multiallelics -any --do-not-normalize | " + 
-                workingdir + "/vt normalize -r " + fasta + " - 2>/dev/null | bcftools query --format '%CHROM\t%POS\t%REF\t%ALT[\t%AD\t%DP\t%ADF\t%ADR]\n'", ">", vcfdir + "/" + f + "_temp.maf"])
-            mafcall = ' '.join( ["perl " + workingdir + "/vcf2maf/maf2maf.pl --vep-data " + vepcache + " --vep-path " + vepdir + 
+                "vt normalize -r " + fasta + " - 2>/dev/null | bcftools query --format '%CHROM\t%POS\t%REF\t%ALT[\t%AD\t%DP\t%ADF\t%ADR]\n'", ">", vcfdir + "/" + f + "_temp.maf"])
+            mafcall = ' '.join( ["perl " + workingdir + "/vcf2maf/maf2maf.pl --vep-data " + vepcache + 
                 "/ --species mus_musculus --input-maf", vcfdir + "/" + f + "_temp2.maf","--output-maf", outdir + "/" + f + ".maf",
                 "--retain-cols", retaincols, "--ncbi-build GRCm38 --ref-fasta",fasta])
-
         else:
             countcall = ' '.join(["samtools mpileup --region", mtchrom, "--count-orphans --no-BAQ --min-MQ",str(minmapq), "--min-BQ", str(minbq), 
                 "--ignore-RG --excl-flags UNMAP,SECONDARY,QCFAIL,DUP --BCF --output-tags DP,AD,ADF,ADR --gap-frac 0.005 --tandem-qual 80 -L 1000000000 -d 1000000000 --open-prob 30 --fasta-ref", 
-                fasta, datadir + "/" + f + "| bcftools call --multiallelic-caller --ploidy", bcfploidy_genome, "--keep-alts | bcftools norm --multiallelics -any --do-not-normalize |",
-                "bcftools query --format '%CHROM\t%POS\t%REF\t%ALT[\t%AD\t%DP\t%ADF\t%ADR]\n'", ">", vcfdir + "/" + f + "_temp.maf"])
-            mafcall = ' '.join( ["perl " + workingdir + "/vcf2maf/maf2maf.pl --vep-data " + vepcache + " --vep-path " + vepdir + 
+                fasta, datadir + "/" + f + "| bcftools call --multiallelic-caller --ploidy", bcfploidy_genome, "--keep-alts | bcftools norm --multiallelics -any --do-not-normalize | " + 
+                "vt normalize -r " + fasta + " - 2>/dev/null | bcftools query --format '%CHROM\t%POS\t%REF\t%ALT[\t%AD\t%DP\t%ADF\t%ADR]\n'", ">", vcfdir + "/" + f + "_temp.maf"])
+            mafcall = ' '.join( ["perl " + workingdir + "/vcf2maf/maf2maf.pl --vep-data " + vepcache +
                 "/ --input-maf", vcfdir + "/" + f + "_temp2.maf","--output-maf", outdir + "/" + f + ".maf","--retain-cols", retaincols, 
-                "--ncbi-build", ncbibuild, '--ref-fasta',fasta])        
+                "--ncbi-build", ncbibuild, '--ref-fasta',fasta])
 
     print("COUNTCALL: ", countcall)
     os.system(countcall)
     print("DONE WITH COUNTCALL")
     
     # Read in the prelim MAF file, and remove any rows that have 0 non-ref reads.
-    tempmaf = pd.read_csv(vcfdir + "/" + f + "_temp.maf",header = None,sep = '\t')
+    tempmaf = pd.read_csv(vcfdir + f + "_temp.maf",header = None,sep = '\t')
     tempmaf = tempmaf[ tempmaf[3] != '.' ]
         
     if normalflag:
@@ -217,14 +211,13 @@ for ii in range(bamfiles.shape[0]):
         tempmaf['Tumor_Sample_Barcode'] = f
         tempmaf['Matched_Norm_Sample_Barcode'] = normalbam
         cols2use = [4,6,7,8,10,11]
-    else:
+    if not normalflag:
         tempmaf.columns = ['Chromosome', 'Start_Position', 'Reference_Allele', 'Tumor_Seq_Allele2',4,'t_depth',6,7]
         tempmaf['Tumor_Sample_Barcode'] = f
         tempmaf['Matched_Norm_Sample_Barcode'] = ''
         for nacol in ['n_depth','n_ref_count', 'n_alt_count', 'n_ref_fwd', 'n_alt_fwd', 'n_ref_rev', 'n_alt_rev']:
             tempmaf[nacol] = np.nan
         cols2use = [4,6,7]
-    
     for col in cols2use:
         cname1 = mafnamedict[col][0]
         cname2 = mafnamedict[col][1]
@@ -245,9 +238,12 @@ for ii in range(bamfiles.shape[0]):
         tempmaf['Start_Position'] = newstarts.tolist()
         tempmaf = tempmaf[ tempmaf['Start_Position'].notnull() ]
         tempmaf['Start_Position'] = tempmaf['Start_Position'].map(int)
-    
+
+    # removing position 3106
+    tempmaf = tempmaf[~tempmaf['Start_Position'].isin(list(range(3106, 3107)))]
+
     # Write out to a second temporary MAF file, and then call maf2maf
-    tempmaf.to_csv(vcfdir + "/" + f + "_temp2.maf",index = None,sep = '\t')
+    tempmaf.to_csv(vcfdir + f + "_temp2.maf",index = None,sep = '\t')
     if tempmaf.shape[0] == 0:
         print('Skipping ' + f + '...no MT variants.')
         continue

@@ -120,21 +120,24 @@ if( -s $vep_anno ) {
 else {
     warn "STATUS: Running VEP and writing to: $vep_anno\n";
     # Make sure we can find the VEP script
+    # my $vep_script = ( -s "$vep_path/vep" ? "$vep_path/vep" : "$vep_path/variant_effect_predictor.pl" );
+    # ( -s $vep_script ) or die "ERROR: Cannot find VEP script in path: $vep_path\n";
     my $vep_script = ( -s "$vep_path/vep" ? "$vep_path/vep" : "$vep_path/variant_effect_predictor.pl" );
-    ( -s $vep_script ) or die "ERROR: Cannot find VEP script in path: $vep_path\n";
+    ( -s $vep_script );
 
     # Contruct VEP command using some default options and run it
-    my $vep_cmd = "$perl_bin $vep_script --species $species --assembly $ncbi_build --offline --no_progress --no_stats --buffer_size $buffer_size --sift b --ccds --uniprot --hgvs --symbol --numbers --domains --gene_phenotype --canonical --protein --biotype --uniprot --tsl --pubmed --variant_class --shift_hgvs 1 --check_existing --total_length --allele_number --no_escape --xref_refseq --failed 1 --vcf --flag_pick_allele --pick_order canonical,tsl,biotype,rank,ccds,length --dir $vep_data --fasta $ref_fasta --format vcf --input_file $vcf_file --output_file $vep_anno";
+    # my $vep_cmd = "$perl_bin $vep_script --species $species --assembly $ncbi_build --offline --no_progress --no_stats --buffer_size $buffer_size --sift b --ccds --uniprot --hgvs --symbol --numbers --domains --gene_phenotype --canonical --protein --biotype --uniprot --tsl --pubmed --variant_class --shift_hgvs 1 --check_existing --total_length --allele_number --no_escape --xref_refseq --failed 1 --vcf --flag_pick_allele --pick_order canonical,tsl,biotype,rank,ccds,length --dir $vep_data --fasta $ref_fasta --format vcf --input_file $vcf_file --output_file $vep_anno";
+    my $vep_cmd = "vep --species $species --assembly $ncbi_build --offline --no_progress --no_stats --buffer_size $buffer_size --sift b --ccds --uniprot --hgvs --symbol --numbers --domains --gene_phenotype --canonical --protein --biotype --uniprot --tsl --pubmed --variant_class --shift_hgvs 1 --check_existing --total_length --allele_number --no_escape --xref_refseq --failed 1 --vcf --flag_pick_allele --pick_order canonical,tsl,biotype,rank,ccds,length --dir $vep_data --fasta $ref_fasta --format vcf --input_file $vcf_file --output_file $vep_anno";    
     # VEP barks if --fork is set to 1. So don't use this argument unless it's >1
     $vep_cmd .= " --fork $vep_forks" if( $vep_forks > 1 );
     # Require allele match for co-located variants unless user-rejected or we're using a newer VEP
-    $vep_cmd .= " --check_allele" unless( $any_allele or $vep_script =~ m/vep$/ );
+    # $vep_cmd .= " --check_allele" unless( $any_allele or $vep_script =~ m/vep$/ );
     # Add --cache-version only if the user specifically asked for a version
     $vep_cmd .= " --cache_version $cache_version" if( $cache_version );
     # Add options that only work on human variants
     if( $species eq "homo_sapiens" ) {
         # Slight change in these arguments if using the newer VEP
-        $vep_cmd .= " --polyphen b " . ( $vep_script =~ m/vep$/ ? "--af --af_1kg --af_esp --af_gnomad" : "--gmaf --maf_1kg --maf_esp" );
+        $vep_cmd .= " --polyphen b " . ( $vep_script =~ m/vep$/ ? "--af --af_1kg --af_esp --af_gnomad" : "--af --af_1kg" );
     }
     # Add options that work for most species, except a few
     $vep_cmd .= " --regulatory" unless( $species eq "canis_familiaris" );

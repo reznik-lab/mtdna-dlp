@@ -433,11 +433,14 @@ unless( $inhibit_vep ) {
     $output_vcf = ( $remap_chain ? "$tmp_dir/$input_name.remap.vep.vcf" : "$tmp_dir/$input_name.vep.vcf" );
     warn "STATUS: Running VEP and writing to: $output_vcf\n";
     # Make sure we can find the VEP script
+    # my $vep_script = ( -s "$vep_path/vep" ? "$vep_path/vep" : "$vep_path/variant_effect_predictor.pl" );
+    # ( -s $vep_script ) or die "ERROR: Cannot find VEP script under: $vep_path\n";
     my $vep_script = ( -s "$vep_path/vep" ? "$vep_path/vep" : "$vep_path/variant_effect_predictor.pl" );
-    ( -s $vep_script ) or die "ERROR: Cannot find VEP script under: $vep_path\n";
+    ( -s $vep_script );
 
     # Contruct VEP command using some default options and run it
-    my $vep_cmd = "$perl_bin $vep_script --species $species --assembly $ncbi_build";
+    # my $vep_cmd = "$perl_bin $vep_script --species $species --assembly $ncbi_build";
+    my $vep_cmd = "vep --species $species --assembly $ncbi_build";
     $vep_cmd .= " --no_progress" unless( $verbose );
     $vep_cmd .= " --no_stats --buffer_size $buffer_size --sift b --ccds";
     $vep_cmd .= " --uniprot --hgvs --symbol --numbers --domains --gene_phenotype --canonical";
@@ -455,14 +458,14 @@ unless( $inhibit_vep ) {
     # Add --config if requested at command line
     $vep_cmd .= " --config $vep_config" if ($vep_config);
     # Require allele match for co-located variants unless user-rejected or we're using a newer VEP
-    $vep_cmd .= " --check_allele" unless( $any_allele or $vep_script =~ m/vep$/ );
+    # $vep_cmd .= " --check_allele" unless( $any_allele or $vep_script =~ m/vep$/ );
     # Add --cache-version only if the user specifically asked for a version
     $vep_cmd .= " --cache_version $cache_version" if( $cache_version );
     # Add options that only work on human variants
     if( $species eq "homo_sapiens" ) {
         # Slight change in options if in offline mode, or if using the newer VEP
-        $vep_cmd .= " --polyphen b" . ( $vep_script =~ m/vep$/ ? " --af" : " --gmaf" );
-        $vep_cmd .= ( $vep_script =~ m/vep$/ ? " --af_1kg --af_esp --af_gnomad" : " --maf_1kg --maf_esp" ) unless( $online );
+        $vep_cmd .= " --polyphen b" . ( $vep_script =~ m/vep$/ ? " --af" : " --af" );
+        $vep_cmd .= ( $vep_script =~ m/vep$/ ? " --af_1kg --af_esp --af_gnomad" : " --af_1kg" ) unless( $online );
     }
     # Do not use the --regulatory option in situations where we know it will break
     $vep_cmd .= " --regulatory" unless( $species eq "canis_familiaris" or $online );
