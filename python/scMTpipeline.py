@@ -49,22 +49,22 @@ def preproccess_bams(datadir, reffile, workingdir, vepcache, resultsdir):
     for file in os.listdir(datadir):
         if file.endswith(".bam"):
             libraryid = file[:-4]
-            # print("Running MTvariantpipeline..")
-            # subprocess.call("python3 " + workingdir + "/MTvariantpipeline.py -d " + datadir + "/ -v " + resultsdir + "/TEMPMAFfiles/ -o " + 
-            #     resultsdir + "/MTvariant_results/ -b " + libraryid + ".bam -g " + genome + " -q " + str(minmapq) + " -Q " + str(minbq) + 
-            #     " -s " + str(minstrand) + " -w " + workingdir + "/ -vc " + vepcache, shell=True)
-            # # MuTect2 mitochondrial mode
-            # print("Running MuTect2..")
-            # subprocess.call("gatk --java-options -Xmx4g Mutect2 -R " + reffile + " --mitochondria-mode true -L MT -mbq " + str(minbq) + 
-            #     " --minimum-mapping-quality " + str(minmapq) + " -I " + datadir + "/" + libraryid + ".bam -tumor " + libraryid.replace("-","_") + 
-            #     " -O " + resultsdir + "/MuTect2_results/" + libraryid + ".bam.vcf.gz", shell=True)
-            # # Left align MuTect2 results
-            # subprocess.call("bcftools norm -m - -f " + reffile + " " + resultsdir + "/MuTect2_results/" + libraryid + ".bam.vcf.gz" + 
-            #     " -o " + resultsdir + "/MuTect2_results/" + libraryid + ".bam.vcf", shell=True)
-            # # Convert the MuTect2 result from vcf to maf file
-            # subprocess.call("perl " + workingdir + "/vcf2maf/vcf2maf.pl --vep-data " + vepcache + " --input-vcf " + 
-            #     resultsdir + "/MuTect2_results/" + libraryid + ".bam.vcf" + " --output-maf " + resultsdir + "/MuTect2_results/" + libraryid + 
-            #     ".bam.maf" + " --ncbi-build " + genome + ' --ref-fasta ' + reffile, shell=True)
+            print("Running MTvariantpipeline..")
+            subprocess.call("python3 " + workingdir + "/MTvariantpipeline.py -d " + datadir + "/ -v " + resultsdir + "/TEMPMAFfiles/ -o " + 
+                resultsdir + "/MTvariant_results/ -b " + libraryid + ".bam -g " + genome + " -q " + str(minmapq) + " -Q " + str(minbq) + 
+                " -s " + str(minstrand) + " -w " + workingdir + "/ -vc " + vepcache, shell=True)
+            # MuTect2 mitochondrial mode
+            print("Running MuTect2..")
+            subprocess.call("gatk --java-options -Xmx4g Mutect2 -R " + reffile + " --mitochondria-mode true -L MT -mbq " + str(minbq) + 
+                " --minimum-mapping-quality " + str(minmapq) + " -I " + datadir + "/" + libraryid + ".bam -tumor " + libraryid.replace("-","_") + 
+                " -O " + resultsdir + "/MuTect2_results/" + libraryid + ".bam.vcf.gz", shell=True)
+            # Left align MuTect2 results
+            subprocess.call("bcftools norm -m - -f " + reffile + " " + resultsdir + "/MuTect2_results/" + libraryid + ".bam.vcf.gz" + 
+                " -o " + resultsdir + "/MuTect2_results/" + libraryid + ".bam.vcf", shell=True)
+            # Convert the MuTect2 result from vcf to maf file
+            subprocess.call("perl " + workingdir + "/vcf2maf/vcf2maf.pl --vep-data " + vepcache + " --input-vcf " + 
+                resultsdir + "/MuTect2_results/" + libraryid + ".bam.vcf" + " --output-maf " + resultsdir + "/MuTect2_results/" + libraryid + 
+                ".bam.maf" + " --ncbi-build " + genome + ' --ref-fasta ' + reffile, shell=True)
             # Create filtered files
             subprocess.call(f"samtools view -h {datadir}/{file} | grep -h 'X0\|@' > {datadir}/filteredfiles/{file}.sam", shell=True)
             subprocess.call(f"samtools view {datadir}/{file} >> {datadir}/filteredfiles/{file}.sam", shell=True)
