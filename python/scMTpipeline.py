@@ -8,6 +8,8 @@ Created on Sat Jan  4 22:14:05 2020
 
 import os
 import argparse
+from re import T, sub
+from tkinter.tix import Tree
 import pandas as pd
 import matplotlib
 matplotlib.use('pdf')
@@ -40,27 +42,33 @@ def preproccess_bams(datadir, reffile, workingdir, vepcache, resultsdir):
         os.makedirs(f"{resultsdir}/MTvariant_results")
     except OSError:
         pass
+    try:
+        os.makedirs(f"{datadir}/filteredfiles")
+    except OSError:
+        pass
     for file in os.listdir(datadir):
         if file.endswith(".bam"):
             libraryid = file[:-4]
-            # subprocess.call("python3 bulkpipeline.py -d " + datadir + " -r " + reffile + " -w " + workingdir + 
-            #     " -l " + libraryid + " -vc " + vepcache + " -re " + resultsdir, shell=True)
-            print("Running MTvariantpipeline..")
-            subprocess.call("python3 " + workingdir + "/MTvariantpipeline.py -d " + datadir + "/ -v " + resultsdir + "/TEMPMAFfiles/ -o " + 
-                resultsdir + "/MTvariant_results/ -b " + libraryid + ".bam -g " + genome + " -q " + str(minmapq) + " -Q " + str(minbq) + 
-                " -s " + str(minstrand) + " -w " + workingdir + "/ -vc " + vepcache, shell=True)
-            # MuTect2 mitochondrial mode
-            print("Running MuTect2..")
-            subprocess.call("gatk --java-options -Xmx4g Mutect2 -R " + reffile + " --mitochondria-mode true -L MT -mbq " + str(minbq) + 
-                " --minimum-mapping-quality " + str(minmapq) + " -I " + datadir + "/" + libraryid + ".bam -tumor " + libraryid.replace("-","_") + 
-                " -O " + resultsdir + "/MuTect2_results/" + libraryid + ".bam.vcf.gz", shell=True)
-            # Left align MuTect2 results
-            subprocess.call("bcftools norm -m - -f " + reffile + " " + resultsdir + "/MuTect2_results/" + libraryid + ".bam.vcf.gz" + 
-                " -o " + resultsdir + "/MuTect2_results/" + libraryid + ".bam.vcf", shell=True)
-            # Convert the MuTect2 result from vcf to maf file
-            subprocess.call("perl " + workingdir + "/vcf2maf/vcf2maf.pl --vep-data " + vepcache + " --input-vcf " + 
-                resultsdir + "/MuTect2_results/" + libraryid + ".bam.vcf" + " --output-maf " + resultsdir + "/MuTect2_results/" + libraryid + 
-                ".bam.maf" + " --ncbi-build " + genome + ' --ref-fasta ' + reffile, shell=True)
+            # print("Running MTvariantpipeline..")
+            # subprocess.call("python3 " + workingdir + "/MTvariantpipeline.py -d " + datadir + "/ -v " + resultsdir + "/TEMPMAFfiles/ -o " + 
+            #     resultsdir + "/MTvariant_results/ -b " + libraryid + ".bam -g " + genome + " -q " + str(minmapq) + " -Q " + str(minbq) + 
+            #     " -s " + str(minstrand) + " -w " + workingdir + "/ -vc " + vepcache, shell=True)
+            # # MuTect2 mitochondrial mode
+            # print("Running MuTect2..")
+            # subprocess.call("gatk --java-options -Xmx4g Mutect2 -R " + reffile + " --mitochondria-mode true -L MT -mbq " + str(minbq) + 
+            #     " --minimum-mapping-quality " + str(minmapq) + " -I " + datadir + "/" + libraryid + ".bam -tumor " + libraryid.replace("-","_") + 
+            #     " -O " + resultsdir + "/MuTect2_results/" + libraryid + ".bam.vcf.gz", shell=True)
+            # # Left align MuTect2 results
+            # subprocess.call("bcftools norm -m - -f " + reffile + " " + resultsdir + "/MuTect2_results/" + libraryid + ".bam.vcf.gz" + 
+            #     " -o " + resultsdir + "/MuTect2_results/" + libraryid + ".bam.vcf", shell=True)
+            # # Convert the MuTect2 result from vcf to maf file
+            # subprocess.call("perl " + workingdir + "/vcf2maf/vcf2maf.pl --vep-data " + vepcache + " --input-vcf " + 
+            #     resultsdir + "/MuTect2_results/" + libraryid + ".bam.vcf" + " --output-maf " + resultsdir + "/MuTect2_results/" + libraryid + 
+            #     ".bam.maf" + " --ncbi-build " + genome + ' --ref-fasta ' + reffile, shell=True)
+            # Create filtered files
+            subprocess.call(f"samtools view -h {datadir}/{file} | grep -h 'X0\|@' > {datadir}/filteredfiles/{file}.sam", shell=True)
+            subprocess.call(f"samtools view {datadir}/{file} >> {datadir}/filteredfiles/{file}.sam", shell=True)
+            subprocess.call(f"samtools view -bSq 20 {datadir}/filteredfiles/{file}.sam > {datadir}/filteredfiles/filtered{file}", shell=True)
 
     
 def variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,resultsdir):
