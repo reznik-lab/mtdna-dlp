@@ -85,7 +85,7 @@ def variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,wor
     print("Running MTvariantpipeline..")
 
     # Running MTvariantpipeline
-    subprocess.call("python3 " + workingdir + "/MTvariantpipeline.py -d " + datadir + "/merged/ -v " + resultsdir + "/TEMPMAFfiles/ -o " + 
+    subprocess.call("python3 " + workingdir + "/MTvariantpipeline.py -d " + datadir + "/merged/ -v " + resultsdir + "/mergedTEMPMAFfiles/ -o " + 
         resultsdir + "/MTvariant_results/ -b " + libraryid + "-merged.bam -g " + genome + " -q " + str(minmapq) + " -Q " + 
         str(minbq) + " -s " + str(minstrand) + " -w " + workingdir + "/ -vc " + vepcache, shell=True)
 
