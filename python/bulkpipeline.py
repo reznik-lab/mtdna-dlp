@@ -1,10 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Sat Jan  4 22:14:05 2020
-
-@author: minsookim
-"""
 
 import os
 import argparse
