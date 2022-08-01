@@ -47,6 +47,12 @@ if genome == 'GRCh37':
     ncbibuild = 'GRCh37'
     maf2maf_fasta = fasta
     bcfploidy_genome = 'GRCh37'
+elif genome == "GRCm38":
+    fasta = "/juno/work/shah/users/kimm/reference/mm10/DNA/mm10.fa" # change
+    mtchrom = 'chrM'
+    ncbibuild = 'mm10'
+    maf2maf_fasta = fasta
+    bcfploidy_genome = 'mm10'
 elif genome == 'GRCh38':
     fasta = workingdir + '/reference/GRCh38/genome_MT.fa'
     mtchrom = 'MT'
@@ -64,16 +70,12 @@ elif genome == 'GRCh38':
 #     fasta = '/ifs/depot/pi/resources/genomes/hg19/fasta/hg19.fasta' #where to get this file?
 #     mtchrom = 'chrM'
 #     ncbibuild = 'GRCh38'
-    
-    # we need the mapping from yoruba to rcrs
-    rcrsmapping = pd.read_csv(workingdir + '/reference/Yoruba2rCRS.txt',header = 0,index_col = 0)
-    
-    # we also need to make sure maf2maf uses the correct hg38 fasta
-    maf2maf_fasta = '/ifs/depot/pi/resources/genomes/GRCh38/fasta/GRCh38.d1.vd1.fa' #where to get this file?
-    
-    # ploidy for bcftools same as GRCh37
-    bcfploidy_genome = 'GRCh37'
-
+#     # we need the mapping from yoruba to rcrs
+#     rcrsmapping = pd.read_csv(workingdir + '/reference/Yoruba2rCRS.txt',header = 0,index_col = 0)
+#     # we also need to make sure maf2maf uses the correct hg38 fasta
+#     maf2maf_fasta = '/ifs/depot/pi/resources/genomes/GRCh38/fasta/GRCh38.d1.vd1.fa' #where to get this file?
+#     # ploidy for bcftools same as GRCh37
+#     bcfploidy_genome = 'GRCh37'
 else:
     print('The genome build you entered is not supported.')
     sys.exit(0)
@@ -163,7 +165,7 @@ for ii in range(bamfiles.shape[0]):
             countcall = ' '.join(["samtools mpileup --region", mtchrom, "--count-orphans --no-BAQ --min-MQ", str(minmapq), "--min-BQ", str(minbq), 
                 "--ignore-RG --excl-flags UNMAP,SECONDARY,QCFAIL,DUP --BCF --output-tags DP,AD,ADF,ADR --gap-frac 0.005 --tandem-qual 80 -L 1000000 -d 1000000 --open-prob 30 --fasta-ref", 
                 fasta, datadir + "/" + f , datadir + "/" + normalbam + "| bcftools call --multiallelic-caller --ploidy-file " + 
-                workingdir + "/chrM_ploidy --keep-alts | bcftools norm --multiallelics -any --do-not-normalize | " + "/vt normalize -r " + 
+                workingdir + "/reference/chrM_ploidy --keep-alts | bcftools norm --multiallelics -any --do-not-normalize | " + "/vt normalize -r " + 
                 fasta + " - 2>/dev/null | bcftools query --format '%CHROM\t%POS\t%REF\t%ALT[\t%AD\t%DP\t%ADF\t%ADR]\n'", ">", vcfdir + "/" + f + "_temp.maf"])
             mafcall = ' '.join( ["perl " + workingdir + "/vcf2maf/maf2maf.pl --vep-data " + vepcache + 
                 "/ --species mus_musculus --input-maf", vcfdir + "/" + f + "_temp2.maf","--output-maf", outdir + "/" + f + ".maf",
@@ -184,7 +186,7 @@ for ii in range(bamfiles.shape[0]):
         if bcfploidy_genome == 'mm10':
             countcall = ' '.join(["samtools mpileup --region", mtchrom, "--count-orphans --no-BAQ --min-MQ",str(minmapq), "--min-BQ", str(minbq), 
                 "--ignore-RG --excl-flags UNMAP,SECONDARY,QCFAIL,DUP --BCF --output-tags DP,AD,ADF,ADR --gap-frac 0.005 --tandem-qual 80 -L 1000000000 -d 1000000000 --open-prob 30 --fasta-ref", 
-                fasta, datadir + "/" + f + "| bcftools call --multiallelic-caller --ploidy-file " + workingdir + "/chrM_ploidy --keep-alts | bcftools norm --multiallelics -any --do-not-normalize | " + 
+                fasta, datadir + "/" + f + "| bcftools call --multiallelic-caller --ploidy-file " + workingdir + "/reference/chrM_ploidy --keep-alts | bcftools norm --multiallelics -any --do-not-normalize | " + 
                 "vt normalize -r " + fasta + " - 2>/dev/null | bcftools query --format '%CHROM\t%POS\t%REF\t%ALT[\t%AD\t%DP\t%ADF\t%ADR]\n'", ">", vcfdir + "/" + f + "_temp.maf"])
             mafcall = ' '.join( ["perl " + workingdir + "/vcf2maf/maf2maf.pl --vep-data " + vepcache + 
                 "/ --species mus_musculus --input-maf", vcfdir + "/" + f + "_temp2.maf","--output-maf", outdir + "/" + f + ".maf",

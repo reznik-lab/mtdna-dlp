@@ -756,18 +756,18 @@ def genmaster(libraryid,reffile,resultsdir):
 
 if __name__ == "__main__":
     # Parse necessary arguments
-    parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument("-d", "--datadir",type=str, help="Directory for BAM files")
-    parser.add_argument("-r", "--reffile",type=str, help="Reference fasta file")
-    parser.add_argument("-q","--mapq",type=int,help="Minimum mapping quality, default = 20",default = 20)
-    parser.add_argument("-Q","--baseq",type=int,help="Minimum base quality, default = 20",default = 20)
+    parser = argparse.ArgumentParser(add_help=True)
+    parser.add_argument("-d", "--datadir",type=str, help="Directory for BAM files", required=True)
+    parser.add_argument("-r", "--reffile",type=str, help="Reference fasta file", required=True)
+    parser.add_argument("-l", "--libraryid",type=str, help="Library ID", required=True)
+    parser.add_argument("-w", "--workingdir", type=str, help="Working directory", required=True)
+    parser.add_argument("-re", "--resultsdir", type=str, help="Directory for results", required=True)
+    parser.add_argument("-q","--mapq",type=int,help="Minimum mapping quality, default = 20", default = 20)
+    parser.add_argument("-Q","--baseq",type=int,help="Minimum base quality, default = 20", default = 20)
     parser.add_argument("-s","--strand",type=int,help="Minimum number of reads mapping to forward and reverse strand to call mutation, default=2",default = 2)
-    parser.add_argument("-p", "--patternlist",type=str, help="File containing a list of filenames to process at a time",default = "")
-    parser.add_argument("-t","--threshold",type=int,help="The critical threshold for calling a cell wild-type, default=0.1",default = 0.1)
-    parser.add_argument("-l", "--libraryid",type=str, help="Library ID")
-    parser.add_argument("-w", "--workingdir", type=str, help="Working directory")
+    parser.add_argument("-p", "--patternlist",type=str, help="File containing a list of filenames to process at a time", default = "")
+    parser.add_argument("-t","--threshold",type=int,help="The critical threshold for calling a cell wild-type, default=0.1", default = 0.1)
     parser.add_argument("-vc", "--vepcache", type=str, help="Directory for vep cache", default="$HOME/.vep")
-    parser.add_argument("-re", "--resultsdir", type=str, help="Directory for results")
     
     # read in arguments    
     args = parser.parse_args()
