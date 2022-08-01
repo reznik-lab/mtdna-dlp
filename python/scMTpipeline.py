@@ -746,11 +746,11 @@ def genmaster(libraryid,reffile,resultsdir):
 if __name__ == "__main__":
     # Parse necessary arguments
     parser = argparse.ArgumentParser(add_help=True)
-    parser.add_argument("-d", "--datadir",type=str, help="Directory for BAM files", required=True)
-    parser.add_argument("-r", "--reffile",type=str, help="Reference fasta file", required=True)
-    parser.add_argument("-l", "--libraryid",type=str, help="Library ID", required=True)
-    parser.add_argument("-w", "--workingdir", type=str, help="Working directory", required=True)
-    parser.add_argument("-re", "--resultsdir", type=str, help="Directory for results", required=True)
+    parser.add_argument("-d", "--datadir",type=str, help="(REQUIRED) Directory for BAM files", required=True)
+    parser.add_argument("-r", "--reffile",type=str, help="(REQUIRED) Reference fasta file", required=True)
+    parser.add_argument("-l", "--libraryid",type=str, help="(REQUIRED) Library ID", required=True)
+    parser.add_argument("-w", "--workingdir", type=str, help="(REQUIRED) Working directory", required=True)
+    parser.add_argument("-re", "--resultsdir", type=str, help="(REQUIRED) Directory for results", required=True)
     parser.add_argument("-q","--mapq",type=int,help="Minimum mapping quality, default = 20", default = 20)
     parser.add_argument("-Q","--baseq",type=int,help="Minimum base quality, default = 20", default = 20)
     parser.add_argument("-s","--strand",type=int,help="Minimum number of reads mapping to forward and reverse strand to call mutation, default=2",default = 2)
