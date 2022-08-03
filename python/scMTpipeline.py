@@ -631,9 +631,19 @@ def genmaster(libraryid,reffile,resultsdir):
     variantannot['T_RefCount'] = filloutfile['T_RefCount']
     
     # Recalculating the read counts
-    variantannot['S_AltCount'] = S_AltCount
-    variantannot['S_RefCount'] = S_RefCount
-    variantannot['VAF_total'] = S_AltCount.astype(str) + '/' + (S_AltCount.values + S_RefCount.values).astype(str)
+    if patternlist != "":
+        for eachrow in variantannot.index.values:
+            if str(variantannot.loc[eachrow,'Start']) in pos: # it's a germline variant position
+                # sum the numerators of the masterfile for the row
+                variantannot.loc[eachrow,'S_AltCount'] = sum(pd.to_numeric(masterfile.loc[eachrow,:].apply(lambda x : x.split('/')[1]).values)) - sum(pd.to_numeric(masterfile.loc[eachrow,:].apply(lambda x : x.split('/')[0]).values))
+                variantannot.loc[eachrow,'S_RefCount'] = sum(pd.to_numeric(masterfile.loc[eachrow,:].apply(lambda x : x.split('/')[0]).values))
+            variantannot.loc[eachrow,'S_AltCount'] = sum(pd.to_numeric(masterfile.loc[eachrow,:].apply(lambda x : x.split('/')[0]).values))
+            variantannot.loc[eachrow,'S_RefCount'] = sum(pd.to_numeric(masterfile.loc[eachrow,:].apply(lambda x : x.split('/')[1]).values)) - sum(pd.to_numeric(masterfile.loc[eachrow,:].apply(lambda x : x.split('/')[0]).values))
+        variantannot['VAF_total'] = [str(variantannot['S_AltCount'][i]) + '/' + str(variantannot['S_AltCount'][i] + variantannot['S_RefCount'][i]) for i in range(len(variantannot))]
+    else:
+        variantannot['S_AltCount'] = filloutfile["S_AltCount"]
+        variantannot['S_RefCount'] = filloutfile["S_RefCount"]
+        variantannot['VAF_total'] = filloutfile["S_AltCount"].astype(str) + '/' + (filloutfile["S_AltCount"].values + filloutfile["S_RefCount"].values).astype(str)
     
     # Iterate through the variants to recalculate the bulk proportions
     for eachrow in variantannot.index.values:
