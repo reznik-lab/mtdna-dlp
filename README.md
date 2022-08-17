@@ -49,13 +49,12 @@ Additionally, a VEP offline cache needs to be installed __(NOTE: CACHE MUST BE S
 Navigate to the directory with the `scMTpipeline.py` file and run the following (replace all brackets):
 ```
 conda activate [environment]
-python3 scMTpipeline.py -d [data_directory] -r [reference_fasta] -w [working_directory] -l [library_id] -re [results_directory] -vc [optional_vep_cache_directory] -q [optional_mapping_quality] -Q [optional_base_quality] -s [optional_strand] -p [optional_patternlist] -t [optional_threshold]
+python3 scMTpipeline.py -d [data_directory] -w [working_directory] -l [library_id] -re [results_directory] -vc [optional_vep_cache_directory] -q [optional_mapping_quality] -Q [optional_base_quality] -s [optional_strand] -p [optional_patternlist] -t [optional_threshold] -g [optional_genome] -r [optional_reference_fasta]
 ```
 
 Parameter descriptions:
 
 - __Data directory__: path to directory with input .bam files
-- __Reference fasta__: path to fasta file (recommended to use `[working_directory]/reference/b37/b37_MT.fa` for GRCh37 or `[working_directory]/reference/GRCh38/genome_MT.fa` for GRCh38)
 - __Working directory__: path to directory with `scMTpipeline.py` file in it
 - __Library ID__: name of .bam file to use as input
 - __Results directory__: path to directory where results will be stored
@@ -65,13 +64,15 @@ Parameter descriptions:
 - __(OPTIONAL) Strand__: minimum number of reads mapping to forward and reverse strand to call mutation (default=2)
 - __(OPTIONAL) Patternlist__: file containing a list of filenames to process at a time (to be used when there are many files to process)
 - __(OPTIONAL) Threshold__: critical threshold for calling a cell wild-type (default=0.1)
+- __(OPTIONAL) Genome__: genome version (supported genomes are GRCh37, GRCh38, GRCm38, and mm10)
+- __(OPTIONAL) Reference fasta__: path to fasta file (by default will use a file from the reference folder that matches the genome, but a difference file may be given)
 
 For example, a call to run the single cell pipeline with the minimum paramaters could look like this:
 ```
-python3 scMTpipeline.py -d /my_data/ -r /my_home/mtdna-dlp/python/reference/b37/b37_MT.fa -w /my_home/mtdna-dlp/python/ -l my_file -re /my_home/mtdna-dlp/results/
+python3 scMTpipeline.py -d /my_data/ -w /my_home/mtdna-dlp/python/ -l my_file -re /my_home/mtdna-dlp/results/
 ```
 
 To run `scMTpipeline.py` on the provided example data:
 ```
-python3 scMTpipeline.py -d /mtdna-dlp/python/example_data/ -r /mtdna-dlp/python/reference/b37/b37_MT.fa -w /mtdna-dlp/python/ -l SA1101-A96155C -re /mtdna-dlp/python/results
+python3 scMTpipeline.py -d /mtdna-dlp/python/example_data/ -w /mtdna-dlp/python/ -l SA1101-A96155C -re /mtdna-dlp/python/results
 ```

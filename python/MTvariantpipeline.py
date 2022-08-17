@@ -20,6 +20,7 @@ parser.add_argument("-h","--help",action='help', default=argparse.SUPPRESS,
                     help='A simple variant calling and annotation pipeline for mitochondrial DNA variants. Accepts both individual BAM files and paired tumor/normal BAM files. Because of the hairiness of multiallelic calling, we keep all positions in the VCF and then filter to remove any positions without at least 10 reads supporting the putative variant. FIX TO DO THIS FOR BOTH NORMAL AND TUMOR SAMPLES! To send a call to bsub, try bsub -R "rusage[mem=16]" -M 32 -We 120 -W 4800 -e $HOME/work/mtimpact/scratch/ -o /home/reznik/work/mtimpact/scratch/ python MTvariantpipeline.py ... with the suitable options specified. Note that we use the CMO version of b37 (which seems to use rCRS), but is named HG19.')
 parser.add_argument("-w", "--workingdir", type=str, help="Working directory")
 parser.add_argument("-vc", "--vepcache", type=str, help="Directory for vep cache")
+parser.add_argument("-f", "--fasta", type=str, help="path to fasta", default="")
 
 # Read in the arguments
 args = parser.parse_args()
@@ -33,6 +34,7 @@ workingdir = args.workingdir
 vepcache = args.vepcache
 minmapq = args.mapq
 minbq = args.baseq
+fasta = args.fasta
 
 # Make sure the output directories are created
 if not os.path.exists(vcfdir):
@@ -42,19 +44,23 @@ if not os.path.exists(outdir):
     
 # Set the parameters for the genome build
 if genome == 'GRCh37':
-    fasta = workingdir + '/reference/b37/b37_MT.fa'
+    if fasta == "":
+        fasta = workingdir + '/reference/b37/b37_MT.fa'
     mtchrom = 'MT'
     ncbibuild = 'GRCh37'
     maf2maf_fasta = fasta
     bcfploidy_genome = 'GRCh37'
 elif genome == "GRCm38" or genome == "mm10":
-    fasta = "/reference/mm10/mm10_MT.fa"
-    mtchrom = 'chrM'
+    if fasta == "":
+        fasta = workingdir + "/reference/mm10/mm10_MT.fa"
+    # mtchrom = 'chrM'
+    mtchrom = 'MT'
     ncbibuild = 'mm10'
     maf2maf_fasta = fasta
     bcfploidy_genome = 'mm10'
 elif genome == 'GRCh38':
-    fasta = workingdir + '/reference/GRCh38/genome_MT.fa'
+    if fasta == "":
+        fasta = workingdir + '/reference/GRCh38/genome_MT.fa'
     mtchrom = 'MT'
     ncbibuild = 'GRCh38'
     maf2maf_fasta = fasta
@@ -155,6 +161,7 @@ for ii in range(bamfiles.shape[0]):
     
     # If the number of counts is small, just move on
     if int(mt) < 100:
+        print(mt)
         print('Skipping ' + f + '...no MT reads to call variants with.')
         continue     
 
