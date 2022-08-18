@@ -73,17 +73,18 @@ def variant_processing(libraryid,resultsdir):
     
     # Output the overlap as final maf file
     combinedfile = pd.merge(mutectfile, MTvarfile, how='inner', on=['Chromosome','Start_Position','Reference_Allele',
-        'Tumor_Seq_Allele2','Variant_Classification','Hugo_Symbol','EXON'])
+        'Tumor_Seq_Allele2','Variant_Classification',"Variant_Type",'EXON'])
+    combinedfile.to_csv(resultsdir + "/combined.fillout",sep = '\t',na_rep='NA',index=False)
     
     # Fix INDELs in the same position i.e. A:11866:AC and A:11866:ACC
-    aux = combinedfile.loc[combinedfile['Variant_Type'] == 'INS'].groupby('Start_Position').count()['Hugo_Symbol'].reset_index()
-    positions = list(aux['Start_Position'].loc[aux['Hugo_Symbol'] > 1])
-    variants = list(combinedfile['ShortVariantID_y'].loc[(combinedfile['Start_Position'].isin(positions)) & (combinedfile['Variant_Type'] == 'INS')])
+    aux = combinedfile.loc[combinedfile['Variant_Type'] == 'INS'].groupby('Start_Position').count()['Hugo_Symbol_y'].reset_index()
+    positions = list(aux['Start_Position'].loc[aux['Hugo_Symbol_y'] > 1])
+    variants = list(combinedfile['ShortVariantID'].loc[(combinedfile['Start_Position'].isin(positions)) & (combinedfile['Variant_Type'] == 'INS')])
     if len(positions) != 0:
-        dff = combinedfile.loc[combinedfile['ShortVariantID_y'].isin(variants)]
+        dff = combinedfile.loc[combinedfile['ShortVariantID'].isin(variants)]
 
         # Create an auxuliary file only with the last rows to keep: keep unique positions with the highest TumorVAF
-        dffaux = dff.sort_values(by='TumorVAF_y', ascending = False)
+        dffaux = dff.sort_values(by='TumorVAF', ascending = False)
         dffaux = dffaux.drop_duplicates('Start_Position', keep = 'first')
         for i in positions:
             vals = dff[['t_alt_count_y', 't_alt_count_x']].loc[dff['Start_Position'] == i].sum(axis = 0).reset_index()
@@ -92,19 +93,19 @@ def variant_processing(libraryid,resultsdir):
             dffaux.loc[dffaux['Start_Position'] == i,'t_alt_count_x'] = dvals['t_alt_count_x']
 
         #Remove all variants with duplicated indels
-        combinedfile = combinedfile.loc[(~combinedfile['ShortVariantID_y'].isin(variants))]
+        combinedfile = combinedfile.loc[(~combinedfile['ShortVariantID'].isin(variants))]
 
         # Add unique indel variants with new values
         combinedfile = pd.concat([combinedfile, dffaux])
         combinedfile = combinedfile.sort_values(by='Start_Position', ascending = True)
 
         # Recalculate TumorVAF
-        combinedfile['TumorVAF_y'] = combinedfile['t_alt_count_y'] / (combinedfile['t_ref_count_y'] + combinedfile['t_alt_count_y'])
-        combinedfile['TumorVAF_x'] = combinedfile['t_alt_count_x'] / (combinedfile['t_ref_count_x'] + combinedfile['t_alt_count_x'])
+        # combinedfile['TumorVAF_y'] = combinedfile['t_alt_count_y'] / (combinedfile['t_ref_count_y'] + combinedfile['t_alt_count_y'])
+        # combinedfile['TumorVAF_x'] = combinedfile['t_alt_count_x'] / (combinedfile['t_ref_count_x'] + combinedfile['t_alt_count_x'])
     
     # Final annotation
     final_result = combinedfile.loc[:,['Tumor_Sample_Barcode_y','Matched_Norm_Sample_Barcode_y','Chromosome',
-        'Start_Position','Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Hugo_Symbol','EXON',
+        'Start_Position','Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Hugo_Symbol_y','EXON',
         'n_depth_y','t_depth_y','t_ref_count_y','t_alt_count_y',"t_alt_fwd","t_alt_rev"]]
     final_result.columns = ['Sample','NormalUsed','Chrom','Start','Ref','Alt','VariantClass','Gene','Exon',
         'N_TotalDepth','T_TotalDepth','T_RefCount','T_AltCount',"T_AltFwd","T_AltRev"]
@@ -396,7 +397,7 @@ if __name__ == "__main__":
     print("Reference file: " + reffile)
 
     # Filtering of cells
-    variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species)
+    # variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species)
     variant_processing(libraryid,resultsdir)
     # if genome == "GRCh38" or genome == "GRCh37":
     #     runhaplogrep(datadir,libraryid,reffile, workingdir, resultsdir)
