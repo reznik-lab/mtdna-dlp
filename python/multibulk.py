@@ -22,9 +22,9 @@ def variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,wor
     # Running MTvariantpipeline without matched normal
     print("Running MTvariantpipeline..")
     f1 = open(f"{resultsdir}/MTvp_out.txt", "w")
-    subprocess.call("python3 " + workingdir + "/MTvariantpipeline.py -d " + datadir + "/ -v " + workingdir + "/TEMPMAFfiles/ -o " + 
+    subprocess.call("python3 " + workingdir + "/MTvariantpipeline.py -d " + datadir + "/ -v " + resultsdir + "/TEMPMAFfiles/ -o " + 
         resultsdir + "/MTvariant_results/ -b " + libraryid + ".bam -g " + genome + " -q " + str(minmapq) + " -Q " + str(minbq) + 
-        " -s " + str(minstrand) + " -w " + workingdir + "/ -vd " + vepdir + " -vc " + vepcache, shell=True, stdout=f1, stderr=subprocess.STDOUT)
+        " -s " + str(minstrand) + " -w " + workingdir + "/ -vc " + vepcache, shell=True, stdout=f1, stderr=subprocess.STDOUT)
     f1.close()
 
     # MuTect2 mitochondrial mode
@@ -79,7 +79,7 @@ def variant_processing(libraryid, resultsdir):
     # MTvarfile = MTvarfile.loc[~MTvarfile['Start_Position'].isin(rmregions)]
     # mutectfile.index = range(len(mutectfile.index))
     # MTvarfile.index = range(len(MTvarfile.index))
-    
+
     # Output the overlap as final maf file
     combinedfile = pd.merge(mutectfile, MTvarfile, how='inner', on=['Chromosome','Start_Position','Reference_Allele',
         'Tumor_Seq_Allele2','Variant_Classification','Hugo_Symbol','EXON'])
@@ -353,7 +353,7 @@ if __name__ == "__main__":
         os.makedirs(f"{workingdir}/multibulk_results")
     except OSError as error:
         print(error)
-    bamdata = [f for f in os.listdir(datadir) if f.endswith(".bam")]
+    bamdata = [f for f in os.listdir(datadir) if f.endswith("T.bam")]
     print("Number of bam files: ", len(bamdata))
     for bam in bamdata:
         print(f"STARTING PIPELINE FOR {bam}...")
@@ -362,11 +362,20 @@ if __name__ == "__main__":
             os.makedirs(f"{resultsdir}")
         except OSError as error:
             print(error)
-        variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepdir,vepcache,resultsdir)
-        variant_processing(libraryid, resultsdir)
-        runhaplogrep(datadir,libraryid,reffile, workingdir, resultsdir)
-        processfillout(libraryid, resultsdir)
-        genmaster(libraryid,reffile,resultsdir)
-        print(f"DONE WITH PIPELINE FOR {bam}\n")
+        # variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepdir,vepcache,resultsdir)
+        # variant_processing(libraryid, resultsdir)
+        # runhaplogrep(datadir,libraryid,reffile, workingdir, resultsdir)
+        # processfillout(libraryid, resultsdir)
+        # genmaster(libraryid,reffile,resultsdir)
+        # print(f"DONE WITH PIPELINE FOR {bam}\n")
+        try:
+            variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepdir,vepcache,resultsdir)
+            variant_processing(libraryid, resultsdir)
+            # runhaplogrep(datadir,libraryid,reffile, workingdir, resultsdir)
+            # processfillout(libraryid, resultsdir)
+            # genmaster(libraryid,reffile,resultsdir)
+            print(f"DONE WITH PIPELINE FOR {bam}\n")
+        except:
+            print("Skipping ", libraryid)
     print("DONE WITH MULTIBULK")
 
