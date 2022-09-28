@@ -74,7 +74,7 @@ def variant_processing(libraryid,resultsdir):
     # Output the overlap as final maf file
     combinedfile = pd.merge(mutectfile, MTvarfile, how='inner', on=['Chromosome','Start_Position','Reference_Allele',
         'Tumor_Seq_Allele2','Variant_Classification',"Variant_Type",'EXON'])
-    combinedfile.to_csv(resultsdir + "/combined.fillout",sep = '\t',na_rep='NA',index=False)
+    # combinedfile.to_csv(resultsdir + "/combined.fillout",sep = '\t',na_rep='NA',index=False)
     
     # Fix INDELs in the same position i.e. A:11866:AC and A:11866:ACC
     aux = combinedfile.loc[combinedfile['Variant_Type'] == 'INS'].groupby('Start_Position').count()['Hugo_Symbol_y'].reset_index()
@@ -106,9 +106,9 @@ def variant_processing(libraryid,resultsdir):
     # Final annotation
     final_result = combinedfile.loc[:,['Tumor_Sample_Barcode_y','Matched_Norm_Sample_Barcode_y','Chromosome',
         'Start_Position','Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Hugo_Symbol_y','EXON',
-        'n_depth_y','t_depth_y','t_ref_count_y','t_alt_count_y',"t_alt_fwd","t_alt_rev"]]
+        'n_depth_y',"n_ref_count_y","n_alt_count_y",'t_depth_y','t_ref_count_y','t_alt_count_y',"t_alt_fwd","t_alt_rev"]]
     final_result.columns = ['Sample','NormalUsed','Chrom','Start','Ref','Alt','VariantClass','Gene','Exon',
-        'N_TotalDepth','T_TotalDepth','T_RefCount','T_AltCount',"T_AltFwd","T_AltRev"]
+        'N_TotalDepth',"N_RefCount","N_AltCount",'T_TotalDepth','T_RefCount','T_AltCount',"T_AltFwd","T_AltRev"]
     
     # output the fillout results
     final_result.to_csv(saveasthis,sep = '\t',na_rep='NA',index=False)
@@ -397,11 +397,11 @@ if __name__ == "__main__":
     print("Reference file: " + reffile)
 
     # Filtering of cells
-    # variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species)
+    variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species)
     variant_processing(libraryid,resultsdir)
-    # if genome == "GRCh38" or genome == "GRCh37":
-    #     runhaplogrep(datadir,libraryid,reffile, workingdir, resultsdir)
-    # processfillout(libraryid, resultsdir,genome)
-    # genmaster(libraryid,reffile,resultsdir,genome)
+    if genome == "GRCh38" or genome == "GRCh37":
+        runhaplogrep(datadir,libraryid,reffile, workingdir, resultsdir)
+    processfillout(libraryid, resultsdir,genome)
+    genmaster(libraryid,reffile,resultsdir,genome)
 
     print("DONE WITH BULKPIPELINE")

@@ -181,7 +181,7 @@ for ii in range(bamfiles.shape[0]):
             countcall = ' '.join(["samtools mpileup --region", mtchrom, "--count-orphans --no-BAQ --min-MQ",str(minmapq), "--min-BQ", str(minbq), 
                 "--ignore-RG --excl-flags UNMAP,SECONDARY,QCFAIL,DUP --BCF --output-tags DP,AD,ADF,ADR --gap-frac 0.005 --tandem-qual 80 -L 1000000 -d 1000000 --open-prob 30 --fasta-ref", 
                 fasta, datadir + "/" + f, datadir + "/" + normalbam + " | bcftools call --multiallelic-caller --ploidy", bcfploidy_genome, 
-                "--keep-alts | bcftools norm --multiallelics -any --do-not-normalize | " + "/vt normalize -r " + fasta + 
+                "--keep-alts | bcftools norm --multiallelics -any --do-not-normalize | " + "vt normalize -r " + fasta + 
                 " - 2>/dev/null | bcftools query --format '%CHROM\t%POS\t%REF\t%ALT[\t%AD\t%DP\t%ADF\t%ADR]\n'", ">", vcfdir + "/" + f + "_temp.maf"])
             mafcall = ' '.join( ["perl " + workingdir + "/vcf2maf/maf2maf.pl --vep-data " + vepcache +
                 "/ --input-maf", vcfdir + "/" + f + "_temp2.maf","--output-maf", outdir + "/" + f + ".maf"," --retain-cols", retaincols, 

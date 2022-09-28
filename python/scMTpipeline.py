@@ -121,6 +121,10 @@ def variant_processing(datadir,libraryid,reffile,patternlist,resultsdir):
     mutectfile.index = range(len(mutectfile.index))
     MTvarfile.index = range(len(MTvarfile.index))
 
+    # combine pseudo-bulk results
+    MTvarfile = pd.merge(mutectfile, MTvarfile, how='inner', on=['Chromosome','Start_Position','Reference_Allele',
+        'Tumor_Seq_Allele2','Variant_Classification',"Variant_Type",'EXON'])
+
     # Import the reference fasta file
     fasta_sequences = SeqIO.parse(open(reffile),'fasta')
     for fasta in fasta_sequences:
@@ -338,9 +342,9 @@ def variant_processing(datadir,libraryid,reffile,patternlist,resultsdir):
         indivsumcol.loc[eachpos,'S_AltCount'] = sumAD
     
     # Final annotation
-    final_result = MTvarfile.loc[:,['Tumor_Sample_Barcode_y','Matched_Norm_Sample_Barcode_y','Chromosome',
+    final_result = MTvarfile.loc[:,['Tumor_Sample_Barcode','Matched_Norm_Sample_Barcode','Chromosome',
         'Start_Position','Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Hugo_Symbol','EXON',
-        'n_depth_y','t_depth_y','t_ref_count_y','t_alt_count_y']]
+        'n_depth','t_depth','t_ref_count','t_alt_count']]
     final_result.columns = ['Sample','NormalUsed','Chrom','Start','Ref','Alt','VariantClass','Gene','Exon',
         'N_TotalDepth','T_TotalDepth','T_RefCount','T_AltCount']
     indivsumcol.index = indivcol.index.values
@@ -818,9 +822,9 @@ if __name__ == "__main__":
     print("Miminum number of reads mapping to forward and reverse strand to call mutation of " + str(minstrand))
 
     # Filtering of cells
-    merging_bams(datadir,libraryid,resultsdir)
-    preproccess_bams(datadir,reffile,workingdir,vepcache,resultsdir,genome,mtchrom,species,ncbibuild)
-    variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,resultsdir,mtchrom,species,ncbibuild)
+    # merging_bams(datadir,libraryid,resultsdir)
+    # preproccess_bams(datadir,reffile,workingdir,vepcache,resultsdir,genome,mtchrom,species,ncbibuild)
+    # variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,resultsdir,mtchrom,species,ncbibuild)
     variant_processing(datadir,libraryid,reffile,patternlist,resultsdir)
     if genome == "GRCh38" or genome == "GRCh37":
         runhaplogrep(datadir,libraryid,reffile,workingdir,resultsdir)
