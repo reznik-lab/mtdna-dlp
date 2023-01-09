@@ -21,6 +21,7 @@ parser.add_argument("-h","--help",action='help', default=argparse.SUPPRESS,
 parser.add_argument("-w", "--workingdir", type=str, help="Working directory")
 parser.add_argument("-vc", "--vepcache", type=str, help="Directory for vep cache")
 parser.add_argument("-f", "--fasta", type=str, help="path to fasta", default="")
+parser.add_argument("-m", "--mtchrom",type=str, help="Chromosome type", default="MT")
 
 # Read in the arguments
 args = parser.parse_args()
@@ -35,6 +36,7 @@ vepcache = args.vepcache
 minmapq = args.mapq
 minbq = args.baseq
 fasta = args.fasta
+mtcrhom = args.mtchrom
 
 # Make sure the output directories are created
 if not os.path.exists(vcfdir):
@@ -46,7 +48,7 @@ if not os.path.exists(outdir):
 if genome == 'GRCh37':
     if fasta == "":
         fasta = workingdir + '/reference/b37/b37_MT.fa'
-    mtchrom = 'MT'
+    # mtchrom = 'MT'
     ncbibuild = 'GRCh37'
     maf2maf_fasta = fasta
     bcfploidy_genome = 'GRCh37'
@@ -54,14 +56,14 @@ elif genome == "GRCm38" or genome == "mm10":
     if fasta == "":
         fasta = workingdir + "/reference/mm10/mm10_MT.fa"
     # mtchrom = 'chrM'
-    mtchrom = 'MT'
+    # mtchrom = 'MT'
     ncbibuild = 'mm10'
     maf2maf_fasta = fasta
     bcfploidy_genome = 'mm10'
 elif genome == 'GRCh38':
     if fasta == "":
         fasta = workingdir + '/reference/GRCh38/genome_MT.fa'
-    mtchrom = 'MT'
+    # mtchrom = 'MT'
     ncbibuild = 'GRCh38'
     maf2maf_fasta = fasta
     bcfploidy_genome = 'GRCh38'

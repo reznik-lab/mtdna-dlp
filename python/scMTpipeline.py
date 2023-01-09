@@ -46,7 +46,7 @@ def preproccess_bams(datadir, reffile, workingdir, vepcache, resultsdir, genome,
             print("Running MTvariantpipeline..")
             subprocess.call("python3 " + workingdir + "/MTvariantpipeline.py -d " + datadir + "/ -v " + resultsdir + "/TEMPMAFfiles/ -o " + 
                 resultsdir + "/MTvariant_results/ -b " + libraryid + ".bam -g " + genome + " -q " + str(minmapq) + " -Q " + str(minbq) + 
-                " -s " + str(minstrand) + " -w " + workingdir + "/ -vc " + vepcache + " -f " + reffile, shell=True)
+                " -s " + str(minstrand) + " -w " + workingdir + "/ -vc " + vepcache + " -f " + reffile + " -m " + mtchrom, shell=True)
             # MuTect2 mitochondrial mode
             print("Running MuTect2..")
             subprocess.call("gatk --java-options -Xmx4g Mutect2 -R " + reffile + " --mitochondria-mode true -L " + mtchrom + " -mbq " + str(minbq) + 
@@ -63,6 +63,7 @@ def preproccess_bams(datadir, reffile, workingdir, vepcache, resultsdir, genome,
             subprocess.call(f"samtools view -h {datadir}/{file} | grep -h 'X0\|@' > {resultsdir}/filteredfiles/{file}.sam", shell=True)
             subprocess.call(f"samtools view {datadir}/{file} >> {resultsdir}/filteredfiles/{file}.sam", shell=True)
             subprocess.call(f"samtools view -bSq 20 {resultsdir}/filteredfiles/{file}.sam > {resultsdir}/filteredfiles/filtered{file}", shell=True)
+            # subprocess.call(f"rm {resultsdir}/filteredfiles/{file}.sam")
 
     
 def variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,resultsdir,mtchrom,species,ncbibuild):
@@ -81,7 +82,7 @@ def variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,wor
     # Running MTvariantpipeline
     subprocess.call("python3 " + workingdir + "/MTvariantpipeline.py -d " + resultsdir + "/merged/ -v " + resultsdir + "/mergedTEMPMAFfiles/ -o " + 
         resultsdir + "/MTvariant_results/ -b " + libraryid + "-merged.bam -g " + genome + " -q " + str(minmapq) + " -Q " + 
-        str(minbq) + " -s " + str(minstrand) + " -w " + workingdir + "/ -vc " + vepcache + " -f " + reffile, shell=True)
+        str(minbq) + " -s " + str(minstrand) + " -w " + workingdir + "/ -vc " + vepcache + " -f " + reffile + " -m " + mtchrom, shell=True)
 
     # MuTect2 mitochondrial mode
     print("Running MuTect2..")
@@ -341,12 +342,19 @@ def variant_processing(datadir,libraryid,reffile,patternlist,resultsdir):
         indivsumcol.loc[eachpos,'S_RefCount'] = sumRD
         indivsumcol.loc[eachpos,'S_AltCount'] = sumAD
     
+    # MTvarfile.to_csv("/home/parkt/sc_combined.tsv",sep='\t',index=False)
+
     # Final annotation
-    final_result = MTvarfile.loc[:,['Tumor_Sample_Barcode','Matched_Norm_Sample_Barcode','Chromosome',
-        'Start_Position','Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Hugo_Symbol','EXON',
-        'n_depth','t_depth','t_ref_count','t_alt_count']]
+    # final_result = MTvarfile.loc[:,['Tumor_Sample_Barcode','Matched_Norm_Sample_Barcode','Chromosome',
+    #     'Start_Position','Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Hugo_Symbol','EXON',
+    #     'n_depth','t_depth','t_ref_count','t_alt_count']]
+    # final_result.columns = ['Sample','NormalUsed','Chrom','Start','Ref','Alt','VariantClass','Gene','Exon',
+    #     'N_TotalDepth','T_TotalDepth','T_RefCount','T_AltCount']
+    final_result = MTvarfile.loc[:,['Tumor_Sample_Barcode_y','Matched_Norm_Sample_Barcode_y','Chromosome',
+        'Start_Position','Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Hugo_Symbol_y','EXON',
+        'n_depth_y',"n_ref_count_y","n_alt_count_y",'t_depth_y','t_ref_count_y','t_alt_count_y',"t_alt_fwd","t_alt_rev"]]
     final_result.columns = ['Sample','NormalUsed','Chrom','Start','Ref','Alt','VariantClass','Gene','Exon',
-        'N_TotalDepth','T_TotalDepth','T_RefCount','T_AltCount']
+        'N_TotalDepth',"N_RefCount","N_AltCount",'T_TotalDepth','T_RefCount','T_AltCount',"T_AltFwd","T_AltRev"]
     indivsumcol.index = indivcol.index.values
     final_result = pd.concat([final_result, indivsumcol, indivcol], axis = 1)
     
@@ -678,9 +686,10 @@ def genmaster(libraryid,reffile,resultsdir,genome):
         currheader, currsequence = fasta.id, fasta.seq
         if 'MT' in currheader:
             sequence = [base for base in currsequence]
-    # Account for germline variants
-    for eachone in range(len(pos)):
-        sequence[int(pos[eachone])-1] = start[eachone]
+    if genome == "GRCh38" or genome == "GRCh37":
+        # Account for germline variants
+        for eachone in range(len(pos)):
+            sequence[int(pos[eachone])-1] = start[eachone]
     varref = [variants[0] for variants in pd.Series(variantsfile.index.values).str.split(':')]
     varpos = [variants[1] for variants in pd.Series(variantsfile.index.values).str.split(':')]
     varalt = [variants[2] for variants in pd.Series(variantsfile.index.values).str.split(':')]
@@ -750,10 +759,11 @@ def genmaster(libraryid,reffile,resultsdir,genome):
     resultMT.to_csv(resultsdir + "/" + libraryid + '_master.tsv',sep = '\t')
     
     # Process the master file to generate binary and vaf matrix of filtered variants
-    # Iterate through the germline variants to flip the vaf for the individual cells
-    for eachrow in vaffile.index.values:
-        if eachrow.split(':')[1] in pos: # it's a germline variant position
-            vaffile.loc[eachrow] = 1 - vaffile.loc[eachrow]
+    if genome == "GRCh38" or genome == "GRCh37":
+        # Iterate through the germline variants to flip the vaf for the individual cells
+        for eachrow in vaffile.index.values:
+            if eachrow.split(':')[1] in pos: # it's a germline variant position
+                vaffile.loc[eachrow] = 1 - vaffile.loc[eachrow]
     # Saving the final vaf file
     vaffile.to_csv(resultsdir + "/" + libraryid + '_vaf.tsv',sep = '\t',na_rep='NA')
     
@@ -778,6 +788,7 @@ if __name__ == "__main__":
     parser.add_argument("-vc", "--vepcache", type=str, help="Directory for vep cache", default="$HOME/.vep")
     parser.add_argument("-g", "--genome",type=str, help="Genome version",default = "GRCh37") 
     parser.add_argument("-r", "--reffile",type=str, help="Reference fasta file", default="")
+    parser.add_argument("-m", "--mtchrom",type=str, help="Chromosome type", default="MT")
     
     # read in arguments    
     args = parser.parse_args()
@@ -793,24 +804,26 @@ if __name__ == "__main__":
     vepcache = args.vepcache
     resultsdir = args.resultsdir
     genome = args.genome
+    mtchrom = args.mtchrom
 
     # Set the parameters for the genome build
     if genome == 'GRCh37':
         if reffile == "":
             reffile = workingdir + '/reference/b37/b37_MT.fa'
-        mtchrom = 'MT'
+        # mtchrom = 'MT'
         ncbibuild = 'GRCh37'
         species = "homo_sapiens"
     elif genome == "GRCm38" or genome == "mm10":
         if reffile == "":
             reffile = workingdir + "/reference/mm10/mm10_MT.fa"
-        mtchrom = 'chrM'
+        # mtchrom = 'chrM'
+        # mtchrom = "MT"
         ncbibuild = 'GRCm38'
         species = "mus_musculus"
     elif genome == 'GRCh38':
         if reffile == "":
             reffile = workingdir + '/reference/GRCh38/genome_MT.fa'
-        mtchrom = 'MT'
+        # mtchrom = 'MT'
         ncbibuild = 'GRCh38'
         species = "homo_sapiens"
     else:
@@ -825,8 +838,8 @@ if __name__ == "__main__":
     # merging_bams(datadir,libraryid,resultsdir)
     # preproccess_bams(datadir,reffile,workingdir,vepcache,resultsdir,genome,mtchrom,species,ncbibuild)
     # variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,resultsdir,mtchrom,species,ncbibuild)
-    variant_processing(datadir,libraryid,reffile,patternlist,resultsdir)
-    if genome == "GRCh38" or genome == "GRCh37":
-        runhaplogrep(datadir,libraryid,reffile,workingdir,resultsdir)
-    processfillout(libraryid,threshold,resultsdir,genome)
+    # variant_processing(datadir,libraryid,reffile,patternlist,resultsdir)
+    # if genome == "GRCh38" or genome == "GRCh37":
+    #     runhaplogrep(datadir,libraryid,reffile,workingdir,resultsdir)
+    # processfillout(libraryid,threshold,resultsdir,genome)
     genmaster(libraryid,reffile,resultsdir,genome)

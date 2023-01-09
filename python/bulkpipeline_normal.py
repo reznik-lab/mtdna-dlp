@@ -9,7 +9,133 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 
 
-def variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species):
+def variant_calling_normal(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species,normal):
+    try:
+        os.makedirs(f"{resultsdir}/temp_MuTect2_results")
+    except OSError:
+        pass
+    try:
+        os.makedirs(f"{resultsdir}/MuTect2_results")
+    except OSError:
+        pass
+    try:
+        os.makedirs(f"{resultsdir}/MTvariant_results")
+    except OSError:
+        pass
+
+    # Running MTvariantpipeline with matched normal
+    print("Running MTvariantpipeline with matched normal..")
+    subprocess.call("python3 " + workingdir + "/MTvariantpipeline2.py -d " + datadir + "/ -v " + resultsdir + "/TEMPMAFfiles/ -o " + 
+        resultsdir + "/MTvariant_results/ -t " + libraryid + ".bam -n " + normal + ".bam -g " + genome + " -q " + str(minmapq) + 
+        " -Q " + str(minbq) + " -s " + str(minstrand) + " -w " + workingdir + "/ -vc " + vepcache + " -f " + reffile + " -m " + mtchrom, shell=True)
+
+    # MuTect2 mitochondrial mode on tumor
+    print("Running MuTect2 on tumor..")
+    subprocess.call("gatk --java-options -Xmx4g Mutect2 -R " + reffile + " --mitochondria-mode true -L " + mtchrom + " -mbq " 
+        + str(minbq) + " --minimum-mapping-quality " + str(minmapq) + " -I " + datadir + "/" + libraryid + ".bam -tumor " 
+        + libraryid.replace("-","_") + " -O " + resultsdir + "/temp_MuTect2_results/" + libraryid + ".bam.vcf.gz", shell=True)
+
+    # MuTect2 mitochondrial mode on normal
+    print("Running MuTect2 on normal..")
+    subprocess.call("gatk --java-options -Xmx4g Mutect2 -R " + reffile + " --mitochondria-mode true -L " + mtchrom + " -mbq " 
+        + str(minbq) + " --minimum-mapping-quality " + str(minmapq) + " -I " + datadir + "/" + normal + ".bam -tumor " 
+        + normal.replace("-","_") + " -O " + resultsdir + "/temp_MuTect2_results/" + normal + ".bam.vcf.gz", shell=True)
+
+    # Left align MuTect2 results
+    subprocess.call("bcftools norm -m - -f " + reffile + " " + resultsdir + "/temp_MuTect2_results/" + libraryid + ".bam.vcf.gz" 
+        + " -o " + resultsdir + "/temp_MuTect2_results/" + libraryid + ".bam.vcf", shell=True)
+    subprocess.call("bcftools norm -m - -f " + reffile + " " + resultsdir + "/temp_MuTect2_results/" + normal + ".bam.vcf.gz" 
+        + " -o " + resultsdir + "/temp_MuTect2_results/" + normal + ".bam.vcf", shell=True)
+    
+    # Convert the MuTect2 result from vcf to maf file
+    subprocess.call("perl " + workingdir + "/vcf2maf/vcf2maf.pl --species " + species + " --vep-data " + vepcache + " --input-vcf " 
+        + resultsdir + "/temp_MuTect2_results/" + libraryid + ".bam.vcf" + " --output-maf " + resultsdir + "/temp_MuTect2_results/" 
+        + libraryid + ".bam.maf" + " --ncbi-build " + ncbibuild + ' --ref-fasta ' + reffile, shell=True)
+    subprocess.call("perl " + workingdir + "/vcf2maf/vcf2maf.pl --species " + species + " --vep-data " + vepcache + " --input-vcf " 
+        + resultsdir + "/temp_MuTect2_results/" + normal + ".bam.vcf" + " --output-maf " + resultsdir + "/temp_MuTect2_results/" 
+        + normal + ".bam.maf" + " --ncbi-build " + ncbibuild + ' --ref-fasta ' + reffile, shell=True)
+
+    # Run R script to merge tumor and normal mafs
+    print("Merging tumor and normal mafs..")
+    subprocess.call("Rscript " + workingdir + "getMAFfromfile.R " + resultsdir + "/temp_MuTect2_results/" + libraryid 
+        + ".bam.maf " + resultsdir + "/temp_MuTect2_results/" + normal + ".bam.maf " + libraryid + " " + normal + " " 
+        + resultsdir + "/MuTect2_results/" + libraryid + ".bam.maf", shell=True)
+
+
+def variant_processing_normal(libraryid,resultsdir):
+    """
+    Run MTvariantpipeline and MuTect2 on the filtered cells
+    MTvariantpipeline: A simple variant calling and annotation pipeline for mitochondrial DNA variants.
+    """
+    print("Starting variant processing...")
+
+    # Overlap between MuTect and MTvariantpipeline
+    # Read in MTvariantpipeline result
+    MTvarfile = pd.read_csv(resultsdir + "/MTvariant_results/" + libraryid + ".bam.maf", sep = "\t", comment='#', low_memory=False)
+
+    # Read in MuTect result
+    mutectfile = pd.read_csv(resultsdir + "/MuTect2_results/" + libraryid + ".bam.maf", low_memory=False)
+    saveasthis = resultsdir + "/" + libraryid + ".fillout"
+
+    # Filter out variants falling in the repeat regions of 302-315, 513-525, and 3105-3109 (black listed regions)
+    # Make sure End_Position is also not in the region
+    rmregions = list(range(301,314)) + list(range(513,524)) + list(range(3105,3109))
+    if len(mutectfile['Start_Position'][mutectfile['Start_Position'].isin(rmregions)]) > 0:
+        mutectfile = mutectfile[~mutectfile['Start_Position'].isin(rmregions)]
+    if len(MTvarfile['Start_Position'][MTvarfile['Start_Position'].isin(rmregions)]) > 0:
+        rmthese = MTvarfile['Start_Position'].isin(rmregions)
+        MTvarfile = MTvarfile[~rmthese]
+    mutectfile.index = range(len(mutectfile.index))
+    MTvarfile.index = range(len(MTvarfile.index))
+
+    # convert Hugo_Symbol column to uppercase
+    mutectfile["Hugo_Symbol"] = mutectfile["Hugo_Symbol"].str.upper()
+    MTvarfile["Hugo_Symbol"] = MTvarfile["Hugo_Symbol"].str.upper()
+    
+    # Output the overlap as final maf file
+    combinedfile = pd.merge(mutectfile, MTvarfile, how='inner', on=['Chromosome','Start_Position','Reference_Allele',
+        'Tumor_Seq_Allele2','Variant_Classification',"Variant_Type",'EXON'])
+    # combinedfile.to_csv(resultsdir + "/" + libraryid + "combined.fillout",sep = '\t',na_rep='NA',index=False)
+    
+    # Fix INDELs in the same position i.e. A:11866:AC and A:11866:ACC
+    aux = combinedfile.loc[combinedfile['Variant_Type'] == 'INS'].groupby('Start_Position').count()['Hugo_Symbol_y'].reset_index()
+    positions = list(aux['Start_Position'].loc[aux['Hugo_Symbol_y'] > 1])
+    variants = list(combinedfile['ShortVariantID_y'].loc[(combinedfile['Start_Position'].isin(positions)) & (combinedfile['Variant_Type'] == 'INS')])
+    if len(positions) != 0:
+        dff = combinedfile.loc[combinedfile['ShortVariantID_y'].isin(variants)]
+
+        # Create an auxuliary file only with the last rows to keep: keep unique positions with the highest TumorVAF
+        dffaux = dff.sort_values(by='TumorVAF', ascending = False)
+        dffaux = dffaux.drop_duplicates('Start_Position', keep = 'first')
+        for i in positions:
+            vals = dff[['t_alt_count_y', 't_alt_count_x']].loc[dff['Start_Position'] == i].sum(axis = 0).reset_index()
+            dvals = dict(zip(list(vals['index']),list(vals[0])))
+            dffaux.loc[dffaux['Start_Position'] == i,'t_alt_count_y'] = dvals['t_alt_count_y']
+            dffaux.loc[dffaux['Start_Position'] == i,'t_alt_count_x'] = dvals['t_alt_count_x']
+
+        #Remove all variants with duplicated indels
+        combinedfile = combinedfile.loc[(~combinedfile['ShortVariantID_y'].isin(variants))]
+
+        # Add unique indel variants with new values
+        combinedfile = pd.concat([combinedfile, dffaux])
+        combinedfile = combinedfile.sort_values(by='Start_Position', ascending = True)
+
+        # Recalculate TumorVAF
+        # combinedfile['TumorVAF_y'] = combinedfile['t_alt_count_y'] / (combinedfile['t_ref_count_y'] + combinedfile['t_alt_count_y'])
+        # combinedfile['TumorVAF_x'] = combinedfile['t_alt_count_x'] / (combinedfile['t_ref_count_x'] + combinedfile['t_alt_count_x'])
+    
+    # Final annotation
+    final_result = combinedfile.loc[:,['Tumor_Sample_Barcode_y','Matched_Norm_Sample_Barcode_y','Chromosome',
+        'Start_Position','Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Hugo_Symbol_y','EXON',
+        'n_depth_y',"n_ref_count_y","n_alt_count_y",'t_depth_y','t_ref_count_y','t_alt_count_y',"t_alt_fwd","t_alt_rev"]]
+    final_result.columns = ['Sample','NormalUsed','Chrom','Start','Ref','Alt','VariantClass','Gene','Exon',
+        'N_TotalDepth',"N_RefCount","N_AltCount",'T_TotalDepth','T_RefCount','T_AltCount',"T_AltFwd","T_AltRev"]
+    
+    # output the fillout results
+    final_result.to_csv(saveasthis,sep = '\t',na_rep='NA',index=False)
+
+
+def variant_calling(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species):
     try:
         os.makedirs(f"{resultsdir}/MuTect2_results")
     except OSError:
@@ -23,7 +149,7 @@ def variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,wor
     print("Running MTvariantpipeline..")
     subprocess.call("python3 " + workingdir + "/MTvariantpipeline.py -d " + datadir + "/ -v " + resultsdir + "/TEMPMAFfiles/ -o " + 
         resultsdir + "/MTvariant_results/ -b " + libraryid + ".bam -g " + genome + " -q " + str(minmapq) + " -Q " + str(minbq) + 
-        " -s " + str(minstrand) + " -w " + workingdir + "/ -vc " + vepcache + " -f " + reffile + " -m " + mtchrom, shell=True)
+        " -s " + str(minstrand) + " -w " + workingdir + "/ -vc " + vepcache + " -f " + reffile, shell=True)
 
     # MuTect2 mitochondrial mode
     print("Running MuTect2..")
@@ -352,6 +478,7 @@ if __name__ == "__main__":
     parser.add_argument("-w", "--workingdir", type=str, help="Working directory")
     parser.add_argument("-vc", "--vepcache", type=str, help="Directory for vep cache")
     parser.add_argument("-re", "--resultsdir", type=str, help="Directory for results")
+    parser.add_argument("-n", "--normal", type=str, help="matched normal file",default="")
     parser.add_argument("-m", "--mtchrom",type=str, help="Chromosome type", default="MT")
     
     # read in arguments
@@ -367,6 +494,7 @@ if __name__ == "__main__":
     workingdir = args.workingdir
     vepcache = args.vepcache
     resultsdir = args.resultsdir
+    normal = args.normal
     mtchrom = args.mtchrom
 
     # Set the parameters for the genome build
@@ -399,11 +527,15 @@ if __name__ == "__main__":
     print("Reference file: " + reffile)
 
     # Filtering of cells
-    variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species)
-    variant_processing(libraryid,resultsdir)
-    # if genome == "GRCh38" or genome == "GRCh37":
-    #     runhaplogrep(datadir,libraryid,reffile, workingdir, resultsdir)
-    # processfillout(libraryid, resultsdir,genome)
-    # genmaster(libraryid,reffile,resultsdir,genome)
+    if normal != "":
+        variant_calling_normal(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species,normal)
+        variant_processing_normal(libraryid,resultsdir)
+    else:
+        variant_calling(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species)
+        variant_processing(libraryid,resultsdir)
+    if genome == "GRCh38" or genome == "GRCh37":
+        runhaplogrep(datadir,libraryid,reffile, workingdir, resultsdir)
+    processfillout(libraryid, resultsdir,genome)
+    genmaster(libraryid,reffile,resultsdir,genome)
 
     print("DONE WITH BULKPIPELINE")
