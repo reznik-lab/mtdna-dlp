@@ -835,11 +835,11 @@ if __name__ == "__main__":
     print("Miminum number of reads mapping to forward and reverse strand to call mutation of " + str(minstrand))
 
     # Filtering of cells
-    # merging_bams(datadir,libraryid,resultsdir)
-    # preproccess_bams(datadir,reffile,workingdir,vepcache,resultsdir,genome,mtchrom,species,ncbibuild)
-    # variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,resultsdir,mtchrom,species,ncbibuild)
-    # variant_processing(datadir,libraryid,reffile,patternlist,resultsdir)
-    # if genome == "GRCh38" or genome == "GRCh37":
-    #     runhaplogrep(datadir,libraryid,reffile,workingdir,resultsdir)
-    # processfillout(libraryid,threshold,resultsdir,genome)
+    merging_bams(datadir,libraryid,resultsdir)
+    preproccess_bams(datadir,reffile,workingdir,vepcache,resultsdir,genome,mtchrom,species,ncbibuild)
+    variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,resultsdir,mtchrom,species,ncbibuild)
+    variant_processing(datadir,libraryid,reffile,patternlist,resultsdir)
+    if genome == "GRCh38" or genome == "GRCh37":
+        runhaplogrep(datadir,libraryid,reffile,workingdir,resultsdir)
+    processfillout(libraryid,threshold,resultsdir,genome)
     genmaster(libraryid,reffile,resultsdir,genome)

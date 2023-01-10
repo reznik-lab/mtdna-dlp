@@ -194,4 +194,6 @@ if __name__ == "__main__":
 
 
 
-
+# Example:
+# python3.7 split_bam.py [post sorted MT subset bamfile] [splits dir] 
+#     --barcode_csv [barcode file with header ‘barcode,’]
