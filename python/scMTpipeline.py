@@ -788,7 +788,7 @@ if __name__ == "__main__":
     parser.add_argument("-vc", "--vepcache", type=str, help="Directory for vep cache", default="$HOME/.vep")
     parser.add_argument("-g", "--genome",type=str, help="Genome version",default = "GRCh37") 
     parser.add_argument("-r", "--reffile",type=str, help="Reference fasta file", default="")
-    parser.add_argument("-m", "--mtchrom",type=str, help="Chromosome type", default="MT")
+    parser.add_argument("-m", "--mtchrom",type=str, help="MT chromosome type", default="MT")
     
     # read in arguments    
     args = parser.parse_args()

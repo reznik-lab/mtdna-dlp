@@ -44,7 +44,41 @@ conda install -c conda-forge matplotlib
 
 Additionally, a VEP offline cache needs to be installed __(NOTE: CACHE MUST BE SAME VERSION AS VEP VERSION)__. Please refer to https://uswest.ensembl.org/info/docs/tools/vep/script/vep_cache.html for instructions on how to install a VEP cache. Due to the size of the caches, it will likely take several hours to install.
 
+## Running the bulk pipeline (in the command line)
+
+Navigate to the directory with the `bulkpipeline.py` file and run the following (replace all brackets):
+```
+conda activate [environment]
+python3 bulkpipeline.py -d [data_directory] -w [working_directory] -l [library_id] -re [results_directory] -vc [optional_vep_cache_directory] -q [optional_mapping_quality] -Q [optional_base_quality] -s [optional_strand] -t [optional_threshold] -g [optional_genome] -r [optional_reference_fasta] -m [optional_mtchrom] -n [optional_normal]
+```
+
+Parameter descriptions:
+
+- __Data directory__: path to directory with input .bam files
+- __Working directory__: path to directory with `bulkpipeline.py` file in it
+- __Library ID__: name of .bam file to use as input
+- __Results directory__: path to directory where results will be stored
+- __(OPTIONAL )VEP cache directory__: path to directory with VEP cache
+- __(OPTIONAL) Mapping quality__: minimum mapping quality (default=20)
+- __(OPTIONAL) Base qualtiy__: minimum base quality (default=20)
+- __(OPTIONAL) Strand__: minimum number of reads mapping to forward and reverse strand to call mutation (default=2)
+- __(OPTIONAL) Threshold__: critical threshold for calling a cell wild-type (default=0.1)
+- __(OPTIONAL) Genome__: genome version (supported genomes are GRCh37, GRCh38, GRCm38, and mm10)
+- __(OPTIONAL) Reference fasta__: path to fasta file (by default will use a file from the reference folder that matches the genome, but a difference file may be given)
+- __(OPTIONAL) mtchrom__: type of MT chromosome (default is MT, may be chrM)
+- __(OPTIONAL) Normal__: matched normal file
+
+For example, a call to run the bulk pipeline with the minimum paramaters could look like this:
+```
+python3 bulkpipeline.py -d /my_data/ -w /my_home/mtdna-dlp/python/ -l my_file -re /my_home/mtdna-dlp/results/
+```
+
 ## Running the single cell pipeline (in the command line)
+
+Using the output from cellranger (i.e. /outs/filtered_feature_bc_matrix/barcodes.tsv.gz and /outs/possorted_genome_bam.bam), run the `split_bam.py` file. For example:
+```
+python3 split_bam.py possorted_genome_bam.bam output_directory --barcode_csv barcodes.tsv
+```
 
 Navigate to the directory with the `scMTpipeline.py` file and run the following (replace all brackets):
 ```
