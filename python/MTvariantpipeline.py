@@ -36,7 +36,7 @@ vepcache = args.vepcache
 minmapq = args.mapq
 minbq = args.baseq
 fasta = args.fasta
-mtcrhom = args.mtchrom
+mtchrom = args.mtchrom
 
 # Make sure the output directories are created
 if not os.path.exists(vcfdir):
