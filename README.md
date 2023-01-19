@@ -60,7 +60,7 @@ Parameter descriptions:
 - __Results directory__: path to directory where results will be stored
 - __(OPTIONAL )VEP cache directory__: path to directory with VEP cache
 - __(OPTIONAL) Mapping quality__: minimum mapping quality (default=20)
-- __(OPTIONAL) Base qualtiy__: minimum base quality (default=20)
+- __(OPTIONAL) Base quality__: minimum base quality (default=20)
 - __(OPTIONAL) Strand__: minimum number of reads mapping to forward and reverse strand to call mutation (default=2)
 - __(OPTIONAL) Threshold__: critical threshold for calling a cell wild-type (default=0.1)
 - __(OPTIONAL) Genome__: genome version (supported genomes are GRCh37, GRCh38, GRCm38, and mm10)
