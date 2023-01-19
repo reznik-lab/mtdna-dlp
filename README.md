@@ -92,9 +92,9 @@ Parameter descriptions:
 - __Working directory__: path to directory with `scMTpipeline.py` file in it
 - __Library ID__: name of .bam file to use as input
 - __Results directory__: path to directory where results will be stored
-- __(OPTIONAL )VEP cache directory__: path to directory with VEP cache
+- __(OPTIONAL) VEP cache directory__: path to directory with VEP cache
 - __(OPTIONAL) Mapping quality__: minimum mapping quality (default=20)
-- __(OPTIONAL) Base qualtiy__: minimum base quality (default=20)
+- __(OPTIONAL) Base quality__: minimum base quality (default=20)
 - __(OPTIONAL) Strand__: minimum number of reads mapping to forward and reverse strand to call mutation (default=2)
 - __(OPTIONAL) Patternlist__: file containing a list of filenames to process at a time (to be used when there are many files to process)
 - __(OPTIONAL) Threshold__: critical threshold for calling a cell wild-type (default=0.1)
