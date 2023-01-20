@@ -76,9 +76,7 @@ def preproccess_bams(datadir, reffile, workingdir, vepcache, resultsdir, genome,
                 resultsdir + "/MuTect2_results/" + libraryid + ".bam.vcf" + " --output-maf " + resultsdir + "/MuTect2_results/" + libraryid + 
                 ".bam.maf" + " --ncbi-build " + ncbibuild + ' --ref-fasta ' + reffile, shell=True)
             # Create filtered files
-            subprocess.call(f"samtools view -h {datadir}/{file} | grep -h 'X0\|@' > {resultsdir}/filteredfiles/{file}.sam", shell=True)
-            subprocess.call(f"samtools view {datadir}/{file} >> {resultsdir}/filteredfiles/{file}.sam", shell=True)
-            subprocess.call(f"samtools view -bSq 20 {resultsdir}/filteredfiles/{file}.sam > {resultsdir}/filteredfiles/filtered{file}", shell=True)
+            subprocess.call(f"samtools view -bq 20 {datadir}/{file} > {resultsdir}/filteredfiles/filtered{file}", shell=True)
             # subprocess.call(f"rm {resultsdir}/filteredfiles/{file}.sam")
 
     
