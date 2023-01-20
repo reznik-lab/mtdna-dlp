@@ -77,6 +77,7 @@ def preproccess_bams(datadir, reffile, workingdir, vepcache, resultsdir, genome,
                 ".bam.maf" + " --ncbi-build " + ncbibuild + ' --ref-fasta ' + reffile, shell=True)
             # Create filtered files
             subprocess.call(f"samtools view -bq 20 {datadir}/{file} > {resultsdir}/filteredfiles/filtered{file}", shell=True)
+            subprocess.call(f"samtools index {resultsdir}/filteredfiles/filtered{file}", shell=True)
             # subprocess.call(f"rm {resultsdir}/filteredfiles/{file}.sam")
 
     
