@@ -50,24 +50,24 @@ def preproccess_bams(datadir, reffile, workingdir, vepcache, resultsdir, genome,
             libraryid = file[:-4]
             print("Running MTvariantpipeline..")
 
-            subprocess.call("".join(("python3 ",workingdir,"/MTvariantpipeline.py -d ",datadir,"/ -v ",resultsdir,"/TEMPMAFfiles/ -o ", 
-                resultsdir,"/MTvariant_results/ -b ",libraryid,".bam -g ",genome," -q ",str(minmapq)," -Q ",str(minbq), 
-                " -s ",str(minstrand)," -w ",workingdir,"/ -vc ",vepcache," -f ",reffile," -m ",mtchrom)), shell=True)
+            subprocess.call("".join(("python3 ", workingdir,"/MTvariantpipeline.py -d ", datadir,"/ -v ", resultsdir,"/TEMPMAFfiles/ -o ", 
+                resultsdir, "/MTvariant_results/ -b ", libraryid,".bam -g ", genome," -q ", str(minmapq)," -Q ", str(minbq), 
+                " -s ", str(minstrand)," -w ", workingdir,"/ -vc ", vepcache," -f ", reffile," -m ", mtchrom)), shell=True)
             
             # MuTect2 mitochondrial mode
             print("Running MuTect2..")
-            subprocess.call("gatk --java-options -Xmx4g Mutect2 -R " + reffile + " --mitochondria-mode true -L " + mtchrom + " -mbq " + str(minbq) + 
-                " --minimum-mapping-quality " + str(minmapq) + " -I " + datadir + "/" + libraryid + ".bam -tumor " + libraryid.replace("-","_") + 
-                " -O " + resultsdir + "/MuTect2_results/" + libraryid + ".bam.vcf.gz", shell=True)
+            subprocess.call("".join(("gatk --java-options -Xmx4g Mutect2 -R ",reffile," --mitochondria-mode true -L ",mtchrom," -mbq ",str(minbq), 
+                " --minimum-mapping-quality ",str(minmapq)," -I ",datadir,"/",libraryid,".bam -tumor ",libraryid.replace("-","_"), 
+                " -O ",resultsdir,"/MuTect2_results/",libraryid,".bam.vcf.gz")), shell=True)
 
             # Left align MuTect2 results
-            subprocess.call("bcftools norm -m - -f " + reffile + " " + resultsdir + "/MuTect2_results/" + libraryid + ".bam.vcf.gz" + 
-                " -o " + resultsdir + "/MuTect2_results/" + libraryid + ".bam.vcf", shell=True)
+            subprocess.call("".join(("bcftools norm -m - -f ",reffile, " ",resultsdir,"/MuTect2_results/",libraryid,".bam.vcf.gz", 
+                " -o ",resultsdir,"/MuTect2_results/",libraryid,".bam.vcf")), shell=True)
 
             # Convert the MuTect2 result from vcf to maf file
-            subprocess.call("perl " + workingdir + "/vcf2maf/vcf2maf.pl --species " + species + " --vep-data " + vepcache + " --input-vcf " + 
-                resultsdir + "/MuTect2_results/" + libraryid + ".bam.vcf" + " --output-maf " + resultsdir + "/MuTect2_results/" + libraryid + 
-                ".bam.maf" + " --ncbi-build " + ncbibuild + ' --ref-fasta ' + reffile, shell=True)
+            subprocess.call("".join(("perl ",workingdir,"/vcf2maf/vcf2maf.pl --species ",species," --vep-data ",vepcache," --input-vcf ", 
+                resultsdir,"/MuTect2_results/",libraryid,".bam.vcf"," --output-maf ",resultsdir,"/MuTect2_results/",libraryid,
+                ".bam.maf"," --ncbi-build ",ncbibuild,' --ref-fasta ',reffile)), shell=True)
 
             # Create filtered files
             subprocess.call(f"samtools view -bq 20 {datadir}/{file} > {resultsdir}/filteredfiles/filtered{file}", shell=True)
@@ -135,12 +135,13 @@ def variant_processing(datadir,libraryid,reffile,patternlist,resultsdir, mtchrom
     MTvarfile = pd.merge(mutectfile, MTvarfile, how='inner', on=['Chromosome','Start_Position','Reference_Allele',
         'Tumor_Seq_Allele2','Variant_Classification',"Variant_Type",'EXON'])
 
-    # Import the reference fasta file
+    # Import the reference fasta file and get only the mtDNA sequence
     fasta_sequences = SeqIO.parse(open(reffile),'fasta')
     for fasta in fasta_sequences:
         currheader, currsequence = fasta.id, fasta.seq
         if 'MT' in currheader or 'chrM' in currheader:
             sequence = [base for base in currsequence]
+            break
     
     # Fix the INDEL positions and alleles and find homopolymers for re-calculating the reference read counts
     indels = pd.DataFrame(index=range(len([i for i,x in enumerate((MTvarfile['Variant_Type'] == 'INS') | (MTvarfile['Variant_Type'] == 'DEL')) if x])), columns = [0,1])
