@@ -25,6 +25,14 @@ def reference_detect(reffile):
             mtchrom = 'chrM'
     return(mtchrom)
 
+def mappingquality(reffile, datadir):
+    print("Converting mapping qualities..")
+    for file in os.listdir(datadir):
+        if file.endswith(".bam"):
+            subprocess.call("java -Xmx5G -Xms5G -jar GenomeAnalysisTK.jar -T SplitNCigarReads -R ",
+                f"{reffile} -I {datadir}/{file} -o {datadir}/{file} -rf ReassignOneMappingQuality ",
+                "-RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS", shell=True)
+
 def merging_bams(datadir,libraryid,resultsdir):
     print("Merging the cells..")
     if not os.path.exists(f"{resultsdir}/merged"):
@@ -72,6 +80,10 @@ def preproccess_bams(datadir, reffile, workingdir, vepcache, resultsdir, genome,
             # Create filtered files
             subprocess.call(f"samtools view -bq 20 {datadir}/{file} > {resultsdir}/filteredfiles/filtered{file}", shell=True)
             subprocess.call(f"samtools index {resultsdir}/filteredfiles/filtered{file}", shell=True)
+
+
+    subprocess.call(f"rm {resultsdir}/TEMPMAFfiles/*.bam_temp2.maf", shell=True)
+
     
 def variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,resultsdir,mtchrom,species,ncbibuild):
     if not os.path.exists(f"{resultsdir}/MuTect2_results"):
@@ -155,7 +167,7 @@ def variant_processing(datadir,libraryid,reffile,resultsdir, mtchrom):
         i = 0
         while (sequence[int(MTvarfile.loc[MTvarfile.index.values[deletion],'Start_Position']) + i - 1] == currallele):
             i += 1
-        indels.iloc[eachindel,:] = [int(MTvarfile.loc[MTvarfile.index.values[deletion],'Start_Position']),int(MTvarfile.loc[MTvarfile.index.values[deletion],'Start_Position'] + i + 1)]
+        indels.iloc[eachindel,:] = [int(MTvarfile.loc[MTvarfile.index.values[deletion],'Start_Position']),int(MTvarfile.loc[MTvarfile.index.values[deletion],'Start_Position'] + i)]
         eachindel += 1
         # Fix the alt allele
         MTvarfile.loc[MTvarfile.index.values[deletion],'Tumor_Seq_Allele2'] = sequence[int(MTvarfile.loc[MTvarfile.index.values[deletion],'Start_Position']) - 1]
@@ -839,6 +851,8 @@ if __name__ == "__main__":
     print("Miminum number of reads mapping to forward and reverse strand to call mutation of " + str(minstrand))
 
     # Filtering of cells
+    if not is_dna:
+        mappingquality(reffile,datadir)
     merging_bams(datadir,libraryid,resultsdir)
     preproccess_bams(datadir,reffile,workingdir,vepcache,resultsdir,genome,mtchrom,species,ncbibuild)
     variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,resultsdir,mtchrom,species,ncbibuild)
