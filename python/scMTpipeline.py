@@ -25,6 +25,14 @@ def reference_detect(reffile):
             mtchrom = 'chrM'
     return(mtchrom)
 
+def mappingquality(reffile, datadir):
+    for file in os.listdir(datadir):
+        if file.endswith(".bam"):
+            print("Converting mapping qualities..")
+            subprocess.call("java -Xmx5G -Xms5G -jar GenomeAnalysisTK.jar -T SplitNCigarReads -R ",
+                f"{reffile} -I {datadir}/{file} -o {datadir}/{file} -rf ReassignOneMappingQuality ",
+                "-RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS", shell=True)
+
 def merging_bams(datadir,libraryid,resultsdir):
     print("Merging the cells..")
     if not os.path.exists(f"{resultsdir}/merged"):
@@ -846,6 +854,8 @@ if __name__ == "__main__":
     print("Miminum number of reads mapping to forward and reverse strand to call mutation of " + str(minstrand))
 
     # Filtering of cells
+    if not is_dna:
+        mappingquality(reffile,datadir)
     merging_bams(datadir,libraryid,resultsdir)
     preproccess_bams(datadir,reffile,workingdir,vepcache,resultsdir,genome,mtchrom,species,ncbibuild)
     variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,resultsdir,mtchrom,species,ncbibuild)
