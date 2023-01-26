@@ -72,8 +72,6 @@ def preproccess_bams(datadir, reffile, workingdir, vepcache, resultsdir, genome,
             # Create filtered files
             subprocess.call(f"samtools view -bq 20 {datadir}/{file} > {resultsdir}/filteredfiles/filtered{file}", shell=True)
             subprocess.call(f"samtools index {resultsdir}/filteredfiles/filtered{file}", shell=True)
-            # subprocess.call(f"rm {resultsdir}/filteredfiles/{file}.sam")
-
     
 def variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,resultsdir,mtchrom,species,ncbibuild):
     if not os.path.exists(f"{resultsdir}/MuTect2_results"):
@@ -690,6 +688,8 @@ def genmaster(libraryid,reffile,resultsdir,genome):
         currheader, currsequence = fasta.id, fasta.seq
         if 'MT' in currheader or 'chrM' in currheader:
             sequence = [base for base in currsequence]
+            break
+
     if genome == "GRCh38" or genome == "GRCh37":
         # Account for germline variants
         for eachone in range(len(pos)):
@@ -793,7 +793,6 @@ if __name__ == "__main__":
     parser.add_argument("-g", "--genome",type=str, help="Genome version",default = "GRCh37") 
     parser.add_argument("-r", "--reffile",type=str, help="Reference fasta file", default="")
     parser.add_argument("-dn", "--dna",type=bool, help="Data is DNA (True) or RNA (False)", default=True)
-    #parser.add_argument("-m", "--mtchrom",type=str, help="MT chromosome type", default="MT")
     
     # read in arguments    
     args = parser.parse_args()
@@ -814,26 +813,21 @@ if __name__ == "__main__":
 
     # Run reference_detect to determine mtchrom
     mtchrom = reference_detect(reffile)
-    #print(mtchrom)
-
+    
     # Set the parameters for the genome build
     if genome == 'GRCh37':
         if reffile == "":
             reffile = workingdir + '/reference/b37/b37_MT.fa'
-        # mtchrom = 'MT'
         ncbibuild = 'GRCh37'
         species = "homo_sapiens"
     elif genome == "GRCm38" or genome == "mm10":
         if reffile == "":
             reffile = workingdir + "/reference/mm10/mm10_MT.fa"
-        # mtchrom = 'chrM'
-        # mtchrom = "MT"
         ncbibuild = 'GRCm38'
         species = "mus_musculus"
     elif genome == 'GRCh38':
         if reffile == "":
             reffile = workingdir + '/reference/GRCh38/genome_MT.fa'
-        # mtchrom = 'MT'
         ncbibuild = 'GRCh38'
         species = "homo_sapiens"
     else:
