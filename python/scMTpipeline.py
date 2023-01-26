@@ -97,16 +97,16 @@ def variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,wor
         libraryid.replace("-","_"), " -O ", resultsdir, "/MuTect2_results/", libraryid, "-merged.bam.vcf.gz")), shell=True)
     
     # Left align MuTect2 results
-    subprocess.call("".join(("bcftools norm -m - -f ", reffile, " ", resultsdir, "/MuTect2_results/", libraryid, "-merged.bam.vcf.gz" + 
+    subprocess.call("".join(("bcftools norm -m - -f ", reffile, " ", resultsdir, "/MuTect2_results/", libraryid, "-merged.bam.vcf.gz", 
         " -o ", resultsdir, "/MuTect2_results/", libraryid, "-merged.bam.vcf")), shell=True)
 
     # Convert the MuTect2 result from vcf to maf file
     subprocess.call("".join(("perl ", workingdir, "/vcf2maf/vcf2maf.pl --species ", species, " --vep-data ", vepcache, " --input-vcf ",  
         resultsdir, "/MuTect2_results/", libraryid, "-merged.bam.vcf", " --output-maf ", resultsdir, 
-        "/MuTect2_results/", libraryid + "-merged.bam.maf", " --ncbi-build ", ncbibuild, ' --ref-fasta ', reffile)), shell=True)
+        "/MuTect2_results/", libraryid, "-merged.bam.maf", " --ncbi-build ", ncbibuild, ' --ref-fasta ', reffile)), shell=True)
 
 
-def variant_processing(datadir,libraryid,reffile,patternlist,resultsdir, mtchrom):
+def variant_processing(datadir,libraryid,reffile,resultsdir, mtchrom):
     """
     Run MTvariantpipeline and MuTect2 on the filtered cells
     MTvariantpipeline: A simple variant calling and annotation pipeline for mitochondrial DNA variants.
@@ -145,10 +145,10 @@ def variant_processing(datadir,libraryid,reffile,patternlist,resultsdir, mtchrom
     indels = pd.DataFrame(index=range(len([i for i,x in enumerate((MTvarfile['Variant_Type'] == 'INS') | (MTvarfile['Variant_Type'] == 'DEL')) if x])), columns = [0,1])
     indels = indels.fillna(0)
     eachindel = 0
+
     # Iterate through deletions
     for deletion in [ i for i,x in enumerate(MTvarfile['Variant_Type'] == 'DEL') if x]:
-        # Fix the position to match the mutect position
-        MTvarfile.loc[MTvarfile.index.values[deletion],'Start_Position'] = MTvarfile.loc[MTvarfile.index.values[deletion],'Start_Position'] - 1
+
         # Fix the ref allele and the Tumor_Seq_Allele1 using the already changed start position
         MTvarfile.loc[MTvarfile.index.values[deletion],'Reference_Allele'] = sequence[int(MTvarfile.loc[MTvarfile.index.values[deletion],'Start_Position'])-1] + MTvarfile.loc[MTvarfile.index.values[deletion],'Reference_Allele']
         MTvarfile.loc[MTvarfile.index.values[deletion],'Tumor_Seq_Allele1'] = MTvarfile.loc[MTvarfile.index.values[deletion],'Reference_Allele']
@@ -156,9 +156,9 @@ def variant_processing(datadir,libraryid,reffile,patternlist,resultsdir, mtchrom
         currallele = sequence[int(MTvarfile.loc[MTvarfile.index.values[deletion],'Start_Position']) - 1]
         i = 0
         while (sequence[int(MTvarfile.loc[MTvarfile.index.values[deletion],'Start_Position']) + i - 1] == currallele):
-            i = i + 1
+            i += 1
         indels.iloc[eachindel,:] = [int(MTvarfile.loc[MTvarfile.index.values[deletion],'Start_Position']),int(MTvarfile.loc[MTvarfile.index.values[deletion],'Start_Position'] + i + 1)]
-        eachindel = eachindel + 1
+        eachindel += 1
         # Fix the alt allele
         MTvarfile.loc[MTvarfile.index.values[deletion],'Tumor_Seq_Allele2'] = sequence[int(MTvarfile.loc[MTvarfile.index.values[deletion],'Start_Position']) - 1]
     # Iterate through insertions
@@ -170,28 +170,24 @@ def variant_processing(datadir,libraryid,reffile,patternlist,resultsdir, mtchrom
         currallele = MTvarfile.loc[MTvarfile.index.values[insertion],'Reference_Allele']
         i = 0
         while (sequence[int(MTvarfile.loc[MTvarfile.index.values[insertion],'Start_Position']) + i - 1] == currallele):
-            i = i + 1
-        indels.iloc[eachindel,:] = [int(MTvarfile.loc[MTvarfile.index.values[insertion],'Start_Position']),int(MTvarfile.loc[MTvarfile.index.values[insertion],'Start_Position'])+i+1]
-        eachindel = eachindel + 1
+            i += 1
+        indels.iloc[eachindel,:] = [int(MTvarfile.loc[MTvarfile.index.values[insertion],'Start_Position']),int(MTvarfile.loc[MTvarfile.index.values[insertion],'Start_Position'])+i]
+        eachindel += 1
         # Fix the alt allele
         MTvarfile.loc[MTvarfile.index.values[insertion],'Tumor_Seq_Allele2'] = sequence[int(MTvarfile.loc[MTvarfile.index.values[insertion],'Start_Position']) - 1] + MTvarfile.loc[MTvarfile.index.values[insertion],'Tumor_Seq_Allele2']
 
     # Save the indel annotations in a BedTool format
     indelfile = ''
     for eachindels in range(len(indels.index)):
-        indelfile = indelfile + mtchrom +'\t'+ str(indels.iloc[eachindels,0]) + '\t' + str(indels.iloc[eachindels,1]) + '\t.\n'
+        indelfile += mtchrom +'\t' + str(indels.iloc[eachindels,0]) + '\t' + str(indels.iloc[eachindels,1]) + '\t.\n'
     indels_res = BedTool(indelfile, from_string=True).sort().merge()
     indels = pd.read_csv(indels_res.fn, names=['0', '1'],sep='\t')
     indivcol = pd.DataFrame(index=MTvarfile.index.values)
     indivcol = indivcol.fillna(0)
     
-    # If the list exists, then read the list
-    if patternlist != "":
-        processbams = pd.read_csv(resultsdir + "/" + patternlist, header = None, low_memory=False)[0]
-        saveasthis = resultsdir + "/" + libraryid + "-merged_" + patternlist + ".fillout"
-    else:
-        processbams = glob.glob(resultsdir + '/TEMPMAFfiles/*.bam_temp.maf')
-        saveasthis = resultsdir + "/" + libraryid + "-merged.fillout"
+    processbams = glob.glob(resultsdir + '/TEMPMAFfiles/*.bam_temp.maf')
+    saveasthis = resultsdir + "/" + libraryid + "-merged.fillout"
+
     for filepath in processbams:
         file = os.path.basename(filepath)
         if os.stat(os.path.join(resultsdir + '/TEMPMAFfiles/' + file)).st_size != 0:
@@ -852,7 +848,7 @@ if __name__ == "__main__":
     merging_bams(datadir,libraryid,resultsdir)
     preproccess_bams(datadir,reffile,workingdir,vepcache,resultsdir,genome,mtchrom,species,ncbibuild)
     variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,resultsdir,mtchrom,species,ncbibuild)
-    variant_processing(datadir,libraryid,reffile,patternlist,resultsdir, mtchrom)
+    variant_processing(datadir,libraryid,reffile,resultsdir, mtchrom)
     if genome == "GRCh38" or genome == "GRCh37" and is_dna: 
         runhaplogrep(datadir,libraryid,reffile,workingdir,resultsdir,minbq,minmapq,mtchrom)
     processfillout(libraryid,threshold,resultsdir,genome)
