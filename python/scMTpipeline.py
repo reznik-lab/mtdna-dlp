@@ -76,37 +76,34 @@ def preproccess_bams(datadir, reffile, workingdir, vepcache, resultsdir, genome,
 
     
 def variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,resultsdir,mtchrom,species,ncbibuild):
-    try:
+    if not os.path.exists(f"{resultsdir}/MuTect2_results"):
         os.makedirs(f"{resultsdir}/MuTect2_results")
-    except OSError:
-        pass
-    try:
+    
+    if not os.path.exists(f"{resultsdir}/MTvariant_results"):
         os.makedirs(f"{resultsdir}/MTvariant_results")
-    except OSError:
-        pass
 
     # MTvariantpipeline without matched normal
     print("Running MTvariantpipeline..")
 
     # Running MTvariantpipeline
-    subprocess.call("python3 " + workingdir + "/MTvariantpipeline.py -d " + resultsdir + "/merged/ -v " + resultsdir + "/mergedTEMPMAFfiles/ -o " + 
-        resultsdir + "/MTvariant_results/ -b " + libraryid + "-merged.bam -g " + genome + " -q " + str(minmapq) + " -Q " + 
-        str(minbq) + " -s " + str(minstrand) + " -w " + workingdir + "/ -vc " + vepcache + " -f " + reffile + " -m " + mtchrom, shell=True)
+    subprocess.call("".join(("python3 ", workingdir, "/MTvariantpipeline.py -d ", resultsdir, "/merged/ -v ", resultsdir, "/mergedTEMPMAFfiles/ -o ",  
+        resultsdir, "/MTvariant_results/ -b ", libraryid, "-merged.bam -g ", genome, " -q ", str(minmapq), " -Q ",  
+        str(minbq), " -s ", str(minstrand), " -w ", workingdir, "/ -vc ", vepcache, " -f ", reffile, " -m ", mtchrom)), shell=True)
 
     # MuTect2 mitochondrial mode
     print("Running MuTect2..")
-    subprocess.call("gatk --java-options -Xmx4g Mutect2 -R " + reffile + " --mitochondria-mode true -L " + mtchrom + " -mbq " + str(minbq) + 
-        " --minimum-mapping-quality " + str(minmapq) + " -I " + resultsdir + "/merged/" + libraryid + "-merged.bam -tumor " + 
-        libraryid.replace("-","_") + " -O " + resultsdir + "/MuTect2_results/" + libraryid + "-merged.bam.vcf.gz", shell=True)
+    subprocess.call("".join(("gatk --java-options -Xmx4g Mutect2 -R ", reffile, " --mitochondria-mode true -L ", mtchrom, " -mbq ", str(minbq),  
+        " --minimum-mapping-quality ", str(minmapq), " -I ", resultsdir, "/merged/", libraryid, "-merged.bam -tumor ",  
+        libraryid.replace("-","_"), " -O ", resultsdir, "/MuTect2_results/", libraryid, "-merged.bam.vcf.gz")), shell=True)
     
     # Left align MuTect2 results
-    subprocess.call("bcftools norm -m - -f " + reffile + " " + resultsdir + "/MuTect2_results/" + libraryid + "-merged.bam.vcf.gz" + 
-        " -o " + resultsdir + "/MuTect2_results/" + libraryid + "-merged.bam.vcf", shell=True)
+    subprocess.call("".join(("bcftools norm -m - -f ", reffile, " ", resultsdir, "/MuTect2_results/", libraryid, "-merged.bam.vcf.gz" + 
+        " -o ", resultsdir, "/MuTect2_results/", libraryid, "-merged.bam.vcf")), shell=True)
 
     # Convert the MuTect2 result from vcf to maf file
-    subprocess.call("perl " + workingdir + "/vcf2maf/vcf2maf.pl --species " + species + " --vep-data " + vepcache + " --input-vcf " + 
-        resultsdir + "/MuTect2_results/" + libraryid + "-merged.bam.vcf" + " --output-maf " + resultsdir + 
-        "/MuTect2_results/" + libraryid + "-merged.bam.maf" + " --ncbi-build " + ncbibuild + ' --ref-fasta ' + reffile, shell=True)
+    subprocess.call("".join(("perl ", workingdir, "/vcf2maf/vcf2maf.pl --species ", species, " --vep-data ", vepcache, " --input-vcf ",  
+        resultsdir, "/MuTect2_results/", libraryid, "-merged.bam.vcf", " --output-maf ", resultsdir, 
+        "/MuTect2_results/", libraryid + "-merged.bam.maf", " --ncbi-build ", ncbibuild, ' --ref-fasta ', reffile)), shell=True)
 
 
 def variant_processing(datadir,libraryid,reffile,patternlist,resultsdir, mtchrom):
@@ -116,18 +113,19 @@ def variant_processing(datadir,libraryid,reffile,patternlist,resultsdir, mtchrom
     """
     # Overlap between MuTect and MTvariantpipeline
     # Read in MTvariantpipeline result
-    MTvarfile = pd.read_csv(resultsdir + "/MTvariant_results/" + libraryid + "-merged.bam.maf", sep = "\t", comment='#', low_memory=False)
+    MTvarfile = pd.read_csv("".join((resultsdir, "/MTvariant_results/", libraryid, "-merged.bam.maf")), sep = "\t", comment='#', low_memory=False)
     
     # Read in MuTect result
-    mutectfile = pd.read_csv(resultsdir + "/MuTect2_results/" + libraryid + "-merged.bam.maf", sep = "\t", header=1, low_memory=False)
+    mutectfile = pd.read_csv("".join((resultsdir, "/MuTect2_results/", libraryid, "-merged.bam.maf")), sep = "\t", header=1, low_memory=False)
 
     # Filter out variants falling in the repeat regions of 302-315, 513-525, and 3105-3109 (black listed regions)
-    rmregions = list(range(301,314)) + list(range(513,524)) + list(range(3105,3109))
+    rmregions = np.concatenate((np.arange(302.0,316.0), np.arange(513.0,526.0), np.arange(3105.0,3110.0)))
+
     if len(mutectfile['Start_Position'][mutectfile['Start_Position'].isin(rmregions)]) > 0:
         mutectfile = mutectfile[~mutectfile['Start_Position'].isin(rmregions)]
     if len(MTvarfile['Start_Position'][MTvarfile['Start_Position'].isin(rmregions)]) > 0:
-        rmthese = MTvarfile['Start_Position'].isin(rmregions)
-        MTvarfile = MTvarfile[~rmthese]
+        MTvarfile = MTvarfile[~MTvarfile['Start_Position'].isin(rmregions)]
+
     mutectfile.index = range(len(mutectfile.index))
     MTvarfile.index = range(len(MTvarfile.index))
 
@@ -798,6 +796,7 @@ if __name__ == "__main__":
     parser.add_argument("-vc", "--vepcache", type=str, help="Directory for vep cache", default="$HOME/.vep")
     parser.add_argument("-g", "--genome",type=str, help="Genome version",default = "GRCh37") 
     parser.add_argument("-r", "--reffile",type=str, help="Reference fasta file", default="")
+    parser.add_argument("-dn", "--dna",type=bool, help="Data is DNA (True) or RNA (False)", default=True)
     #parser.add_argument("-m", "--mtchrom",type=str, help="MT chromosome type", default="MT")
     
     # read in arguments    
@@ -814,6 +813,7 @@ if __name__ == "__main__":
     vepcache = args.vepcache
     resultsdir = args.resultsdir
     genome = args.genome
+    is_dna = args.dn
     #mtchrom = args.mtchrom
 
     # Run reference_detect to determine mtchrom
@@ -853,7 +853,7 @@ if __name__ == "__main__":
     preproccess_bams(datadir,reffile,workingdir,vepcache,resultsdir,genome,mtchrom,species,ncbibuild)
     variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,resultsdir,mtchrom,species,ncbibuild)
     variant_processing(datadir,libraryid,reffile,patternlist,resultsdir, mtchrom)
-    if genome == "GRCh38" or genome == "GRCh37":
+    if genome == "GRCh38" or genome == "GRCh37" and is_dna: 
         runhaplogrep(datadir,libraryid,reffile,workingdir,resultsdir,minbq,minmapq,mtchrom)
     processfillout(libraryid,threshold,resultsdir,genome)
     genmaster(libraryid,reffile,resultsdir,genome)
