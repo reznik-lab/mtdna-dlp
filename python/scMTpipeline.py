@@ -72,7 +72,8 @@ def preproccess_bams(datadir, reffile, workingdir, vepcache, resultsdir, genome,
             # Create filtered files
             subprocess.call(f"samtools view -bq 20 {datadir}/{file} > {resultsdir}/filteredfiles/filtered{file}", shell=True)
             subprocess.call(f"samtools index {resultsdir}/filteredfiles/filtered{file}", shell=True)
-            # subprocess.call(f"rm {resultsdir}/filteredfiles/{file}.sam")
+
+    subprocess.call(f"rm {resultsdir}/TEMPMAFfiles/*.bam_temp2.maf", shell=True)
 
     
 def variant_calling(datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,resultsdir,mtchrom,species,ncbibuild):
