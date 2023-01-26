@@ -330,18 +330,18 @@ for ii in range(bamfiles.shape[0]):
     # Part 5: Write out file
     maf.to_csv(outdir + "/" + f + '.maf',index = None,sep = '\t')
 
-# Write out the counts file as well
-mtcounts.to_csv(outdir + "/" + args.bamfiles.split('/')[-1] + 'Counts.txt')
+# # Write out the counts file as well
+# mtcounts.to_csv(outdir + "/" + args.bamfiles.split('/')[-1] + 'Counts.txt')
 
-# Write out the options that we used
-optsfile = open(outdir + "/" + args.bamfiles.split('/')[-1] + 'Options.txt','w')
-optsfile.write('datadir: ' + datadir + '\n')
-optsfile.write('vcfdir: ' + vcfdir + '\n')
-optsfile.write('outdir: ' + outdir + '\n')
-optsfile.write('genome: ' + genome + '\n')
-optsfile.write('minstrand: ' + str(minstrand) + '\n')
-optsfile.write('minmapq: ' + str(minmapq) + '\n')
-optsfile.write('minbq:' + str(minbq) + '\n')
-optsfile.close()
+# # Write out the options that we used
+# optsfile = open(outdir + "/" + args.bamfiles.split('/')[-1] + 'Options.txt','w')
+# optsfile.write('datadir: ' + datadir + '\n')
+# optsfile.write('vcfdir: ' + vcfdir + '\n')
+# optsfile.write('outdir: ' + outdir + '\n')
+# optsfile.write('genome: ' + genome + '\n')
+# optsfile.write('minstrand: ' + str(minstrand) + '\n')
+# optsfile.write('minmapq: ' + str(minmapq) + '\n')
+# optsfile.write('minbq:' + str(minbq) + '\n')
+# optsfile.close()
 
 print("DONE WITH MT VARIANT PIPELINE")
