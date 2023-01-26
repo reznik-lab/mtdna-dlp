@@ -26,9 +26,9 @@ def reference_detect(reffile):
     return(mtchrom)
 
 def mappingquality(reffile, datadir):
+    print("Converting mapping qualities..")
     for file in os.listdir(datadir):
         if file.endswith(".bam"):
-            print("Converting mapping qualities..")
             subprocess.call("java -Xmx5G -Xms5G -jar GenomeAnalysisTK.jar -T SplitNCigarReads -R ",
                 f"{reffile} -I {datadir}/{file} -o {datadir}/{file} -rf ReassignOneMappingQuality ",
                 "-RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS", shell=True)
