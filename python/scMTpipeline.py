@@ -820,7 +820,7 @@ if __name__ == "__main__":
     vepcache = args.vepcache
     resultsdir = args.resultsdir
     genome = args.genome
-    is_dna = args.dn
+    is_dna = args.dna
     #mtchrom = args.mtchrom
 
     # Run reference_detect to determine mtchrom
