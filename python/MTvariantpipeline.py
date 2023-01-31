@@ -51,31 +51,21 @@ if not os.path.exists(outdir):
 if genome == 'GRCh37':
     if fasta == "":
         fasta = workingdir + '/reference/b37/b37_MT.fa'
-    # mtchrom = 'MT'
     ncbibuild = 'GRCh37'
     maf2maf_fasta = fasta
     bcfploidy_genome = 'GRCh37'
 elif genome == "GRCm38" or genome == "mm10":
     if fasta == "":
         fasta = workingdir + "/reference/mm10/mm10_MT.fa"
-    # mtchrom = 'chrM'
-    # mtchrom = 'MT'
     ncbibuild = 'mm10'
     maf2maf_fasta = fasta
     bcfploidy_genome = 'mm10'
 elif genome == 'GRCh38':
     if fasta == "":
         fasta = workingdir + '/reference/GRCh38/genome_MT.fa'
-    # mtchrom = 'MT'
     ncbibuild = 'GRCh38'
     maf2maf_fasta = fasta
     bcfploidy_genome = 'GRCh38'
-# elif genome == 'mm10':
-#     fasta = workingdir + '/reference/mm10_genome.fa'
-#     mtchrom = 'chrM'
-#     ncbibuild = 'mm10'
-#     maf2maf_fasta = fasta
-#     bcfploidy_genome = 'mm10'
 # elif genome == 'hg19':
 #     # this is the bona fide hg19, with chrM of length 16571
 #     fasta = '/ifs/depot/pi/resources/genomes/hg19/fasta/hg19.fasta' #where to get this file?
@@ -245,13 +235,13 @@ for ii in range(bamfiles.shape[0]):
     tempmaf = tempmaf[ tempmaf['t_alt_fwd'].map(int) >= minstrand ]
     tempmaf = tempmaf[ tempmaf['t_alt_rev'].map(int) >= minstrand ]
     
-    # If we are using hg19 with the 16571 long MT chromosome, change the mapping so that we can call variants correctly. 
-    if genome == 'hg19':
-        tempmaf['YorubaPosition'] = tempmaf['Start_Position'].copy()
-        newstarts = rcrsmapping.ix[ 'Position:' + tempmaf['YorubaPosition'].map(int).map(str),0 ].reset_index(drop = True)
-        tempmaf['Start_Position'] = newstarts.tolist()
-        tempmaf = tempmaf[ tempmaf['Start_Position'].notnull() ]
-        tempmaf['Start_Position'] = tempmaf['Start_Position'].map(int)
+    # # If we are using hg19 with the 16571 long MT chromosome, change the mapping so that we can call variants correctly. 
+    # if genome == 'hg19':
+    #     tempmaf['YorubaPosition'] = tempmaf['Start_Position'].copy()
+    #     newstarts = rcrsmapping.ix[ 'Position:' + tempmaf['YorubaPosition'].map(int).map(str),0 ].reset_index(drop = True)
+    #     tempmaf['Start_Position'] = newstarts.tolist()
+    #     tempmaf = tempmaf[ tempmaf['Start_Position'].notnull() ]
+    #     tempmaf['Start_Position'] = tempmaf['Start_Position'].map(int)
 
     # removing position 3106
     tempmaf = tempmaf[~tempmaf['Start_Position'].isin(list(range(3106, 3107)))]

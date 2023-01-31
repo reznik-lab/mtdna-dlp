@@ -358,15 +358,8 @@ def variant_processing(libraryid,reffile,resultsdir, mtchrom):
         indivsumcol.loc[eachpos,'S_TotalDepth'] = sumDP
         indivsumcol.loc[eachpos,'S_RefCount'] = sumRD
         indivsumcol.loc[eachpos,'S_AltCount'] = sumAD
-    
-    # MTvarfile.to_csv("/home/parkt/sc_combined.tsv",sep='\t',index=False)
 
     # Final annotation
-    # final_result = MTvarfile.loc[:,['Tumor_Sample_Barcode','Matched_Norm_Sample_Barcode','Chromosome',
-    #     'Start_Position','Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Hugo_Symbol','EXON',
-    #     'n_depth','t_depth','t_ref_count','t_alt_count']]
-    # final_result.columns = ['Sample','NormalUsed','Chrom','Start','Ref','Alt','VariantClass','Gene','Exon',
-    #     'N_TotalDepth','T_TotalDepth','T_RefCount','T_AltCount']
     final_result = MTvarfile.loc[:,['Tumor_Sample_Barcode_y','Matched_Norm_Sample_Barcode_y','Chromosome',
         'Start_Position','Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Hugo_Symbol_y','EXON',
         'n_depth_y',"n_ref_count_y","n_alt_count_y",'t_depth_y','t_ref_count_y','t_alt_count_y',"t_alt_fwd","t_alt_rev"]]
@@ -664,21 +657,9 @@ def genmaster(libraryid,reffile,resultsdir,genome,molecule):
     variantannot['T_AltCount'] = filloutfile['T_AltCount']
     variantannot['T_RefCount'] = filloutfile['T_RefCount']
     variantannot['Start'] = filloutfile['Start']
-    
-    # Recalculating the read counts
-    if patternlist != "":
-        for eachrow in variantannot.index.values:
-            if str(variantannot.loc[eachrow,'Start']) in pos: # it's a germline variant position
-                # sum the numerators of the masterfile for the row
-                variantannot.loc[eachrow,'S_AltCount'] = sum(pd.to_numeric(masterfile.loc[eachrow,:].apply(lambda x : x.split('/')[1]).values)) - sum(pd.to_numeric(masterfile.loc[eachrow,:].apply(lambda x : x.split('/')[0]).values))
-                variantannot.loc[eachrow,'S_RefCount'] = sum(pd.to_numeric(masterfile.loc[eachrow,:].apply(lambda x : x.split('/')[0]).values))
-            variantannot.loc[eachrow,'S_AltCount'] = sum(pd.to_numeric(masterfile.loc[eachrow,:].apply(lambda x : x.split('/')[0]).values))
-            variantannot.loc[eachrow,'S_RefCount'] = sum(pd.to_numeric(masterfile.loc[eachrow,:].apply(lambda x : x.split('/')[1]).values)) - sum(pd.to_numeric(masterfile.loc[eachrow,:].apply(lambda x : x.split('/')[0]).values))
-        variantannot['VAF_total'] = [str(variantannot['S_AltCount'][i]) + '/' + str(variantannot['S_AltCount'][i] + variantannot['S_RefCount'][i]) for i in range(len(variantannot))]
-    else:
-        variantannot['S_AltCount'] = filloutfile["S_AltCount"]
-        variantannot['S_RefCount'] = filloutfile["S_RefCount"]
-        variantannot['VAF_total'] = filloutfile["S_AltCount"].astype(str) + '/' + (filloutfile["S_AltCount"].values + filloutfile["S_RefCount"].values).astype(str)
+    variantannot['S_AltCount'] = filloutfile["S_AltCount"]
+    variantannot['S_RefCount'] = filloutfile["S_RefCount"]
+    variantannot['VAF_total'] = filloutfile["S_AltCount"].astype(str) + '/' + (filloutfile["S_AltCount"].values + filloutfile["S_RefCount"].values).astype(str)
     
     # Iterate through the variants to recalculate the bulk proportions
     for eachrow in variantannot.index.values:
@@ -802,7 +783,6 @@ if __name__ == "__main__":
     parser.add_argument("-q","--mapq",type=int,help="Minimum mapping quality, default = 20", default = 20)
     parser.add_argument("-Q","--baseq",type=int,help="Minimum base quality, default = 20", default = 20)
     parser.add_argument("-s","--strand",type=int,help="Minimum number of reads mapping to forward and reverse strand to call mutation, default=2",default = 2)
-    parser.add_argument("-p", "--patternlist",type=str, help="File containing a list of filenames to process at a time", default = "")
     parser.add_argument("-t","--threshold",type=int,help="The critical threshold for calling a cell wild-type, default=0.1", default = 0.1)
     parser.add_argument("-vc", "--vepcache", type=str, help="Directory for vep cache", default="$HOME/.vep")
     parser.add_argument("-g", "--genome",type=str, help="Genome version",default = "GRCh37") 
@@ -819,7 +799,6 @@ if __name__ == "__main__":
     minstrand = args.strand
     threshold = args.threshold
     libraryid = args.libraryid
-    patternlist = args.patternlist
     workingdir = args.workingdir
     vepcache = args.vepcache
     resultsdir = args.resultsdir

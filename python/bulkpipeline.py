@@ -115,7 +115,6 @@ def variant_processing_normal(libraryid,resultsdir):
     # Output the overlap as final maf file
     combinedfile = pd.merge(mutectfile, MTvarfile, how='inner', on=['Chromosome','Start_Position','Reference_Allele',
         'Tumor_Seq_Allele2','Variant_Classification',"Variant_Type",'EXON'])
-    # combinedfile.to_csv(resultsdir + "/" + libraryid + "combined.fillout",sep = '\t',na_rep='NA',index=False)
     
     # Fix INDELs in the same position i.e. A:11866:AC and A:11866:ACC
     aux = combinedfile.loc[combinedfile['Variant_Type'] == 'INS'].groupby('Start_Position').count()['Hugo_Symbol_y'].reset_index()
@@ -220,7 +219,6 @@ def variant_processing(libraryid,resultsdir):
     # Output the overlap as final maf file
     combinedfile = pd.merge(mutectfile, MTvarfile, how='inner', on=['Chromosome','Start_Position','Reference_Allele',
         'Tumor_Seq_Allele2','Variant_Classification',"Variant_Type",'EXON'])
-    # combinedfile.to_csv(resultsdir + "/combined.fillout",sep = '\t',na_rep='NA',index=False)
     
     # Fix INDELs in the same position i.e. A:11866:AC and A:11866:ACC
     aux = combinedfile.loc[combinedfile['Variant_Type'] == 'INS'].groupby('Start_Position').count()['Hugo_Symbol_y'].reset_index()
@@ -338,38 +336,6 @@ def genmaster(libraryid,reffile,resultsdir,genome):
     # Import the relevant files
     variantsfile = pd.read_csv(os.path.join(resultsdir + "/" + libraryid + '_variants.tsv'), sep='\t', index_col=0)
     filloutfile = pd.read_csv(os.path.join(resultsdir + "/" + libraryid + '.fillout'), sep='\t')
-
-    # if genome == "GRCh38" or genome == "GRCh37":
-    #     # Obtaining all the unique positions
-    #     allpos = np.array([variants[1] for variants in pd.Series(variantsfile.index.values).str.split(':')])
-    #     _, idx = np.unique(allpos, return_index=True)
-    #     uniqpos = allpos[np.sort(idx)]
-        
-    #     # Flip the ref and the alt allele for the germline variants
-    #     start = [variants[2] for variants in pd.Series(variantsfile.index.values[variantsfile['somaticstatus'] == 'germline']).str.split(':')]
-    #     pos = [variants[1] for variants in pd.Series(variantsfile.index.values[variantsfile['somaticstatus'] == 'germline']).str.split(':')]
-    #     end = [variants[0] for variants in pd.Series(variantsfile.index.values[variantsfile['somaticstatus'] == 'germline']).str.split(':')]
-    #     variantsfile.rename(index=dict(zip(variantsfile.index.values[variantsfile['somaticstatus'] == 'germline'],[x + ':' + str(y) + ':' + 
-    #         str(z) for x,y,z in zip(start,pos,end)])), inplace=True)
-        
-    #     # Flip the ref allele for somatic variants to follow germline variants
-    #     fixthese = []
-    #     for eachpos in uniqpos: # for each unique positions
-    #         curridx = [s for s in variantsfile.index.values if s.split(':')[1] == eachpos] # all the variants at the unique positions
-    #         if eachpos in pos: # if the position is germline position,
-    #             newstart = [[x for x,y,z in zip(start,pos,end)][pos.index(eachpos)] + eachstart[1:] for eachstart in 
-    #                 [variants.split(':')[0] + ':' + variants.split(':')[1] + ':' + variants.split(':')[2] for variants in curridx]]
-    #             fixthese.extend(newstart)
-    #         else:
-    #             fixthese.extend(curridx)
-    #     variantsfile.rename(index=dict(zip(variantsfile.index.values,fixthese)), inplace=True)
-        
-    #     # Update the row names of other files to be consistent with the variants file
-    #     filloutfile.index=list(variantsfile.index.values)
-        
-    #     # New ref and alt alleles
-    #     newref = [variants[0] for variants in pd.Series(fixthese).str.split(':')]
-    #     newalt = [variants[2] for variants in pd.Series(fixthese).str.split(':')]
     
     # Fix the depth matrix to filter variants that are uncertain and order them based on filteredvariants matrix
     masterfile = filloutfile
@@ -384,14 +350,6 @@ def genmaster(libraryid,reffile,resultsdir,genome):
     variantannot = variantannot.fillna(0)
     
     # Include columns for 'Start','Ref','Alt','VariantClass','Gene','T_AltCount','T_RefCount'
-    # if genome == "GRCh38" or genome == "GRCh37":
-    #     variantannot['Ref'] = newref
-    #     variantannot['Alt'] = newalt
-    #     variantannot['oldRef'] = filloutfile['Ref']
-    #     # variantannot['oldAlt'] = filloutfile['Alt']
-    #     variantannot['Ref'] = filloutfile['Ref']
-    #     variantannot['Alt'] = filloutfile['Alt']
-    # elif genome == "GRCm38" or genome == "mm10":
     variantannot['Ref'] = filloutfile['Ref']
     variantannot['Alt'] = filloutfile['Alt']
     variantannot['Gene'] = filloutfile['Gene']
@@ -419,11 +377,6 @@ def genmaster(libraryid,reffile,resultsdir,genome):
         currheader, currsequence = fasta.id, fasta.seq
         if 'MT' in currheader:
             sequence = [base for base in currsequence]
-
-    # Account for germline variants
-    # if genome == "GRCh38" or genome == "GRCh37":
-    #     for eachone in range(len(pos)):
-    #         sequence[int(pos[eachone])-1] = start[eachone]
 
     varref = [variants[0] for variants in pd.Series(variantsfile.index.values).str.split(':')]
     varpos = [variants[1] for variants in pd.Series(variantsfile.index.values).str.split(':')]
@@ -502,7 +455,6 @@ if __name__ == "__main__":
     parser.add_argument("-m", "--molecule",type=str, help="Type of molecule (dna or rna), default=dna", default="dna")
     parser.add_argument("-c","--mincounts",type=int,help="Minimum number of counts for MTvariantpipelinee, default = 100", default = 100)
 
-
     # read in arguments
     args = parser.parse_args()
     datadir = args.datadir
@@ -527,7 +479,7 @@ if __name__ == "__main__":
     if genome == 'GRCh37':
         if reffile == "":
             reffile = workingdir + '/reference/b37/b37_MT.fa'
-        ncbibuild = 'GRCh37'    # make this equal to genome
+        ncbibuild = 'GRCh37'
         species = "homo_sapiens"
     elif genome == "GRCm38" or genome == "mm10":
         if reffile == "":
