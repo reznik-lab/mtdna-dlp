@@ -5,6 +5,7 @@ import argparse
 import re
 from re import T, sub
 from tkinter.tix import Tree
+from unittest import result
 import pandas as pd
 import matplotlib
 matplotlib.use('pdf')
@@ -33,10 +34,10 @@ def mappingquality(reffile, datadir):
     print("Converting mapping qualities...")
     for file in os.listdir(datadir):
         if file.endswith(".bam"):
-            subprocess.call("".join((f"java -Xmx5G -Xms5G -jar {workingdir}/reference/GenomeAnalysisTK.jar ",
-                f"-T SplitNCigarReads -R {reffile} -I {datadir}/{file} -o {datadir}/{file} ",
-                "-rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS")), shell=True)
-            subprocess.call("".join((f"samtools index {datadir}/{file}")), shell=True)
+            subprocess.call(f"java -Xmx5G -Xms5G -jar {workingdir}/reference/GenomeAnalysisTK.jar " +
+                f"-T SplitNCigarReads -R {reffile} -I {datadir}/{file} -o {datadir}/{file} " +
+                "-rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS", shell=True)
+            subprocess.call(f"samtools index {datadir}/{file}", shell=True)
 
 
 def merging_bams(datadir,libraryid,resultsdir):
@@ -45,8 +46,8 @@ def merging_bams(datadir,libraryid,resultsdir):
         os.makedirs(f"{resultsdir}/merged")
 
     # Merging filtered cells into pseudobulk and indexing the merged file
-    subprocess.call("".join(("samtools merge ",resultsdir,"/merged/",libraryid,"-merged.bam ",datadir,"/","*.bam")), shell=True) 
-    subprocess.call("".join(("samtools index ",resultsdir,"/merged/",libraryid,"-merged.bam")), shell=True)
+    subprocess.call(f"samtools merge {resultsdir}/merged/{libraryid}-merged.bam {datadir}/*.bam", shell=True)
+    subprocess.call(f"samtools index {resultsdir}/merged/{libraryid}-merged.bam", shell=True)\
     
 
 def preproccess_bams(datadir, reffile, workingdir, vepcache, resultsdir, genome, mtchrom, species, ncbibuild,mincounts):
@@ -62,10 +63,9 @@ def preproccess_bams(datadir, reffile, workingdir, vepcache, resultsdir, genome,
         if file.endswith(".bam"):
             libraryid = file[:-4]
             print("Running MTvariantpipeline..")
-
-            subprocess.call("".join(("python3 ", workingdir,"/MTvariantpipeline.py -d ", datadir,"/ -v ", resultsdir,"/TEMPMAFfiles/ -o ", 
-                resultsdir, "/MTvariant_results/ -b ", libraryid,".bam -g ", genome," -q ", str(minmapq)," -Q ", str(minbq), 
-                " -s ", str(minstrand)," -w ", workingdir,"/ -vc ", vepcache," -f ", reffile," -m ", mtchrom, " -c ", mincounts)), shell=True)
+            subprocess.call(f"python3 {workingdir}/MTvariantpipeline.py -d {datadir}/ -v {resultsdir}/TEMPMAFfiles/ " +
+                f"-o {resultsdir}/MTvariant_results/ -b {libraryid}.bam -g {genome} -q {minmapq} -Q {minbq} " +
+                f"-s {minstrand} -w {workingdir}/ -vc {vepcache} -f {reffile} -m {mtchrom} -c {mincounts}", shell=True)
             
             # # MuTect2 mitochondrial mode
             # print("Running MuTect2..")
@@ -95,28 +95,26 @@ def variant_calling(libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,
     if not os.path.exists(f"{resultsdir}/MTvariant_results"):
         os.makedirs(f"{resultsdir}/MTvariant_results")
 
-    # MTvariantpipeline without matched normal
-    print("Running MTvariantpipeline..")
-
     # Running MTvariantpipeline
-    subprocess.call("".join(("python3 ", workingdir, "/MTvariantpipeline.py -d ", resultsdir, "/merged/ -v ", resultsdir, "/mergedTEMPMAFfiles/ -o ",  
-        resultsdir, "/MTvariant_results/ -b ", libraryid, "-merged.bam -g ", genome, " -q ", str(minmapq), " -Q ",  
-        str(minbq), " -s ", str(minstrand), " -w ", workingdir, "/ -vc ", vepcache, " -f ", reffile, " -m ", mtchrom, " -c ", mincounts)), shell=True)
+    print("Running MTvariantpipeline..")
+    subprocess.call(f"python3 {workingdir}/MTvariantpipeline.py -d {resultsdir}/merged/ -v {resultsdir}/mergedTEMPMAFfiles/ " +
+        f"-o {resultsdir}/MTvariant_results/ -b {libraryid}-merged.bam -g {genome} -q {minmapq} -Q {minbq} " +
+        f"-s {minstrand} -w {workingdir}/ -vc {vepcache} -f {reffile} -m {mtchrom} -c {mincounts}", shell=True)
 
     # MuTect2 mitochondrial mode
     print("Running MuTect2..")
-    subprocess.call("".join(("gatk --java-options -Xmx4g Mutect2 -R ", reffile, " --mitochondria-mode true -L ", mtchrom, " -mbq ", str(minbq),  
-        " --minimum-mapping-quality ", str(minmapq), " -I ", resultsdir, "/merged/", libraryid, "-merged.bam -tumor ",  
-        libraryid.replace("-","_"), " -O ", resultsdir, "/MuTect2_results/", libraryid, "-merged.bam.vcf.gz")), shell=True)
+    subprocess.call(f"gatk --java-options -Xmx4g Mutect2 -R {reffile} --mitochondria-mode true -L {mtchrom} " + 
+        f"-mbq {minbq} --minimum-mapping-quality {minmapq} -I {resultsdir}/merged/{libraryid}-merged.bam " + 
+        f"-tumor {libraryid.replace('-','_')} -O {resultsdir}/MuTect2_results/{libraryid}-merged.bam.vcf.gz", shell=True)
     
     # Left align MuTect2 results
-    subprocess.call("".join(("bcftools norm -m - -f ", reffile, " ", resultsdir, "/MuTect2_results/", libraryid, "-merged.bam.vcf.gz", 
-        " -o ", resultsdir, "/MuTect2_results/", libraryid, "-merged.bam.vcf")), shell=True)
+    subprocess.call(f"bcftools norm -m - -f {reffile} {resultsdir}/MuTect2_results/{libraryid}-merged.bam.vcf.gz " +
+        f"-o {resultsdir}/MuTect2_results/{libraryid}-merged.bam.vcf", shell=True)
 
     # Convert the MuTect2 result from vcf to maf file
-    subprocess.call("".join(("perl ", workingdir, "/vcf2maf/vcf2maf.pl --species ", species, " --vep-data ", vepcache, " --input-vcf ",  
-        resultsdir, "/MuTect2_results/", libraryid, "-merged.bam.vcf", " --output-maf ", resultsdir, 
-        "/MuTect2_results/", libraryid, "-merged.bam.maf", " --ncbi-build ", ncbibuild, ' --ref-fasta ', reffile)), shell=True)
+    subprocess.call(f"perl {workingdir}/vcf2maf/vcf2maf.pl --species {species} --vep-data {vepcache} " +
+        f"--ncbi-build {ncbibuild} --input-vcf {resultsdir}/MuTect2_results/{libraryid}-merged.bam.vcf " + 
+        f"--output-maf {resultsdir}/MuTect2_results/{libraryid}-merged.bam.maf --ref-fasta {reffile}", shell=True)
 
 
 def variant_processing(libraryid,reffile,resultsdir, mtchrom):
@@ -379,30 +377,29 @@ def runhaplogrep(libraryid,reffile,workingdir,resultsdir,minbq,minmapq,mtchrom):
     print("Preparing haplogrep..")
     
     # Filter the bam file for unmapped reads and mapping quality less than 1
-    subprocess.call("samtools view -bF 4 -q 1 " + resultsdir + "/merged/" + libraryid + "-merged.bam > " + 
-        resultsdir + "/filtered" + libraryid + "-merged.bam", shell=True)
+    subprocess.call(f"samtools view -bF 4 -q 1 {resultsdir}/merged/{libraryid}-merged.bam > " +
+        f"{resultsdir}/filtered{libraryid}-merged.bam", shell=True)
 
     # Index the filtered bam file
-    subprocess.call("samtools index " + resultsdir + "/filtered" + libraryid + "-merged.bam", shell=True)
+    subprocess.call(f"samtools index {resultsdir}/filtered{libraryid}-merged.bam", shell=True)
     
     # Edit the RG of the filtered bam file
-    subprocess.call("java -Xms8G -Xmx8G -jar " + workingdir + "/reference/picard.jar AddOrReplaceReadGroups I=" + 
-        resultsdir + "/filtered" + libraryid + "-merged.bam O=" + resultsdir + "/merged/result" + libraryid + 
-        "-merged.bam RGID=" + libraryid.replace("-", "_") + " RGLB=" + libraryid + 
-        " RGPL=illumina RGPU=unit1 RGSM=" + libraryid, shell=True)
+    subprocess.call(f"java -Xms8G -Xmx8G -jar {workingdir}/reference/picard.jar AddOrReplaceReadGroups " +
+        f"I={resultsdir}/filtered{libraryid}-merged.bam O={resultsdir}/merged/result{libraryid}-merged.bam " +
+        f"RGID={libraryid.replace('-','_')} RGLB={libraryid} RGPL=illumina RGPU=unit1 RGSM={libraryid}", shell=True)
 
     # Index the resulting bam file
-    subprocess.call("samtools index " + resultsdir + "/merged/result" + libraryid + "-merged.bam", shell=True)
+    subprocess.call(f"samtools index {resultsdir}/merged/result{libraryid}-merged.bam", shell=True)
     
     # Run MuTect2
-    subprocess.call("gatk --java-options -Xmx4g Mutect2 -R " + reffile + " --mitochondria-mode true -L " + mtchrom + " -mbq " + str(minbq) + 
-        " --minimum-mapping-quality " + str(minmapq) + " -I " + resultsdir + "/merged/result"  + libraryid + "-merged.bam -tumor result" + 
-        libraryid.replace("-","_") + " -O " + resultsdir + "/MuTect2_results/result" + libraryid + "-merged.bam.vcf.gz", shell=True)
+    subprocess.call(f"gatk --java-options -Xmx4g Mutect2 -R {reffile} --mitochondria-mode true -L {mtchrom} " +
+        f"-mbq {minbq} --minimum-mapping-quality {minmapq} -I {resultsdir}/merged/result{libraryid}-merged.bam " +
+        f"-tumor result{libraryid.replace('-','_')} -O {resultsdir}/MuTect2_results/result{libraryid}-merged.bam.vcf.gz", shell=True)
 
     # Run haplogrep2.1
-    subprocess.call("java -jar " + workingdir + "/reference/haplogrep/haplogrep-2.1.20.jar --in " + resultsdir + 
-        "/MuTect2_results/result" + libraryid + "-merged.bam.vcf.gz" + " --format vcf --extend-report --out " + 
-        resultsdir + "/" + libraryid + "_haplogroups.txt", shell=True)
+    subprocess.call(f"java -jar {workingdir}/reference/haplogrep/haplogrep-2.1.20.jar " +
+        f"--in {resultsdir}/MuTect2_results/result{libraryid}-merged.bam.vcf.gz --format vcf " +
+        f"--extend-report --out {resultsdir}/{libraryid}_haplogroups.txt", shell=True)
 
 
 def calcprob(depth,hetprob):

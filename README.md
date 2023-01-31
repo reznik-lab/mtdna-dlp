@@ -5,7 +5,7 @@ scripts to generate figures/tables for mtDNA DLP+ paper
 
 Clone this repository (`git clone https://github.com/reznik-lab/mtdna-dlp.git`)
 
-Install miniconda: https://docs.conda.io/en/latest/miniconda.html
+Install miniconda (at least Python v3.6): https://docs.conda.io/en/latest/miniconda.html
 
 Create a new conda environment and activate it __(make sure it is activated before installing the dependencies)__:
 ```

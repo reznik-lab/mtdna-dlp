@@ -1,5 +1,6 @@
 # Function to call vcf2maf for mitochondrial variants
 
+from doctest import REPORT_CDIFF
 import subprocess
 import os, sys, numpy as np, pandas as pd, argparse, pysam
 #pdb
@@ -164,6 +165,12 @@ for ii in range(bamfiles.shape[0]):
         # We have a matched normal bam
         print('We have a matched normal bam file for ' + f)
         if bcfploidy_genome == 'mm10':
+            # countcall = f"samtools mpileup --region {mtchrom} --count-orphans --no-BAQ --min-MQ {minmapq} --min-BQ {minbq} " \
+            #     + "--ignore-RG --excl-flags UNMAP,SECONDARY,QCFAIL,DUP --BCF --output-tags DP,AD,ADF,ADR --gap-frac 0.005 " \
+            #     + f"--tandem-qual 80 -L 1000000 -d 1000000 --open-prob 30 --fasta-ref {fasta} {datadir}/{f} {datadir}/{normalbam} " \
+            #     + f"| bcftools call --multiallelic-caller --ploidy-file {workingdir}/reference/chrM_ploidy --keep-alts " \
+            #     + f"| bcftools norm --multiallelics -any --do-not-normalize | /vt normalize -r {fasta} - 2>/dev/null " \
+            #     + f"| bcftools query --format '%CHROM\t%POS\t%REF\t%ALT[\t%AD\t%DP\t%ADF\t%ADR]\n' > {vcfdir}/{f}_temp.maf"
             countcall = ' '.join(["samtools mpileup --region", mtchrom, "--count-orphans --no-BAQ --min-MQ", str(minmapq), "--min-BQ", str(minbq), 
                 "--ignore-RG --excl-flags UNMAP,SECONDARY,QCFAIL,DUP --BCF --output-tags DP,AD,ADF,ADR --gap-frac 0.005 --tandem-qual 80 -L 1000000 -d 1000000 --open-prob 30 --fasta-ref", 
                 fasta, datadir + "/" + f , datadir + "/" + normalbam + " | bcftools call --multiallelic-caller --ploidy-file " + 
