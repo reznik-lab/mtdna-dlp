@@ -1,5 +1,6 @@
 # Function to call vcf2maf for mitochondrial variants
 
+import subprocess
 import os, sys, numpy as np, pandas as pd, argparse, pysam
 #pdb
 #scipy as sp
@@ -212,7 +213,7 @@ for ii in range(bamfiles.shape[0]):
                 "--ncbi-build", ncbibuild, '--ref-fasta',fasta])
 
     print("COUNTCALL: ", countcall)
-    os.system(countcall)
+    subprocess.call(countcall, shell=True)
     print("DONE WITH COUNTCALL")
     
     # Read in the prelim MAF file, and remove any rows that have 0 non-ref reads.
@@ -261,7 +262,7 @@ for ii in range(bamfiles.shape[0]):
         print('Skipping ' + f + '...no MT variants.')
         continue
     print("MAFCALL: ", mafcall)
-    os.system(mafcall)
+    subprocess.call(mafcall, shell=True)
     
     ####################################################################################
     ####################################################################################
