@@ -49,7 +49,7 @@ Additionally, a VEP offline cache needs to be installed __(NOTE: CACHE MUST BE S
 Navigate to the directory with the `bulkpipeline.py` file and run the following (replace all brackets):
 ```
 conda activate [environment]
-python3 bulkpipeline.py -d [data_directory] -w [working_directory] -l [library_id] -re [results_directory] -vc [optional_vep_cache_directory] -q [optional_mapping_quality] -Q [optional_base_quality] -s [optional_strand] -t [optional_threshold] -g [optional_genome] -r [optional_reference_fasta] -n [optional_normal]
+python3 bulkpipeline.py -d [data_directory] -w [working_directory] -l [library_id] -re [results_directory] -vc [optional_vep_cache_directory] -q [optional_mapping_quality] -Q [optional_base_quality] -s [optional_strand] -t [optional_threshold] -g [optional_genome] -r [optional_reference_fasta] -n [optional_normal] -c [optional_mincounts]
 ```
 
 Parameter descriptions:
@@ -66,6 +66,7 @@ Parameter descriptions:
 - __(OPTIONAL) Genome__: genome version (supported genomes are GRCh37, GRCh38, GRCm38, and mm10)
 - __(OPTIONAL) Reference fasta__: path to fasta file (by default will use a file from the reference folder that matches the genome, but a difference file may be given)
 - __(OPTIONAL) Normal__: matched normal file
+- __(OPTIONAL) Minimum counts__: minimum number of counts for MTvariantpipelinee (default=100)
 
 For example, a call to run the bulk pipeline with the minimum paramaters could look like this:
 ```
@@ -82,7 +83,7 @@ python3 split_bam.py possorted_genome_bam.bam output_directory --barcode_csv bar
 Navigate to the directory with the `scMTpipeline.py` file and run the following (replace all brackets):
 ```
 conda activate [environment]
-python3 scMTpipeline.py -d [data_directory] -w [working_directory] -l [library_id] -re [results_directory] -vc [optional_vep_cache_directory] -q [optional_mapping_quality] -Q [optional_base_quality] -s [optional_strand] -p [optional_patternlist] -t [optional_threshold] -g [optional_genome] -r [optional_reference_fasta] -m [optional_molecule]
+python3 scMTpipeline.py -d [data_directory] -w [working_directory] -l [library_id] -re [results_directory] -vc [optional_vep_cache_directory] -q [optional_mapping_quality] -Q [optional_base_quality] -s [optional_strand] -p [optional_patternlist] -t [optional_threshold] -g [optional_genome] -r [optional_reference_fasta] -m [optional_molecule] -c [optional_mincounts]
 ```
 
 Parameter descriptions:
@@ -99,7 +100,8 @@ Parameter descriptions:
 - __(OPTIONAL) Threshold__: critical threshold for calling a cell wild-type (default=0.1)
 - __(OPTIONAL) Genome__: genome version (supported genomes are GRCh37, GRCh38, GRCm38, and mm10)
 - __(OPTIONAL) Reference fasta__: path to fasta file (by default will use a file from the reference folder that matches the genome, but a difference file may be given)
--__(OPTIONAL) molecule__: type of molecule (dna or rna, default=dna)
+- __(OPTIONAL) Molecule__: type of molecule (dna or rna, default=dna)
+- __(OPTIONAL) Minimum counts__: minimum number of counts for MTvariantpipelinee (default=100)
 
 For example, a call to run the single cell pipeline with the minimum paramaters could look like this:
 ```

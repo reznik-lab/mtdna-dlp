@@ -22,6 +22,7 @@ parser.add_argument("-w", "--workingdir", type=str, help="Working directory")
 parser.add_argument("-vc", "--vepcache", type=str, help="Directory for vep cache")
 parser.add_argument("-f", "--fasta", type=str, help="path to fasta", default="")
 parser.add_argument("-m", "--mtchrom",type=str, help="Chromosome type", default="MT")
+parser.add_argument("-c", "--mincounts",type=int, help="Minimum number of counts, default = 100", default=100)
 
 # Read in the arguments
 args = parser.parse_args()
@@ -37,6 +38,7 @@ minmapq = args.mapq
 minbq = args.baseq
 fasta = args.fasta
 mtchrom = args.mtchrom
+mincounts = args.mincounts
 
 # Make sure the output directories are created
 if not os.path.exists(vcfdir):
@@ -162,7 +164,7 @@ for ii in range(bamfiles.shape[0]):
             print('Error in getting read counts for ' + normalbam + ',skipping this part.')
     
     # If the number of counts is small, just move on
-    if int(mt) < 100:
+    if int(mt) < mincounts:
         print(mt)
         print('Skipping ' + f + '...no MT reads to call variants with.')
         continue     
