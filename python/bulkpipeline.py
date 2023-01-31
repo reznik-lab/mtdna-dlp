@@ -20,6 +20,14 @@ def reference_detect(reffile):
     return(mtchrom)
 
 
+def mappingquality(reffile, datadir, libraryid):
+    print("Converting mapping qualities...")
+    subprocess.call("".join((f"java -Xmx5G -Xms5G -jar {workingdir}/reference/GenomeAnalysisTK.jar ",
+        f"-T SplitNCigarReads -R {reffile} -I {datadir}/{libraryid}.bam -o {datadir}/{libraryid}.bam ",
+        "-rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS")), shell=True)
+    subprocess.call("".join((f"samtools index {datadir}/{libraryid}.bam")), shell=True)
+
+
 def variant_calling_normal(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species,normal,mincounts):
     try:
         os.makedirs(f"{resultsdir}/temp_MuTect2_results")
@@ -491,6 +499,7 @@ if __name__ == "__main__":
     parser.add_argument("-t","--threshold",type=int,help="The critical threshold for calling a cell wild-type, default=0.1",default = 0.1)
     parser.add_argument("-vc", "--vepcache", type=str, help="Directory for vep cache", default="$HOME/.vep")
     parser.add_argument("-n", "--normal", type=str, help="matched normal file",default="")
+    parser.add_argument("-m", "--molecule",type=str, help="Type of molecule (dna or rna), default=dna", default="dna")
     parser.add_argument("-c","--mincounts",type=int,help="Minimum number of counts for MTvariantpipelinee, default = 100", default = 100)
 
 
@@ -508,6 +517,7 @@ if __name__ == "__main__":
     vepcache = args.vepcache
     resultsdir = args.resultsdir
     normal = args.normal
+    molecule = args.molecule
     mincounts = args.mincounts
 
     # Run reference_detect to determine mtchrom
@@ -539,13 +549,15 @@ if __name__ == "__main__":
     print("Reference file: " + reffile)
 
     # Filtering of cells
+    if molecule == "rna":
+        mappingquality(reffile,datadir,libraryid)
     if normal != "":
         variant_calling_normal(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species,normal,mincounts)
         variant_processing_normal(libraryid,resultsdir)
     else:
         variant_calling(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species,mincounts)
         variant_processing(libraryid,resultsdir)
-    if genome == "GRCh38" or genome == "GRCh37":
+    if (genome == "GRCh38" or genome == "GRCh37") and molecule == "dna":
         runhaplogrep(datadir,libraryid,reffile, workingdir, resultsdir)
     processfillout(libraryid, resultsdir,genome)
     genmaster(libraryid,reffile,resultsdir,genome)

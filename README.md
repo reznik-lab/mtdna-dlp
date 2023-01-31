@@ -49,7 +49,7 @@ Additionally, a VEP offline cache needs to be installed __(NOTE: CACHE MUST BE S
 Navigate to the directory with the `bulkpipeline.py` file and run the following (replace all brackets):
 ```
 conda activate [environment]
-python3 bulkpipeline.py -d [data_directory] -w [working_directory] -l [library_id] -re [results_directory] -vc [optional_vep_cache_directory] -q [optional_mapping_quality] -Q [optional_base_quality] -s [optional_strand] -t [optional_threshold] -g [optional_genome] -r [optional_reference_fasta] -n [optional_normal] -c [optional_mincounts]
+python3 bulkpipeline.py -d [data_directory] -w [working_directory] -l [library_id] -re [results_directory] -vc [optional_vep_cache_directory] -q [optional_mapping_quality] -Q [optional_base_quality] -s [optional_strand] -t [optional_threshold] -g [optional_genome] -r [optional_reference_fasta] -n [optional_normal] -m [optional_molecule] -c [optional_mincounts]
 ```
 
 Parameter descriptions:
@@ -66,6 +66,7 @@ Parameter descriptions:
 - __(OPTIONAL) Genome__: genome version (supported genomes are GRCh37, GRCh38, GRCm38, and mm10)
 - __(OPTIONAL) Reference fasta__: path to fasta file (by default will use a file from the reference folder that matches the genome, but a difference file may be given)
 - __(OPTIONAL) Normal__: matched normal file
+- __(OPTIONAL) Molecule__: type of molecule (dna or rna, default=dna)
 - __(OPTIONAL) Minimum counts__: minimum number of counts for MTvariantpipelinee (default=100)
 
 For example, a call to run the bulk pipeline with the minimum paramaters could look like this:
