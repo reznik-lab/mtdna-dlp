@@ -2,6 +2,7 @@
 
 import os
 import argparse
+import re
 import pandas as pd
 import numpy as np
 import subprocess
@@ -9,7 +10,17 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 
 
-def variant_calling_normal(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species,normal):
+def reference_detect(reffile):
+    print("Determining the mtDNA chromosome name...")
+    for sequence in SeqIO.parse(open(reffile), "fasta"):
+        if re.search('MT', sequence.description.split(" ")[0]):
+            mtchrom = 'MT'
+        elif re.search('chrM', sequence.description.split(" ")[0]):
+            mtchrom = 'chrM'
+    return(mtchrom)
+
+
+def variant_calling_normal(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species,normal,mincounts):
     try:
         os.makedirs(f"{resultsdir}/temp_MuTect2_results")
     except OSError:
@@ -25,9 +36,10 @@ def variant_calling_normal(resultsdir,datadir,libraryid,reffile,genome,minmapq,m
 
     # Running MTvariantpipeline with matched normal
     print("Running MTvariantpipeline with matched normal..")
-    subprocess.call("python3 " + workingdir + "/MTvariantpipeline2.py -d " + datadir + "/ -v " + resultsdir + "/TEMPMAFfiles/ -o " + 
+    subprocess.call("python3 " + workingdir + "/MTvariantpipeline.py -d " + datadir + "/ -v " + resultsdir + "/TEMPMAFfiles/ -o " + 
         resultsdir + "/MTvariant_results/ -t " + libraryid + ".bam -n " + normal + ".bam -g " + genome + " -q " + str(minmapq) + 
-        " -Q " + str(minbq) + " -s " + str(minstrand) + " -w " + workingdir + "/ -vc " + vepcache + " -f " + reffile + " -m " + mtchrom, shell=True)
+        " -Q " + str(minbq) + " -s " + str(minstrand) + " -w " + workingdir + "/ -vc " + vepcache + " -f " + reffile + 
+        " -m " + mtchrom + " -c " + mincounts, shell=True)
 
     # MuTect2 mitochondrial mode on tumor
     print("Running MuTect2 on tumor..")
@@ -135,7 +147,7 @@ def variant_processing_normal(libraryid,resultsdir):
     final_result.to_csv(saveasthis,sep = '\t',na_rep='NA',index=False)
 
 
-def variant_calling(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species):
+def variant_calling(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species,mincounts):
     try:
         os.makedirs(f"{resultsdir}/MuTect2_results")
     except OSError:
@@ -149,7 +161,7 @@ def variant_calling(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,mi
     print("Running MTvariantpipeline..")
     subprocess.call("python3 " + workingdir + "/MTvariantpipeline.py -d " + datadir + "/ -v " + resultsdir + "/TEMPMAFfiles/ -o " + 
         resultsdir + "/MTvariant_results/ -b " + libraryid + ".bam -g " + genome + " -q " + str(minmapq) + " -Q " + str(minbq) + 
-        " -s " + str(minstrand) + " -w " + workingdir + "/ -vc " + vepcache + " -f " + reffile, shell=True)
+        " -s " + str(minstrand) + " -w " + workingdir + "/ -vc " + vepcache + " -f " + reffile + " -m " + mtchrom + " -c " + mincounts, shell=True)
 
     # MuTect2 mitochondrial mode
     print("Running MuTect2..")
@@ -479,8 +491,9 @@ if __name__ == "__main__":
     parser.add_argument("-t","--threshold",type=int,help="The critical threshold for calling a cell wild-type, default=0.1",default = 0.1)
     parser.add_argument("-vc", "--vepcache", type=str, help="Directory for vep cache", default="$HOME/.vep")
     parser.add_argument("-n", "--normal", type=str, help="matched normal file",default="")
-    parser.add_argument("-m", "--mtchrom",type=str, help="MT chromosome type", default="MT")
-    
+    parser.add_argument("-c","--mincounts",type=int,help="Minimum number of counts for MTvariantpipelinee, default = 100", default = 100)
+
+
     # read in arguments
     args = parser.parse_args()
     datadir = args.datadir
@@ -495,26 +508,25 @@ if __name__ == "__main__":
     vepcache = args.vepcache
     resultsdir = args.resultsdir
     normal = args.normal
-    mtchrom = args.mtchrom
+    mincounts = args.mincounts
+
+    # Run reference_detect to determine mtchrom
+    mtchrom = reference_detect(reffile)
 
     # Set the parameters for the genome build
     if genome == 'GRCh37':
         if reffile == "":
             reffile = workingdir + '/reference/b37/b37_MT.fa'
-        # mtchrom = 'MT'  # get this from fasta file
         ncbibuild = 'GRCh37'    # make this equal to genome
         species = "homo_sapiens"
     elif genome == "GRCm38" or genome == "mm10":
         if reffile == "":
             reffile = workingdir + "/reference/mm10/mm10_MT.fa"
-        # mtchrom = 'chrM'
-        # mtchrom = "MT"
         ncbibuild = 'GRCm38'
         species = "mus_musculus"
     elif genome == 'GRCh38':
         if reffile == "":
             reffile = workingdir + '/reference/GRCh38/genome_MT.fa'
-        # mtchrom = 'MT'
         ncbibuild = 'GRCh38'
         species = "homo_sapiens"
     else:
@@ -528,10 +540,10 @@ if __name__ == "__main__":
 
     # Filtering of cells
     if normal != "":
-        variant_calling_normal(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species,normal)
+        variant_calling_normal(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species,normal,mincounts)
         variant_processing_normal(libraryid,resultsdir)
     else:
-        variant_calling(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species)
+        variant_calling(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species,mincounts)
         variant_processing(libraryid,resultsdir)
     if genome == "GRCh38" or genome == "GRCh37":
         runhaplogrep(datadir,libraryid,reffile, workingdir, resultsdir)
