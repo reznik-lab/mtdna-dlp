@@ -22,8 +22,10 @@ def reference_detect(reffile):
     for sequence in SeqIO.parse(open(reffile), "fasta"):
         if re.search('MT', sequence.description.split(" ")[0]):
             mtchrom = 'MT'
+            break
         elif re.search('chrM', sequence.description.split(" ")[0]):
             mtchrom = 'chrM'
+            break
     return(mtchrom)
 
 
@@ -480,7 +482,7 @@ def makeMTdf(filloutfile):
     return [{'vaf': vaf,'depth' : depth}]
 
 
-def processfillout(libraryid,threshold,resultsdir,genome):
+def processfillout(libraryid,threshold,resultsdir,genome,molecule):
     """
     Run the combined mutation estimation on fillout
     Post-processing of the fillout files
@@ -493,7 +495,7 @@ def processfillout(libraryid,threshold,resultsdir,genome):
     res = makeMTdf(filloutfile)
     
     # Import haplogrep result
-    if genome == "GRCh38" or genome == "GRCh37":
+    if (genome == "GRCh38" or genome == "GRCh37") and molecule == "dna":
         haplogrepfile = pd.read_csv(os.path.join(resultsdir + "/" + libraryid + '_haplogroups.txt'), sep='\t')
         germlinepos = [x[:-1] for x in haplogrepfile['Found_Polys'][0].split(" ")]
 
@@ -553,7 +555,7 @@ def processfillout(libraryid,threshold,resultsdir,genome):
     for varid in mutprob.index.values:
         # print(varid.split(":")[1])
         if int(varid.split(":")[1]) != prevpos and filteredvar.loc[varid,'bulk'] >= 0.95:
-            if (genome == "GRCh38" or genome == "GRCh37") and varid.split(":")[1] in germlinepos:
+            if (genome == "GRCh38" or genome == "GRCh37") and molecule == "dna" and varid.split(":")[1] in germlinepos:
                 filteredvar.loc[varid,'somaticstatus'] = 'germline'
             else:
                 filteredvar.loc[varid,'somaticstatus'] = 'homoplasmic'
@@ -577,7 +579,7 @@ def processfillout(libraryid,threshold,resultsdir,genome):
     plt.clf()
     
 
-def genmaster(libraryid,reffile,resultsdir,genome):
+def genmaster(libraryid,reffile,resultsdir,genome,molecule):
     """
     Run the combined mutation estimation on fillout
     Post-processing of the fillout files
@@ -594,7 +596,7 @@ def genmaster(libraryid,reffile,resultsdir,genome):
     vaffile.index=list(depthfile.index.values)
     varfile = vaffile.mul(depthfile, fill_value=0)
     
-    if genome == "GRCh38" or genome == "GRCh37":
+    if (genome == "GRCh38" or genome == "GRCh37") and molecule == "dna":
         # Obtaining all the unique positions
         allpos = np.array([variants[1] for variants in pd.Series(variantsfile.index.values).str.split(':')])
         _, idx = np.unique(allpos, return_index=True)
@@ -649,13 +651,13 @@ def genmaster(libraryid,reffile,resultsdir,genome):
     variantannot = variantannot.fillna(0)
     
     # Include columns for 'Start','Ref','Alt','VariantClass','Gene','T_AltCount','T_RefCount'
-    if genome == "GRCh38" or genome == "GRCh37":
+    if (genome == "GRCh38" or genome == "GRCh37") and molecule == "dna":
         variantannot['Ref'] = newref
         variantannot['Alt'] = newalt
         variantannot['oldRef'] = filloutfile['Ref']
         variantannot['oldAlt'] = filloutfile['Alt']
         variantannot['Gene'] = filloutfile['Gene']
-    elif genome == "GRCm38" or genome == "mm10":
+    else:
         variantannot['Ref'] = filloutfile['Ref']
         variantannot['Alt'] = filloutfile['Alt']
     variantannot['VariantClass'] = filloutfile['VariantClass']
@@ -703,7 +705,7 @@ def genmaster(libraryid,reffile,resultsdir,genome):
             sequence = [base for base in currsequence]
             break
 
-    if genome == "GRCh38" or genome == "GRCh37":
+    if (genome == "GRCh38" or genome == "GRCh37") and molecule == "dna":
         # Account for germline variants
         for eachone in range(len(pos)):
             sequence[int(pos[eachone])-1] = start[eachone]
@@ -776,7 +778,7 @@ def genmaster(libraryid,reffile,resultsdir,genome):
     resultMT.to_csv(resultsdir + "/" + libraryid + '_master.tsv',sep = '\t')
     
     # Process the master file to generate binary and vaf matrix of filtered variants
-    if genome == "GRCh38" or genome == "GRCh37":
+    if (genome == "GRCh38" or genome == "GRCh37") and molecule == "dna":
         # Iterate through the germline variants to flip the vaf for the individual cells
         for eachrow in vaffile.index.values:
             if eachrow.split(':')[1] in pos: # it's a germline variant position
@@ -861,8 +863,8 @@ if __name__ == "__main__":
     variant_processing(libraryid,reffile,resultsdir, mtchrom)
     if (genome == "GRCh38" or genome == "GRCh37") and molecule == "dna": 
         runhaplogrep(libraryid,reffile,workingdir,resultsdir,minbq,minmapq,mtchrom)
-    processfillout(libraryid,threshold,resultsdir,genome)
-    genmaster(libraryid,reffile,resultsdir,genome)
+    processfillout(libraryid,threshold,resultsdir,genome,molecule)
+    genmaster(libraryid,reffile,resultsdir,genome,molecule)
 
    
     

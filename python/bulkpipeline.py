@@ -291,7 +291,7 @@ def runhaplogrep(datadir,libraryid,reffile, workingdir, resultsdir):
         "/" + libraryid + "_haplogroups.txt", shell=True)
 
 
-def processfillout(libraryid, resultsdir, genome):
+def processfillout(libraryid, resultsdir, genome, molecule):
     """
     Run the combined mutation estimation on fillout
     Post-processing of the fillout files
@@ -307,19 +307,19 @@ def processfillout(libraryid, resultsdir, genome):
         str(filloutfile['Alt'][i]) for i in range(len(filloutfile))]
     
     # Import haplogrep result
-    if genome == "GRCh38" or genome == "GRCh37":
+    if (genome == "GRCh38" or genome == "GRCh37") and molecule == "dna":
         haplogrepfile = pd.read_csv(os.path.join(resultsdir + "/" + libraryid + '_haplogroups.txt'), sep='\t')
         germlinepos = [x[:-1] for x in haplogrepfile['Found_Polys'][0].split(" ")]
 
     # Assign variants with >95% VAF as germline if they are used in haplogroup assignment and as homoplasmic otherwise
     filloutfile['somaticstatus'] = 'somatic'
-    if genome == "GRCh38" or genome == "GRCh37":
+    if (genome == "GRCh38" or genome == "GRCh37") and molecule == "dna":
         filloutfile['somaticstatus'].iloc[np.where(np.logical_and((filloutfile['T_AltCount']/filloutfile['T_TotalDepth'] >= 0.95), 
             (filloutfile['Start'].isin(germlinepos))))] = 'germline'
         filloutfile['somaticstatus'].iloc[np.where(np.logical_and((filloutfile['T_AltCount']/filloutfile['T_TotalDepth'] >= 0.95), 
             ~(filloutfile['Start'].isin(germlinepos))))] = 'homoplasmic'
         filteredvar = filloutfile.loc[:,['Sample','NormalUsed','Chrom','Start','Ref','Alt','VariantClass','Gene','Exon','somaticstatus']]
-    elif genome == "GRCm38" or genome == "mm10":
+    else:
         filloutfile['somaticstatus'].iloc[np.where(filloutfile['T_AltCount']/filloutfile['T_TotalDepth'] >= 0.95)] = 'homoplasmic'
         filteredvar = filloutfile.loc[:,['Sample','NormalUsed','Chrom','Start','Ref','Alt','VariantClass','Gene','Exon','somaticstatus']]
 
@@ -559,7 +559,7 @@ if __name__ == "__main__":
         variant_processing(libraryid,resultsdir)
     if (genome == "GRCh38" or genome == "GRCh37") and molecule == "dna":
         runhaplogrep(datadir,libraryid,reffile, workingdir, resultsdir)
-    processfillout(libraryid, resultsdir,genome)
+    processfillout(libraryid, resultsdir,genome,molecule)
     genmaster(libraryid,reffile,resultsdir,genome)
 
     print("DONE WITH BULKPIPELINE")
