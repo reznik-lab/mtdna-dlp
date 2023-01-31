@@ -49,7 +49,7 @@ Additionally, a VEP offline cache needs to be installed __(NOTE: CACHE MUST BE S
 Navigate to the directory with the `bulkpipeline.py` file and run the following (replace all brackets):
 ```
 conda activate [environment]
-python3 bulkpipeline.py -d [data_directory] -w [working_directory] -l [library_id] -re [results_directory] -vc [optional_vep_cache_directory] -q [optional_mapping_quality] -Q [optional_base_quality] -s [optional_strand] -t [optional_threshold] -g [optional_genome] -r [optional_reference_fasta] -m [optional_mtchrom] -n [optional_normal]
+python3 bulkpipeline.py -d [data_directory] -w [working_directory] -l [library_id] -re [results_directory] -vc [optional_vep_cache_directory] -q [optional_mapping_quality] -Q [optional_base_quality] -s [optional_strand] -t [optional_threshold] -g [optional_genome] -r [optional_reference_fasta] -n [optional_normal]
 ```
 
 Parameter descriptions:
@@ -65,7 +65,6 @@ Parameter descriptions:
 - __(OPTIONAL) Threshold__: critical threshold for calling a cell wild-type (default=0.1)
 - __(OPTIONAL) Genome__: genome version (supported genomes are GRCh37, GRCh38, GRCm38, and mm10)
 - __(OPTIONAL) Reference fasta__: path to fasta file (by default will use a file from the reference folder that matches the genome, but a difference file may be given)
-- __(OPTIONAL) mtchrom__: type of MT chromosome (default is MT, may be chrM)
 - __(OPTIONAL) Normal__: matched normal file
 
 For example, a call to run the bulk pipeline with the minimum paramaters could look like this:
