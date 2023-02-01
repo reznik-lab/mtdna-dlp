@@ -785,9 +785,9 @@ if __name__ == "__main__":
     parser.add_argument("-g", "--genome",type=str, help="Genome version",default = "GRCh37") 
     parser.add_argument("-r", "--reffile",type=str, help="Reference fasta file", default="")
     parser.add_argument("-m", "--molecule",type=str, help="Type of molecule (dna or rna), default=dna", default="dna")
-    parser.add_argument("-c","--mincounts",type=int,help="Minimum number of counts for MTvariantpipelinee, default = 100", default = 100)
+    parser.add_argument("-c","--mincounts",type=int,help="Minimum number of read counts for MTvariantpipeline, default = 100", default = 100)
     
-    # read in arguments    
+    # read in arguments
     args = parser.parse_args()
     datadir = args.datadir
     reffile = args.reffile

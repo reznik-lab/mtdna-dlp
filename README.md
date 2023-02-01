@@ -1,9 +1,11 @@
 # mtdna-dlp
-scripts to generate figures/tables for mtDNA DLP+ paper
 
 ## Installation (in the command line)
 
-Clone this repository (`git clone https://github.com/reznik-lab/mtdna-dlp.git`)
+Clone this repository:
+```
+git clone https://github.com/reznik-lab/mtdna-dlp.git
+```
 
 Install miniconda (at least Python v3.6): https://docs.conda.io/en/latest/miniconda.html
 
@@ -44,7 +46,14 @@ conda install -c conda-forge matplotlib
 
 Additionally, a VEP offline cache needs to be installed __(NOTE: CACHE MUST BE SAME VERSION AS VEP VERSION)__. Please refer to https://uswest.ensembl.org/info/docs/tools/vep/script/vep_cache.html for instructions on how to install a VEP cache. Due to the size of the caches, it will likely take several hours to install.
 
-## Running the bulk pipeline (in the command line)
+## Bulk pipeline
+
+### Running the bulk pipeline (in the command line)
+
+Index the input .bam file:
+```
+samtools index [library_id].bam
+```
 
 Navigate to the directory with the `bulkpipeline.py` file and run the following (replace all brackets):
 ```
@@ -58,27 +67,50 @@ Parameter descriptions:
 - __Working directory__: path to directory with `bulkpipeline.py` file in it
 - __Library ID__: name of .bam file to use as input
 - __Results directory__: path to directory where results will be stored
-- __(OPTIONAL )VEP cache directory__: path to directory with VEP cache
+- __(OPTIONAL)VEP cache directory__: path to directory with VEP cache (default="$HOME/.vep")
 - __(OPTIONAL) Mapping quality__: minimum mapping quality (default=20)
 - __(OPTIONAL) Base quality__: minimum base quality (default=20)
 - __(OPTIONAL) Strand__: minimum number of reads mapping to forward and reverse strand to call mutation (default=2)
 - __(OPTIONAL) Threshold__: critical threshold for calling a cell wild-type (default=0.1)
-- __(OPTIONAL) Genome__: genome version (supported genomes are GRCh37, GRCh38, GRCm38, and mm10)
-- __(OPTIONAL) Reference fasta__: path to fasta file (by default will use a file from the reference folder that matches the genome, but should use same reference used to align fastqs)
-- __(OPTIONAL) Normal__: matched normal file
-- __(OPTIONAL) Molecule__: type of molecule (dna or rna, default=dna)
-- __(OPTIONAL) Minimum counts__: minimum number of counts for MTvariantpipelinee (default=100)
+- __(OPTIONAL) Genome__: genome version (supported genomes are GRCh37, GRCh38, GRCm38, and mm10, default="GRCh37")
+- __(OPTIONAL) Reference fasta__: path to fasta file (by default will use a file from the reference folder that matches the genome, but best to use same reference used to align fastqs)
+- __(OPTIONAL) Normal__: matched normal file (default="")
+- __(OPTIONAL) Molecule__: type of molecule (dna or rna, default="dna")
+- __(OPTIONAL) Minimum counts__: minimum number of read counts for MTvariantpipeline (default=100)
 
-For example, a call to run the bulk pipeline with the minimum paramaters could look like this:
+For example, a call to run the bulk pipeline with the required paramaters could look like this:
 ```
 python3 bulkpipeline.py -d /my_data/ -w /my_home/mtdna-dlp/python/ -l my_file -re /my_home/mtdna-dlp/results/
 ```
 
-## Running the single cell pipeline (in the command line)
+### Bulk pipeline outputs
+
+The bulk pipeline should have the following files and subdirectories in the results directory:
+
+- MuTect2_results
+- MTvariant_results
+- TEMPMAFfiles
+- [sample].fillout
+- [sample]_master.tsv
+- [sample]_variants.tsv
+- [sample]_mutsig.tsv
+- [sample]_haplogroups.txt (only for human DNA)
+- [sample]_filtered.bam (only for human DNA)
+
+## Single cell pipeline
+
+### Splitting the bam file into one file per cell
 
 Using the output from cellranger (i.e. /outs/filtered_feature_bc_matrix/barcodes.tsv.gz and /outs/possorted_genome_bam.bam), run the `split_bam.py` file. For example:
 ```
 python3 split_bam.py possorted_genome_bam.bam output_directory --barcode_csv barcodes.tsv.gz
+```
+
+### Running the single cell pipeline (in the command line)
+
+Index the split input .bam files:
+```
+samtools index [library_id]/*.bam
 ```
 
 Navigate to the directory with the `scMTpipeline.py` file and run the following (replace all brackets):
@@ -89,26 +121,48 @@ python3 scMTpipeline.py -d [data_directory] -w [working_directory] -l [library_i
 
 Parameter descriptions:
 
-- __Data directory__: path to directory with input .bam files
+- __Data directory__: path to directory with split input .bam files
 - __Working directory__: path to directory with `scMTpipeline.py` file in it
-- __Library ID__: name of sample to use as input
+- __Library ID__: name of sample
 - __Results directory__: path to directory where results will be stored
-- __(OPTIONAL) VEP cache directory__: path to directory with VEP cache
+- __(OPTIONAL) VEP cache directory__: path to directory with VEP cache (default="$HOME/.vep")
 - __(OPTIONAL) Mapping quality__: minimum mapping quality (default=20)
 - __(OPTIONAL) Base quality__: minimum base quality (default=20)
 - __(OPTIONAL) Strand__: minimum number of reads mapping to forward and reverse strand to call mutation (default=2)
 - __(OPTIONAL) Threshold__: critical threshold for calling a cell wild-type (default=0.1)
-- __(OPTIONAL) Genome__: genome version (supported genomes are GRCh37, GRCh38, GRCm38, and mm10)
-- __(OPTIONAL) Reference fasta__: path to fasta file (by default will use a file from the reference folder that matches the genome, but should use same reference used to align fastqs)
-- __(OPTIONAL) Molecule__: type of molecule (dna or rna, default=dna)
-- __(OPTIONAL) Minimum counts__: minimum number of counts for MTvariantpipelinee (default=100)
+- __(OPTIONAL) Genome__: genome version (supported genomes are GRCh37, GRCh38, GRCm38, and mm10, default="GRCh37)
+- __(OPTIONAL) Reference fasta__: path to fasta file (by default will use a file from the reference folder that matches the genome, but best to use same reference used to align fastqs)
+- __(OPTIONAL) Molecule__: type of molecule (dna or rna, default="dna")
+- __(OPTIONAL) Minimum counts__: minimum number of read counts for MTvariantpipeline (default=100)
 
-For example, a call to run the single cell pipeline with the minimum paramaters could look like this:
+For example, a call to run the single cell pipeline with the required paramaters could look like this:
 ```
-python3 scMTpipeline.py -d /my_data/ -w /my_home/mtdna-dlp/python/ -l my_file -re /my_home/mtdna-dlp/results/
+python3 scMTpipeline.py -d /my_data/ -w /my_home/mtdna-dlp/python/ -l my_sample -re /my_home/mtdna-dlp/results/
 ```
 
 To run `scMTpipeline.py` on the provided example data:
 ```
-python3 scMTpipeline.py -d /mtdna-dlp/python/example_data/ -w /mtdna-dlp/python/ -l SA1101-A96155C -re /mtdna-dlp/python/results
+python3 scMTpipeline.py -d /mtdna-dlp/python/example_data/ -w /mtdna-dlp/python/ -l SA1101-A96155C -re /mtdna-dlp/python/results/
 ```
+
+### Single cell pipeline outputs
+
+The single cell pipeline should have the following files and subdirectories in the results directory:
+
+- filteredfiles
+- merged
+- mergedTEMPMAFfiles
+- MuTect2_results
+- MTvariant_results
+- TEMPMAFfiles
+- [sample]-merged.fillout
+- [sample]_master.tsv
+- [sample]_vaf.tsv
+- [sample]_binary.tsv
+- [sample]_variants.tsv
+- [sample]_depth.tsv
+- [sample]_mutprob.tsv
+- [sample]_mutsig.tsv
+- [sample]_heteroplasmy.pdf
+- [sample]_haplogroups.txt (only for human DNA)
+- filtered[sample]-merged.bam (only for human DNA)

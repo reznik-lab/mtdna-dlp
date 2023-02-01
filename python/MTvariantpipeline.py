@@ -25,7 +25,7 @@ parser.add_argument("-w", "--workingdir", type=str, help="Working directory")
 parser.add_argument("-vc", "--vepcache", type=str, help="Directory for vep cache")
 parser.add_argument("-f", "--fasta", type=str, help="path to fasta", default="")
 parser.add_argument("-m", "--mtchrom",type=str, help="Chromosome type", default="MT")
-parser.add_argument("-c", "--mincounts",type=int, help="Minimum number of counts, default = 100", default=100)
+parser.add_argument("-c", "--mincounts",type=int, help="Minimum number of read counts, default = 100", default=100)
 
 # Read in the arguments
 args = parser.parse_args()
