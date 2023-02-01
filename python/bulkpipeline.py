@@ -79,8 +79,7 @@ def variant_calling_normal(resultsdir,datadir,libraryid,reffile,genome,minmapq,m
     # Run R script to merge tumor and normal mafs
     print("Merging tumor and normal mafs..")
     subprocess.call(f"Rscript {workingdir}/getMAFfromfile.R {resultsdir}/temp_MuTect2_results/{libraryid}.bam.maf " +
-        f"{resultsdir}/temp_MuTect2_results/{normal}.bam.maf {libraryid} {normal} " +
-        f"{resultsdir}/MuTect2_results/{libraryid}.bam.maf", shell=True)
+        f"{resultsdir}/temp_MuTect2_results/{normal}.bam.maf {resultsdir}/MuTect2_results/{libraryid}.bam.maf", shell=True)
 
 
 def variant_processing_normal(libraryid,resultsdir):
