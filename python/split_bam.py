@@ -26,7 +26,6 @@ class SplitBam(object):
         return self
 
     def __exit__(self):
-        # clean up output if there are any exceptions
         self.bam.close()
 
     def __get_chr_lengths(self):
@@ -52,7 +51,6 @@ class SplitBam(object):
         return self.bam.references
 
     def __get_file_for_tag(self, tag_to_file_map, tag_value):
-        # TODO make a class for this functionality
         """
         Get a file handle to a file in the specified output dir,
         for writing alignments with the specified tag_value.
@@ -76,7 +74,7 @@ class SplitBam(object):
             read_count += 1
             tags = dict(read.tags)
             if 'CB' in tags.keys():
-                if tags['CB'] in self.barcodes:  # filter by barcodes
+                if tags['CB'] in self.barcodes:
                     outfile = self.__get_file_for_tag(tag_to_file_map, tags['CB'])
                     outfile.write(read)
             else:
