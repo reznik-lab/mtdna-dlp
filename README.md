@@ -52,12 +52,12 @@ Additionally, a VEP offline cache needs to be installed __(NOTE: CACHE MUST BE S
 
 Index the input .bam file:
 ```
+conda activate [environment]
 samtools index [library_id].bam
 ```
 
 Navigate to the directory with the `bulkpipeline.py` file and run the following (replace all brackets):
 ```
-conda activate [environment]
 python3 bulkpipeline.py -d [data_directory] -w [working_directory] -l [library_id] -re [results_directory] -vc [optional_vep_cache_directory] -q [optional_mapping_quality] -Q [optional_base_quality] -s [optional_strand] -t [optional_threshold] -g [optional_genome] -r [optional_reference_fasta] -n [optional_normal] -m [optional_molecule] -c [optional_mincounts]
 ```
 
@@ -110,12 +110,12 @@ python3 split_bam.py possorted_genome_bam.bam output_directory --barcode_csv bar
 
 Index the split input .bam files:
 ```
+conda activate [environment]
 samtools index [library_id]/*.bam
 ```
 
 Navigate to the directory with the `scMTpipeline.py` file and run the following (replace all brackets):
 ```
-conda activate [environment]
 python3 scMTpipeline.py -d [data_directory] -w [working_directory] -l [library_id] -re [results_directory] -vc [optional_vep_cache_directory] -q [optional_mapping_quality] -Q [optional_base_quality] -s [optional_strand] -t [optional_threshold] -g [optional_genome] -r [optional_reference_fasta] -m [optional_molecule] -c [optional_mincounts]
 ```
 
