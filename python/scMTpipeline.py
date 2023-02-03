@@ -158,31 +158,31 @@ def variant_processing(libraryid,reffile,resultsdir, mtchrom):
     eachindel = 0
 
     # Iterate through deletions
-    for deletion in [ i for i,x in enumerate(MTvarfile['Variant_Type'] == 'DEL') if x]:
+    for deletion in MTvarfile[MTvarfile['Variant_Type'] == 'DEL'].index.tolist():
 
         # Fix the ref allele and the Tumor_Seq_Allele1 using the already changed start position
-        MTvarfile.loc[MTvarfile.index.values[deletion],'Reference_Allele'] = sequence[int(MTvarfile.loc[MTvarfile.index.values[deletion],'Start_Position'])-1] + MTvarfile.loc[MTvarfile.index.values[deletion],'Reference_Allele']
-        MTvarfile.loc[MTvarfile.index.values[deletion],'Tumor_Seq_Allele1'] = MTvarfile.loc[MTvarfile.index.values[deletion],'Reference_Allele']
+        MTvarfile.loc[deletion,'Reference_Allele'] = sequence[int(MTvarfile.loc[deletion,'Start_Position'])-1] + MTvarfile.loc[deletion,'Reference_Allele']
+        MTvarfile.loc[deletion,'Tumor_Seq_Allele1'] = MTvarfile.loc[deletion,'Reference_Allele']
         # current allele
-        currallele = sequence[int(MTvarfile.loc[MTvarfile.index.values[deletion],'Start_Position']) - 1]
+        currallele = sequence[int(MTvarfile.loc[deletion,'Start_Position']) - 1]
         i = 0
-        while (sequence[int(MTvarfile.loc[MTvarfile.index.values[deletion],'Start_Position']) + i - 1] == currallele):
+        while (sequence[int(MTvarfile.loc[deletion,'Start_Position']) + i - 1] == currallele):
             i += 1
-        indels.iloc[eachindel,:] = [int(MTvarfile.loc[MTvarfile.index.values[deletion],'Start_Position']),int(MTvarfile.loc[MTvarfile.index.values[deletion],'Start_Position'] + i)]
+        indels.iloc[eachindel,:] = [int(MTvarfile.loc[deletion,'Start_Position']),int(MTvarfile.loc[deletion,'Start_Position'] + i - 1)]
         eachindel += 1
         # Fix the alt allele
-        MTvarfile.loc[MTvarfile.index.values[deletion],'Tumor_Seq_Allele2'] = sequence[int(MTvarfile.loc[MTvarfile.index.values[deletion],'Start_Position']) - 1]
+        MTvarfile.loc[deletion,'Tumor_Seq_Allele2'] = sequence[int(MTvarfile.loc[deletion,'Start_Position']) - 1]
     # Iterate through insertions
-    for insertion in [ i for i,x in enumerate(MTvarfile['Variant_Type'] == 'INS') if x]:
+    for insertion in MTvarfile[MTvarfile['Variant_Type'] == 'INS'].index.tolist():
         # Fix the ref allele and the Tumor_Seq_Allele1
-        MTvarfile.loc[MTvarfile.index.values[insertion],'Reference_Allele'] = sequence[int(MTvarfile.loc[MTvarfile.index.values[insertion],'Start_Position']) - 1]
-        MTvarfile.loc[MTvarfile.index.values[insertion],'Tumor_Seq_Allele1'] = sequence[int(MTvarfile.loc[MTvarfile.index.values[insertion],'Start_Position']) - 1]
+        MTvarfile.loc[insertion,'Reference_Allele'] = sequence[int(MTvarfile.loc[insertion,'Start_Position']) - 1]
+        MTvarfile.loc[insertion,'Tumor_Seq_Allele1'] = sequence[int(MTvarfile.loc[insertion,'Start_Position']) - 1]
         # current allele
-        currallele = MTvarfile.loc[MTvarfile.index.values[insertion],'Reference_Allele']
+        currallele = MTvarfile.loc[insertion,'Reference_Allele']
         i = 0
-        while (sequence[int(MTvarfile.loc[MTvarfile.index.values[insertion],'Start_Position']) + i - 1] == currallele):
+        while (sequence[int(MTvarfile.loc[insertion,'Start_Position']) + i - 1] == currallele):
             i += 1
-        indels.iloc[eachindel,:] = [int(MTvarfile.loc[MTvarfile.index.values[insertion],'Start_Position']),int(MTvarfile.loc[MTvarfile.index.values[insertion],'Start_Position'])+i]
+        indels.iloc[eachindel,:] = [int(MTvarfile.loc[insertion,'Start_Position']),int(MTvarfile.loc[MTvarfile.index.values[insertion],'Start_Position'])+ i - 1]
         eachindel += 1
         # Fix the alt allele
         MTvarfile.loc[MTvarfile.index.values[insertion],'Tumor_Seq_Allele2'] = sequence[int(MTvarfile.loc[MTvarfile.index.values[insertion],'Start_Position']) - 1] + MTvarfile.loc[MTvarfile.index.values[insertion],'Tumor_Seq_Allele2']
