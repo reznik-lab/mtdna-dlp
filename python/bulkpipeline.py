@@ -47,7 +47,7 @@ def variant_calling_normal(resultsdir,datadir,libraryid,reffile,genome,minmapq,m
     # Running MTvariantpipeline with matched normal
     print("Running MTvariantpipeline with matched normal..")
     subprocess.call(f"python3 {workingdir}/MTvariantpipeline.py -d {datadir}/ -v {resultsdir}/TEMPMAFfiles/ " +
-        f"-o {resultsdir}/MTvariant_results/ -t {libraryid}.bam -n {normal}.bam -f {genome} + -q {minmapq} " +
+        f"-o {resultsdir}/MTvariant_results/ -t {libraryid}.bam -n {normal}.bam -f {genome} -q {minmapq} " +
         f"-Q {minbq} -s {minstrand} -w {workingdir}/ -vc {vepcache} -f {reffile} -m {mtchrom} -c {mincounts}", shell=True)
 
     # MuTect2 mitochondrial mode on tumor
@@ -62,7 +62,7 @@ def variant_calling_normal(resultsdir,datadir,libraryid,reffile,genome,minmapq,m
         f"-mbq {minbq} --minimum-mapping-quality {minmapq} -I {datadir}/{normal}.bam " +
         f"-tumor {normal.replace('-','_')} -O {resultsdir}/temp_MuTect2_results/{normal}.bam.vcf.gz", shell=True)
 
-    # Left align MuTect2 results
+    # Left align MuTect2 results (-m - is there for a reason)
     subprocess.call(f"bcftools norm -m - -f {reffile} {resultsdir}/temp_MuTect2_results/{libraryid}.bam.vcf.gz " +
         f"-o {resultsdir}/temp_MuTect2_results/{libraryid}.bam.vcf", shell=True)
     subprocess.call(f"bcftools norm -m - -f {reffile} {resultsdir}/temp_MuTect2_results/{normal}.bam.vcf.gz " +
@@ -176,7 +176,7 @@ def variant_calling(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,mi
         f"-mbq {minbq} --minimum-mapping-quality {minmapq} -I {datadir}/{libraryid}.bam " +
         f"-tumor {libraryid.replace('-','_')} -O {resultsdir}/MuTect2_results/{libraryid}.bam.vcf.gz", shell=True)
 
-    # Left align MuTect2 results
+    # Left align MuTect2 results (-m - is there for a reason)
     subprocess.call(f"bcftools norm -m - -f {reffile} {resultsdir}/MuTect2_results/{libraryid}.bam.vcf.gz " +
         f"-o {resultsdir}/MuTect2_results/{libraryid}.bam.vcf", shell=True)
     

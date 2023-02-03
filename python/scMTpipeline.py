@@ -107,7 +107,7 @@ def variant_calling(libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,
         f"-mbq {minbq} --minimum-mapping-quality {minmapq} -I {resultsdir}/merged/{libraryid}-merged.bam " + 
         f"-tumor {libraryid.replace('-','_')} -O {resultsdir}/MuTect2_results/{libraryid}-merged.bam.vcf.gz", shell=True)
     
-    # Left align MuTect2 results
+    # Left align MuTect2 results (-m - is there for a reason)
     subprocess.call(f"bcftools norm -m - -f {reffile} {resultsdir}/MuTect2_results/{libraryid}-merged.bam.vcf.gz " +
         f"-o {resultsdir}/MuTect2_results/{libraryid}-merged.bam.vcf", shell=True)
 
