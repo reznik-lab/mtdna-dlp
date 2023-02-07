@@ -385,20 +385,20 @@ def runhaplogrep(libraryid,reffile,workingdir,resultsdir,minbq,minmapq,mtchrom):
     
     # Edit the RG of the filtered bam file
     subprocess.call(f"java -Xms8G -Xmx8G -jar {workingdir}/reference/picard.jar AddOrReplaceReadGroups " +
-        f"I={resultsdir}/filtered{libraryid}-merged.bam O={resultsdir}/merged/result{libraryid}-merged.bam " +
+        f"I={resultsdir}/filtered{libraryid}-merged.bam O={resultsdir}/merged/haplogroup_{libraryid}-merged.bam " +
         f"RGID={libraryid.replace('-','_')} RGLB={libraryid} RGPL=illumina RGPU=unit1 RGSM={libraryid}", shell=True)
 
     # Index the resulting bam file
-    subprocess.call(f"samtools index {resultsdir}/merged/result{libraryid}-merged.bam", shell=True)
+    subprocess.call(f"samtools index {resultsdir}/merged/haplogroup_{libraryid}-merged.bam", shell=True)
     
     # Run MuTect2
     subprocess.call(f"gatk --java-options -Xmx4g Mutect2 -R {reffile} --mitochondria-mode true -L {mtchrom} " +
-        f"-mbq {minbq} --minimum-mapping-quality {minmapq} -I {resultsdir}/merged/result{libraryid}-merged.bam " +
-        f"-tumor result{libraryid.replace('-','_')} -O {resultsdir}/MuTect2_results/result{libraryid}-merged.bam.vcf.gz", shell=True)
+        f"-mbq {minbq} --minimum-mapping-quality {minmapq} -I {resultsdir}/merged/haplogroup_{libraryid}-merged.bam " +
+        f"-tumor result{libraryid.replace('-','_')} -O {resultsdir}/MuTect2_results/haplogroup_{libraryid}-merged.bam.vcf.gz", shell=True)
 
     # Run haplogrep2.1
     subprocess.call(f"java -jar {workingdir}/reference/haplogrep/haplogrep-2.1.20.jar " +
-        f"--in {resultsdir}/MuTect2_results/result{libraryid}-merged.bam.vcf.gz --format vcf " +
+        f"--in {resultsdir}/MuTect2_results/haplogroup_{libraryid}-merged.bam.vcf.gz --format vcf " +
         f"--extend-report --out {resultsdir}/{libraryid}_haplogroups.txt", shell=True)
 
 
@@ -578,7 +578,6 @@ def genmaster(libraryid,reffile,resultsdir,genome,molecule):
     print('Generating a master file and a binary matrix of somatic variants for the sample..')
     
     # Import the relevant files
-    # allcellsfile = pd.read_csv(os.path.join(allcells), sep='\t')
     variantsfile = pd.read_csv(os.path.join(resultsdir + "/" + libraryid + '_variants.tsv'), sep='\t', index_col=0)
     filloutfile = pd.read_csv(os.path.join(resultsdir + "/" + libraryid + '-merged.fillout'), sep='\t')
     vaffile = pd.read_csv(os.path.join(resultsdir + "/" + libraryid + '_vaf.tsv'), sep='\t', index_col=0)

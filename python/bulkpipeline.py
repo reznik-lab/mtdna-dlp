@@ -272,20 +272,20 @@ def runhaplogrep(datadir,libraryid,reffile, workingdir, resultsdir):
     
     # Edit the RG of the filtered bam file
     subprocess.call(f"java -Xms8G -Xmx8G -jar {workingdir}/reference/picard.jar AddOrReplaceReadGroups " +
-        f"I={resultsdir}/{libraryid}_filtered.bam O={datadir}/{libraryid}.bam " +
+        f"I={resultsdir}/{libraryid}_filtered.bam O={resultsdir}/haplogroup_{libraryid}.bam " +
         f"RGID={libraryid.replace('-','_')} RGLB={libraryid} RGPL=illumina RGPU=unit1 RGSM={libraryid}", shell=True)
     
     # Index the resulting bam file
-    subprocess.call(f"samtools index {datadir}/{libraryid}.bam", shell=True)
+    subprocess.call(f"samtools index {resultsdir}/haplogroup_{libraryid}.bam", shell=True)
     
     # Run MuTect2
     subprocess.call(f"gatk --java-options -Xmx4g Mutect2 -R {reffile} --mitochondria-mode true -L {mtchrom} " +
-        f"-mbq {minbq} --minimum-mapping-quality {minmapq} -I {datadir}/{libraryid}.bam " +
-        f"-tumor result{libraryid.replace('-','_')} -O {resultsdir}/MuTect2_results/{libraryid}.bam.vcf.gz", shell=True)
+        f"-mbq {minbq} --minimum-mapping-quality {minmapq} -I haplogroup_{resultsdir}/{libraryid}.bam " +
+        f"-tumor result{libraryid.replace('-','_')} -O {resultsdir}/MuTect2_results/haplogroup_{libraryid}.bam.vcf.gz", shell=True)
 
     # Run haplogrep2.1
     subprocess.call(f"java -jar {workingdir}/reference/haplogrep/haplogrep-2.1.20.jar " +
-        f"--in {resultsdir}/MuTect2_results{libraryid}.bam.vcf.gz --format vcf --extend-report " +
+        f"--in {resultsdir}/MuTect2_results/haplogroup_{libraryid}.bam.vcf.gz --format vcf --extend-report " +
         f"--out {resultsdir}/{libraryid}_haplogroups.txt", shell=True)
 
 
