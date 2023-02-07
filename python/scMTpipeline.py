@@ -541,16 +541,14 @@ def processfillout(libraryid,threshold,resultsdir,genome,molecule):
     filteredvar['detectprop'] = filteredvar['numcells']/res[0]['vaf'].shape[1]
     prevpos = 0
 
-    # Assign variants with >95% VAF as germline if they are used in haplogroup assignment and as homoplasmic otherwise
+    # Assign variants with >95% VAF as ancestral if they are used in haplogroup assignment
     for varid in mutprob.index.values:
         # print(varid.split(":")[1])
         if int(varid.split(":")[1]) != prevpos and filteredvar.loc[varid,'bulk'] >= 0.95:
             if (genome == "GRCh38" or genome == "GRCh37") and molecule == "dna" and varid.split(":")[1] in germlinepos:
-                filteredvar.loc[varid,'somaticstatus'] = 'germline'
-            else:
-                filteredvar.loc[varid,'somaticstatus'] = 'homoplasmic'
+                filteredvar.loc[varid,'ancestral'] = True
         else:
-            filteredvar.loc[varid,'somaticstatus'] = 'somatic'
+            filteredvar.loc[varid,'ancestral'] = False
         prevpos = int(varid.split(":")[1])
 
     # Output filtered variant file
@@ -592,10 +590,10 @@ def genmaster(libraryid,reffile,resultsdir,genome,molecule):
         uniqpos = allpos[np.sort(idx)]
 
         # Flip the ref and the alt allele for the germline variants
-        start = [variants[2] for variants in pd.Series(variantsfile.index.values[variantsfile['somaticstatus'] == 'germline']).str.split(':')]
-        pos = [variants[1] for variants in pd.Series(variantsfile.index.values[variantsfile['somaticstatus'] == 'germline']).str.split(':')]
-        end = [variants[0] for variants in pd.Series(variantsfile.index.values[variantsfile['somaticstatus'] == 'germline']).str.split(':')]
-        variantsfile.rename(index=dict(zip(variantsfile.index.values[variantsfile['somaticstatus'] == 'germline'],[x+':'+str(y)+':'+str(z) for x,y,z in zip(start,pos,end)])), inplace=True)
+        start = [variants[2] for variants in pd.Series(variantsfile.index.values[variantsfile['ancestral'] == True]).str.split(':')]
+        pos = [variants[1] for variants in pd.Series(variantsfile.index.values[variantsfile['ancestral'] == True]).str.split(':')]
+        end = [variants[0] for variants in pd.Series(variantsfile.index.values[variantsfile['ancestral'] == True]).str.split(':')]
+        variantsfile.rename(index=dict(zip(variantsfile.index.values[variantsfile['ancestral'] == True],[x+':'+str(y)+':'+str(z) for x,y,z in zip(start,pos,end)])), inplace=True)
         
         # Flip the ref allele for somatic variants to follow germline variants
         fixthese = []
@@ -745,7 +743,7 @@ def genmaster(libraryid,reffile,resultsdir,genome,molecule):
     
     # Re-calculate mutant cells and numcells for each variant
     for varid in resultMT.index.values[5:len(resultMT.index)]:
-        if resultMT.loc[varid,'somaticstatus'] == 'germline':
+        if resultMT.loc[varid,'ancestral'] == 'germline':
             resultMT.loc[varid,'mutant'] = sum((resultMT.loc[varid,masterfile.columns[masterfile.columns.isin(resultMTcoverage.columns)]].apply(lambda x : int(x.split('/')[1])) - resultMT.loc[varid,masterfile.columns[masterfile.columns.isin(resultMTcoverage.columns)]].apply(lambda x : int(x.split('/')[0])))/resultMT.loc[varid,masterfile.columns[masterfile.columns.isin(resultMTcoverage.columns)]].apply(lambda x : int(x.split('/')[1])) > 0)
         else:
             resultMT.loc[varid,'mutant'] = sum(resultMT.loc[varid,masterfile.columns[masterfile.columns.isin(resultMTcoverage.columns)]].apply(lambda x : int(x.split('/')[0]))/resultMT.loc[varid,masterfile.columns[masterfile.columns.isin(resultMTcoverage.columns)]].apply(lambda x : int(x.split('/')[1])) > 0)
