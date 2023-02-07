@@ -743,7 +743,7 @@ def genmaster(libraryid,reffile,resultsdir,genome,molecule):
     
     # Re-calculate mutant cells and numcells for each variant
     for varid in resultMT.index.values[5:len(resultMT.index)]:
-        if resultMT.loc[varid,'ancestral'] == 'germline':
+        if resultMT.loc[varid,'ancestral'] == True:
             resultMT.loc[varid,'mutant'] = sum((resultMT.loc[varid,masterfile.columns[masterfile.columns.isin(resultMTcoverage.columns)]].apply(lambda x : int(x.split('/')[1])) - resultMT.loc[varid,masterfile.columns[masterfile.columns.isin(resultMTcoverage.columns)]].apply(lambda x : int(x.split('/')[0])))/resultMT.loc[varid,masterfile.columns[masterfile.columns.isin(resultMTcoverage.columns)]].apply(lambda x : int(x.split('/')[1])) > 0)
         else:
             resultMT.loc[varid,'mutant'] = sum(resultMT.loc[varid,masterfile.columns[masterfile.columns.isin(resultMTcoverage.columns)]].apply(lambda x : int(x.split('/')[0]))/resultMT.loc[varid,masterfile.columns[masterfile.columns.isin(resultMTcoverage.columns)]].apply(lambda x : int(x.split('/')[1])) > 0)
@@ -801,7 +801,7 @@ if __name__ == "__main__":
     mincounts = args.mincounts
 
     # Run reference_detect to determine mtchrom
-    mtchrom = reference_detect(reffile)
+    # mtchrom = reference_detect(reffile)
     
     # Set the parameters for the genome build
     if genome == 'GRCh37':
