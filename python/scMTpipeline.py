@@ -438,7 +438,7 @@ def makeMTdf(filloutfile):
     
     # Set rownames
     fout.index = [str(fout['Ref'][i]) + ':' + str(int(fout['Start'][i])) + ':' + str(fout['Alt'][i]) for i in range(len(fout))]
-    
+
     # Get cells
     if 'S_AltCount' in fout.columns:
         startix = fout.columns.get_loc('S_AltCount') + 1
@@ -608,16 +608,16 @@ def genmaster(libraryid,reffile,resultsdir,genome,molecule):
             else:
                 fixthese.extend(curridx)
         variantsfile.rename(index=dict(zip(variantsfile.index.values,fixthese)), inplace=True)
-        
-        # Update the row names of other files to be consistent with the variants file
-        varfile.index=list(variantsfile.index.values)
-        depthfile.index=list(variantsfile.index.values)
-        filloutfile.index=list(variantsfile.index.values)
-        vaffile.index=list(variantsfile.index.values)
-        
+
         # New ref and alt alleles
         newref = [variants[0] for variants in pd.Series(fixthese).str.split(':')]
         newalt = [variants[2] for variants in pd.Series(fixthese).str.split(':')]
+        
+    # Update the row names of other files to be consistent with the variants file
+    varfile.index=list(variantsfile.index.values)
+    depthfile.index=list(variantsfile.index.values)
+    filloutfile.index=list(variantsfile.index.values)
+    vaffile.index=list(variantsfile.index.values)
     
     # Interpreting Picard results that are in metrics.txt file
     resultMTcoverage = pd.DataFrame(index=[], columns=['sampleid','MTreadcounts'])
@@ -741,8 +741,10 @@ def genmaster(libraryid,reffile,resultsdir,genome,molecule):
     mutsigfile.to_csv(resultsdir + "/" + libraryid + '_mutsig.tsv',sep = '\t')
     
     # prepare the coverage and copy number information for each cell and combine the matrix with the resulting matrix
-    resultMT1 = pd.concat([variantannot, variantsfile],axis=1,sort=False)
+    resultMT1 = pd.concat([variantannot,variantsfile],axis=1,sort=False)
+    print(resultMT1)
     resultMT = pd.concat([resultMT1,masterfile],axis=1,sort=False)
+    print(resultMT)
     
     # Re-calculate mutant cells and numcells for each variant
     for varid in resultMT.index.values[5:len(resultMT.index)]:
