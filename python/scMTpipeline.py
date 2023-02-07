@@ -742,9 +742,7 @@ def genmaster(libraryid,reffile,resultsdir,genome,molecule):
     
     # prepare the coverage and copy number information for each cell and combine the matrix with the resulting matrix
     resultMT1 = pd.concat([variantannot,variantsfile],axis=1,sort=False)
-    print(resultMT1)
     resultMT = pd.concat([resultMT1,masterfile],axis=1,sort=False)
-    print(resultMT)
     
     # Re-calculate mutant cells and numcells for each variant
     for varid in resultMT.index.values[5:len(resultMT.index)]:
