@@ -801,7 +801,7 @@ if __name__ == "__main__":
     mincounts = args.mincounts
 
     # Run reference_detect to determine mtchrom
-    # mtchrom = reference_detect(reffile)
+    mtchrom = reference_detect(reffile)
     
     # Set the parameters for the genome build
     if genome == 'GRCh37':
