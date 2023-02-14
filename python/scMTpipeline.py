@@ -541,7 +541,7 @@ def processfillout(libraryid,threshold,resultsdir,genome,molecule):
     filteredvar['detectprop'] = filteredvar['numcells']/res[0]['vaf'].shape[1]
     prevpos = 0
 
-    # Assign variants with >95% VAF as ancestral if they are used in haplogroup assignment
+    # Assign acestral or not based on haplogroup
     for varid in mutprob.index.values:
         # print(varid.split(":")[1])
         if int(varid.split(":")[1]) != prevpos and filteredvar.loc[varid,'bulk'] >= 0.95:
@@ -641,12 +641,9 @@ def genmaster(libraryid,reffile,resultsdir,genome,molecule):
     if (genome == "GRCh38" or genome == "GRCh37") and molecule == "dna":
         variantannot['Ref'] = newref
         variantannot['Alt'] = newalt
-        variantannot['oldRef'] = filloutfile['Ref']
-        variantannot['oldAlt'] = filloutfile['Alt']
-        variantannot['Gene'] = filloutfile['Gene']
-    else:
-        variantannot['Ref'] = filloutfile['Ref']
-        variantannot['Alt'] = filloutfile['Alt']
+    variantannot['Ref'] = filloutfile['Ref']
+    variantannot['Alt'] = filloutfile['Alt']
+    variantannot['Gene'] = filloutfile['Gene']
     variantannot['VariantClass'] = filloutfile['VariantClass']
     variantannot['T_AltCount'] = filloutfile['T_AltCount']
     variantannot['T_RefCount'] = filloutfile['T_RefCount']
