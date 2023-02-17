@@ -310,18 +310,17 @@ def processfillout(libraryid, resultsdir, genome, molecule):
         germlinepos = [x[:-1] for x in haplogrepfile['Found_Polys'][0].split(" ")]
 
     # Assign variants with >95% VAF as germline if they are used in haplogroup assignment and as homoplasmic otherwise
-    filloutfile['somaticstatus'] = 'somatic'
+    filloutfile['ancestral'] = False
     if (genome == "GRCh38" or genome == "GRCh37") and molecule == "dna":
-        filloutfile['somaticstatus'].iloc[np.where(np.logical_and((filloutfile['T_AltCount']/filloutfile['T_TotalDepth'] >= 0.95), 
-            (filloutfile['Start'].isin(germlinepos))))] = 'germline'
-        filloutfile['somaticstatus'].iloc[np.where(np.logical_and((filloutfile['T_AltCount']/filloutfile['T_TotalDepth'] >= 0.95), 
-            ~(filloutfile['Start'].isin(germlinepos))))] = 'homoplasmic'
-        filteredvar = filloutfile.loc[:,['Sample','NormalUsed','Chrom','Start','Ref','Alt','VariantClass','Gene','Exon','somaticstatus']]
-    else:
-        filloutfile['somaticstatus'].iloc[np.where(filloutfile['T_AltCount']/filloutfile['T_TotalDepth'] >= 0.95)] = 'homoplasmic'
-        filteredvar = filloutfile.loc[:,['Sample','NormalUsed','Chrom','Start','Ref','Alt','VariantClass','Gene','Exon','somaticstatus']]
+        filloutfile['ancestral'].iloc[np.where(np.logical_and((filloutfile['T_AltCount']/filloutfile['T_TotalDepth'] >= 0.95), 
+            (filloutfile['Start'].isin(germlinepos))))] = True
+    #     filloutfile['somaticstatus'].iloc[np.where(np.logical_and((filloutfile['T_AltCount']/filloutfile['T_TotalDepth'] >= 0.95), 
+    #         ~(filloutfile['Start'].isin(germlinepos))))] = 'homoplasmic'
+    # else:
+    #     filloutfile['somaticstatus'].iloc[np.where(filloutfile['T_AltCount']/filloutfile['T_TotalDepth'] >= 0.95)] = 'homoplasmic'
 
-    # Output filtered variant file    
+    # Output filtered variant file
+    filteredvar = filloutfile.loc[:,['Sample','NormalUsed','Chrom','Start','Ref','Alt','VariantClass','Gene','Exon','ancestral']]
     filteredvar.to_csv(resultsdir + "/" + libraryid + '_variants.tsv',sep = '\t')
     
 
