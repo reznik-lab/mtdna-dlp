@@ -1,7 +1,5 @@
 # Function to call vcf2maf for mitochondrial variants
 
-from curses import ncurses_version
-from doctest import REPORT_CDIFF
 import subprocess
 import os, sys, numpy as np, pandas as pd, argparse, pysam
 #pdb

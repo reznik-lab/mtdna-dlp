@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 
-from dataclasses import dataclass
 import os
 import argparse
 import re
-from weakref import ref
 import pandas as pd
 import numpy as np
 import subprocess

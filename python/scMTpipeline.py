@@ -3,9 +3,6 @@
 import os
 import argparse
 import re
-from re import T, sub
-from tkinter.tix import Tree
-from unittest import result
 import pandas as pd
 import matplotlib
 matplotlib.use('pdf')
