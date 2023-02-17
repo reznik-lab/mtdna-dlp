@@ -14,10 +14,11 @@ def reference_detect(reffile):
     print("Determining the mtDNA chromosome name...")
     for sequence in SeqIO.parse(open(reffile), "fasta"):
         if re.search('MT', sequence.description.split(" ")[0]):
-            mtchrom = 'MT'
+            return("MT")
         elif re.search('chrM', sequence.description.split(" ")[0]):
-            mtchrom = 'chrM'
-    return(mtchrom)
+            return("chrM")
+        else:
+            raise Exception("Chromosome is neither MT nor chrM")
 
 
 def mappingquality(reffile, datadir, libraryid):
