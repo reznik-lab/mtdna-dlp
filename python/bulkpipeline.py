@@ -17,16 +17,15 @@ def reference_detect(reffile):
             return("MT")
         elif re.search('chrM', sequence.description.split(" ")[0]):
             return("chrM")
-        else:
-            raise Exception("Chromosome is neither MT nor chrM")
+    raise Exception("Chromosome is neither MT nor chrM")
 
 
 def mappingquality(reffile, datadir, libraryid):
     print("Converting mapping qualities...")
-    subprocess.call(f"java -Xmx5G -Xms5G -jar {workingdir}/reference/GenomeAnalysisTK.jar " +
+    subprocess.run(f"java -Xmx5G -Xms5G -jar {workingdir}/reference/GenomeAnalysisTK.jar " +
         f"-T SplitNCigarReads -R {reffile} -I {datadir}/{libraryid}.bam -o {datadir}/{libraryid}.bam " +
-        "-rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS", shell=True)
-    subprocess.call(f"samtools index {datadir}/{libraryid}.bam", shell=True)
+        "-rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS", shell=True, check=True)
+    subprocess.run(f"samtools index {datadir}/{libraryid}.bam", shell=True, check=True)
 
 
 def variant_calling_normal(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species,normal,mincounts):
@@ -45,40 +44,40 @@ def variant_calling_normal(resultsdir,datadir,libraryid,reffile,genome,minmapq,m
 
     # Running MTvariantpipeline with matched normal
     print("Running MTvariantpipeline with matched normal..")
-    subprocess.call(f"python3 {workingdir}/MTvariantpipeline.py -d {datadir}/ -v {resultsdir}/TEMPMAFfiles/ " +
+    subprocess.run(f"python3 {workingdir}/MTvariantpipeline.py -d {datadir}/ -v {resultsdir}/TEMPMAFfiles/ " +
         f"-o {resultsdir}/MTvariant_results/ -t {libraryid}.bam -n {normal}.bam -f {genome} -q {minmapq} " +
-        f"-Q {minbq} -s {minstrand} -w {workingdir}/ -vc {vepcache} -f {reffile} -m {mtchrom} -c {mincounts}", shell=True)
+        f"-Q {minbq} -s {minstrand} -w {workingdir}/ -vc {vepcache} -f {reffile} -m {mtchrom} -c {mincounts}", shell=True, check=True)
 
     # MuTect2 mitochondrial mode on tumor
     print("Running MuTect2 on tumor..")
-    subprocess.call(f"gatk --java-options -Xmx4g Mutect2 -R {reffile} --mitochondria-mode true -L {mtchrom} " +
+    subprocess.run(f"gatk --java-options -Xmx4g Mutect2 -R {reffile} --mitochondria-mode true -L {mtchrom} " +
         f"-mbq {minbq} --minimum-mapping-quality {minmapq} -I {datadir}/{libraryid}.bam " +
-        f"-tumor {libraryid.replace('-','_')} -O {resultsdir}/temp_MuTect2_results/{libraryid}.bam.vcf.gz", shell=True)
+        f"-tumor {libraryid.replace('-','_')} -O {resultsdir}/temp_MuTect2_results/{libraryid}.bam.vcf.gz", shell=True, check=True)
 
     # MuTect2 mitochondrial mode on normal
     print("Running MuTect2 on normal..")
-    subprocess.call(f"gatk --java-options -Xmx4g Mutect2 -R {reffile} --mitochondria-mode true -L {mtchrom} " +
+    subprocess.run(f"gatk --java-options -Xmx4g Mutect2 -R {reffile} --mitochondria-mode true -L {mtchrom} " +
         f"-mbq {minbq} --minimum-mapping-quality {minmapq} -I {datadir}/{normal}.bam " +
-        f"-tumor {normal.replace('-','_')} -O {resultsdir}/temp_MuTect2_results/{normal}.bam.vcf.gz", shell=True)
+        f"-tumor {normal.replace('-','_')} -O {resultsdir}/temp_MuTect2_results/{normal}.bam.vcf.gz", shell=True, check=True)
 
     # Left align MuTect2 results (-m - is there for a reason)
-    subprocess.call(f"bcftools norm -m - -f {reffile} {resultsdir}/temp_MuTect2_results/{libraryid}.bam.vcf.gz " +
-        f"-o {resultsdir}/temp_MuTect2_results/{libraryid}.bam.vcf", shell=True)
-    subprocess.call(f"bcftools norm -m - -f {reffile} {resultsdir}/temp_MuTect2_results/{normal}.bam.vcf.gz " +
-        f"-o {resultsdir}/temp_MuTect2_results/{normal}.bam.vcf", shell=True)
+    subprocess.run(f"bcftools norm -m - -f {reffile} {resultsdir}/temp_MuTect2_results/{libraryid}.bam.vcf.gz " +
+        f"-o {resultsdir}/temp_MuTect2_results/{libraryid}.bam.vcf", shell=True, check=True)
+    subprocess.run(f"bcftools norm -m - -f {reffile} {resultsdir}/temp_MuTect2_results/{normal}.bam.vcf.gz " +
+        f"-o {resultsdir}/temp_MuTect2_results/{normal}.bam.vcf", shell=True, check=True)
     
     # Convert the MuTect2 result from vcf to maf file
-    subprocess.call(f"perl {workingdir}/vcf2maf/vcf2maf.pl --species {species} --vep-data {vepcache} " +
+    subprocess.run(f"perl {workingdir}/vcf2maf/vcf2maf.pl --species {species} --vep-data {vepcache} " +
         f"--ncbi-build {ncbibuild} --input-vcf {resultsdir}/temp_MuTect2_results/{libraryid}.bam.vcf " + 
-        f"--output-maf {resultsdir}/temp_MuTect2_results/{libraryid}.bam.maf --ref-fasta {reffile}", shell=True)
-    subprocess.call(f"perl {workingdir}/vcf2maf/vcf2maf.pl --species {species} --vep-data {vepcache} " +
+        f"--output-maf {resultsdir}/temp_MuTect2_results/{libraryid}.bam.maf --ref-fasta {reffile}", shell=True, check=True)
+    subprocess.run(f"perl {workingdir}/vcf2maf/vcf2maf.pl --species {species} --vep-data {vepcache} " +
         f"--ncbi-build {ncbibuild} --input-vcf {resultsdir}/temp_MuTect2_results/{normal}.bam.vcf " + 
-        f"--output-maf {resultsdir}/temp_MuTect2_results/{normal}.bam.maf --ref-fasta {reffile}", shell=True)
+        f"--output-maf {resultsdir}/temp_MuTect2_results/{normal}.bam.maf --ref-fasta {reffile}", shell=True, check=True)
 
     # Run R script to merge tumor and normal mafs
     print("Merging tumor and normal mafs..")
-    subprocess.call(f"Rscript {workingdir}/getMAFfromfile.R {resultsdir}/temp_MuTect2_results/{libraryid}.bam.maf " +
-        f"{resultsdir}/temp_MuTect2_results/{normal}.bam.maf {resultsdir}/MuTect2_results/{libraryid}.bam.maf", shell=True)
+    subprocess.run(f"Rscript {workingdir}/getMAFfromfile.R {resultsdir}/temp_MuTect2_results/{libraryid}.bam.maf " +
+        f"{resultsdir}/temp_MuTect2_results/{normal}.bam.maf {resultsdir}/MuTect2_results/{libraryid}.bam.maf", shell=True, check=True)
 
 
 def variant_processing_normal(libraryid,resultsdir):
@@ -165,24 +164,24 @@ def variant_calling(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,mi
 
     # Running MTvariantpipeline without matched normal
     print("Running MTvariantpipeline..")
-    subprocess.call(f"python3 {workingdir}/MTvariantpipeline.py -d {datadir}/ -v {resultsdir}/TEMPMAFfiles/ " +
+    subprocess.run(f"python3 {workingdir}/MTvariantpipeline.py -d {datadir}/ -v {resultsdir}/TEMPMAFfiles/ " +
         f"-o {resultsdir}/MTvariant_results/ -b {libraryid}.bam -g {genome} -q {minmapq} -Q {minbq} " +
-        f"-s {minstrand} -w {workingdir}/ -vc {vepcache} -f {reffile} -m {mtchrom} -c {mincounts}", shell=True)
+        f"-s {minstrand} -w {workingdir}/ -vc {vepcache} -f {reffile} -m {mtchrom} -c {mincounts}", shell=True, check=True)
 
     # MuTect2 mitochondrial mode
     print("Running MuTect2..")
-    subprocess.call(f"gatk --java-options -Xmx4g Mutect2 -R {reffile} --mitochondria-mode true -L {mtchrom} " +
+    subprocess.run(f"gatk --java-options -Xmx4g Mutect2 -R {reffile} --mitochondria-mode true -L {mtchrom} " +
         f"-mbq {minbq} --minimum-mapping-quality {minmapq} -I {datadir}/{libraryid}.bam " +
-        f"-tumor {libraryid.replace('-','_')} -O {resultsdir}/MuTect2_results/{libraryid}.bam.vcf.gz", shell=True)
+        f"-tumor {libraryid.replace('-','_')} -O {resultsdir}/MuTect2_results/{libraryid}.bam.vcf.gz", shell=True, check=True)
 
     # Left align MuTect2 results (-m - is there for a reason)
-    subprocess.call(f"bcftools norm -m - -f {reffile} {resultsdir}/MuTect2_results/{libraryid}.bam.vcf.gz " +
-        f"-o {resultsdir}/MuTect2_results/{libraryid}.bam.vcf", shell=True)
+    subprocess.run(f"bcftools norm -m - -f {reffile} {resultsdir}/MuTect2_results/{libraryid}.bam.vcf.gz " +
+        f"-o {resultsdir}/MuTect2_results/{libraryid}.bam.vcf", shell=True, check=True)
     
     # Convert the MuTect2 result from vcf to maf file
-    subprocess.call(f"perl {workingdir}/vcf2maf/vcf2maf.pl --species {species} --vep-data {vepcache} " +
+    subprocess.run(f"perl {workingdir}/vcf2maf/vcf2maf.pl --species {species} --vep-data {vepcache} " +
         f"--ncbi-build {ncbibuild} --input-vcf {resultsdir}/MuTect2_results/{libraryid}.bam.vcf " + 
-        f"--output-maf {resultsdir}/MuTect2_results/{libraryid}.bam.maf --ref-fasta {reffile}", shell=True)
+        f"--output-maf {resultsdir}/MuTect2_results/{libraryid}.bam.maf --ref-fasta {reffile}", shell=True, check=True)
 
 
 def variant_processing(libraryid,resultsdir):
@@ -264,28 +263,28 @@ def runhaplogrep(datadir,libraryid,reffile, workingdir, resultsdir):
     print("Running haplogrep..")
     
     # Filter the bam file for unmapped reads and mapping quality less than 1
-    subprocess.call(f"samtools view -bF 4 -q 1 {datadir}/{libraryid}.bam > {resultsdir}/{libraryid}_filtered.bam", shell=True)
+    subprocess.run(f"samtools view -bF 4 -q 1 {datadir}/{libraryid}.bam > {resultsdir}/{libraryid}_filtered.bam", shell=True, check=True)
     
     # Index the filtered bam file
-    subprocess.call(f"samtools index {resultsdir}/{libraryid}_filtered.bam", shell=True)
+    subprocess.run(f"samtools index {resultsdir}/{libraryid}_filtered.bam", shell=True, check=True)
     
     # Edit the RG of the filtered bam file
-    subprocess.call(f"java -Xms8G -Xmx8G -jar {workingdir}/reference/picard.jar AddOrReplaceReadGroups " +
+    subprocess.run(f"java -Xms8G -Xmx8G -jar {workingdir}/reference/picard.jar AddOrReplaceReadGroups " +
         f"I={resultsdir}/{libraryid}_filtered.bam O={resultsdir}/haplogroup_{libraryid}.bam " +
-        f"RGID={libraryid.replace('-','_')} RGLB={libraryid} RGPL=illumina RGPU=unit1 RGSM={libraryid}", shell=True)
+        f"RGID={libraryid.replace('-','_')} RGLB={libraryid} RGPL=illumina RGPU=unit1 RGSM={libraryid}", shell=True, check=True)
     
     # Index the resulting bam file
-    subprocess.call(f"samtools index {resultsdir}/haplogroup_{libraryid}.bam", shell=True)
+    subprocess.run(f"samtools index {resultsdir}/haplogroup_{libraryid}.bam", shell=True, check=True)
     
     # Run MuTect2
-    subprocess.call(f"gatk --java-options -Xmx4g Mutect2 -R {reffile} --mitochondria-mode true -L {mtchrom} " +
+    subprocess.run(f"gatk --java-options -Xmx4g Mutect2 -R {reffile} --mitochondria-mode true -L {mtchrom} " +
         f"-mbq {minbq} --minimum-mapping-quality {minmapq} -I haplogroup_{resultsdir}/{libraryid}.bam " +
-        f"-tumor result{libraryid.replace('-','_')} -O {resultsdir}/MuTect2_results/haplogroup_{libraryid}.bam.vcf.gz", shell=True)
+        f"-tumor result{libraryid.replace('-','_')} -O {resultsdir}/MuTect2_results/haplogroup_{libraryid}.bam.vcf.gz", shell=True, check=True)
 
     # Run haplogrep2.1
-    subprocess.call(f"java -jar {workingdir}/reference/haplogrep/haplogrep-2.1.20.jar " +
+    subprocess.run(f"java -jar {workingdir}/reference/haplogrep/haplogrep-2.1.20.jar " +
         f"--in {resultsdir}/MuTect2_results/haplogroup_{libraryid}.bam.vcf.gz --format vcf --extend-report " +
-        f"--out {resultsdir}/{libraryid}_haplogroups.txt", shell=True)
+        f"--out {resultsdir}/{libraryid}_haplogroups.txt", shell=True, check=True)
 
 
 def processfillout(libraryid, resultsdir, genome, molecule):
@@ -335,26 +334,26 @@ def genmaster(libraryid,reffile,resultsdir,genome):
     variantsfile = pd.read_csv(os.path.join(resultsdir + "/" + libraryid + '_variants.tsv'), sep='\t', index_col=0)
     filloutfile = pd.read_csv(os.path.join(resultsdir + "/" + libraryid + '.fillout'), sep='\t')
     
-    # Fix the depth matrix to filter variants that are uncertain and order them based on filteredvariants matrix
-    masterfile = filloutfile
+    # # Fix the depth matrix to filter variants that are uncertain and order them based on filteredvariants matrix
+    # masterfile = filloutfile
     
-    # Fix the read counts for individual cells for each row accounting for the germline variants
-    sampleid = filloutfile['Sample'][0].split('.bam')[0]
-    masterfile = pd.DataFrame(index=filloutfile.index.values, columns=[sampleid])
-    masterfile[sampleid] = filloutfile['T_AltCount'].astype(int).astype(str).str.cat(filloutfile['T_TotalDepth'].astype(int).astype(str),sep='/')
+    # # Fix the read counts for individual cells for each row accounting for the germline variants
+    # sampleid = filloutfile['Sample'][0].split('.bam')[0]
+    # masterfile = pd.DataFrame(index=filloutfile.index.values, columns=[sampleid])
+    # masterfile[sampleid] = filloutfile['T_AltCount'].astype(int).astype(str).str.cat(filloutfile['T_TotalDepth'].astype(int).astype(str),sep='/')
+
+    # # Create a variant annotations file based on the fillout file
+    # variantannot = pd.DataFrame(index=filloutfile.index.values, columns=['Start','Ref','Alt','VariantClass','Gene','T_AltCount','T_RefCount'])
+    # variantannot = variantannot.fillna(0)
     
-    # Create a variant annotations file based on the fillout file
-    variantannot = pd.DataFrame(index=filloutfile.index.values, columns=['Start','Ref','Alt','VariantClass','Gene','T_AltCount','T_RefCount'])
-    variantannot = variantannot.fillna(0)
-    
-    # Include columns for 'Start','Ref','Alt','VariantClass','Gene','T_AltCount','T_RefCount'
-    variantannot['Ref'] = filloutfile['Ref']
-    variantannot['Alt'] = filloutfile['Alt']
-    variantannot['Gene'] = filloutfile['Gene']
-    variantannot['VariantClass'] = filloutfile['VariantClass']
-    variantannot['T_AltCount'] = filloutfile['T_AltCount']
-    variantannot['T_RefCount'] = filloutfile['T_RefCount']
-    variantannot['Start'] = filloutfile['Start']
+    # # Include columns for 'Start','Ref','Alt','VariantClass','Gene','T_AltCount','T_RefCount'
+    # variantannot['Ref'] = filloutfile['Ref']
+    # variantannot['Alt'] = filloutfile['Alt']
+    # variantannot['Gene'] = filloutfile['Gene']
+    # variantannot['VariantClass'] = filloutfile['VariantClass']
+    # variantannot['T_AltCount'] = filloutfile['T_AltCount']
+    # variantannot['T_RefCount'] = filloutfile['T_RefCount']
+    # variantannot['Start'] = filloutfile['Start']
 
     # Obtain the mutation signature
     # Initialize the counts and mutation sigature matrix
@@ -424,16 +423,22 @@ def genmaster(libraryid,reffile,resultsdir,genome):
     mutsigfile.loc['counts_TG'] = counts_TG
     
     # store the mutation signature info in variants file
-    variantsfile['mutsig'] = mutsigmotifs
+    filloutfile['mutsig'] = mutsigmotifs
     
     # Saving the mutation signature
     mutsigfile.to_csv(resultsdir + "/" + libraryid + '_mutsig.tsv',sep = '\t')
     
-    # combine the matrix with the resulting matrix
-    resultMT = pd.concat([variantannot,masterfile],axis=1,sort=False) # concatenate everything together
+    # # combine the matrix with the resulting matrix
+    # resultMT = pd.concat([variantannot,masterfile],axis=1,sort=False) # concatenate everything together
     
-    # Saving the final masterfile
-    resultMT.to_csv(resultsdir + "/" + libraryid + '_master.tsv',sep = '\t')
+    # # Saving the final masterfile
+    # resultMT.to_csv(resultsdir + "/" + libraryid + '_master.tsv',sep = '\t')
+
+    # Calculate heteroplasmy
+    filloutfile["Heteroplasmy"] = filloutfile['T_AltCount'].astype(int) / filloutfile['T_TotalDepth'].astype(int)
+
+    # Combined matrices together
+    filloutfile.to_csv(resultsdir + "/" + libraryid + '_master.tsv',sep = '\t')
 
 if __name__ == "__main__":
     # Parse necessary arguments
@@ -470,9 +475,6 @@ if __name__ == "__main__":
     molecule = args.molecule
     mincounts = args.mincounts
 
-    # Run reference_detect to determine mtchrom
-    mtchrom = reference_detect(reffile)
-
     # Set the parameters for the genome build
     if genome == 'GRCh37':
         if reffile == "":
@@ -492,6 +494,9 @@ if __name__ == "__main__":
     else:
         raise Exception("The genome build you entered is not supported. Supported genomes are GRCh37, GRCh38, GRCm38, and mm10.")
     
+    # Run reference_detect to determine mtchrom
+    mtchrom = reference_detect(reffile)
+    
     # Noting all the parameters
     print("Miminum mapping quality of " + str(minmapq))
     print("Miminum base quality of " + str(minbq))
@@ -499,8 +504,8 @@ if __name__ == "__main__":
     print("Reference file: " + reffile)
 
     # Filtering of cells
-    if molecule == "rna":
-        mappingquality(reffile,datadir,libraryid)
+    # if molecule == "rna":
+    #     mappingquality(reffile,datadir,libraryid)
     if normal != "":
         variant_calling_normal(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species,normal,mincounts)
         variant_processing_normal(libraryid,resultsdir)
