@@ -74,4 +74,4 @@ maf[is.na(n_depth),n_depth:=0]
 maf[is.na(NormalVAF),NormalVAF:=NA]
 
 ## save the resulting maf data.table, this should be the complete MAF with variants called in the tumor, annotated with their read support in the normal bam.
-write.csv(maf, outfile)
+write.table(maf, outfile, quote=FALSE, sep="\t")

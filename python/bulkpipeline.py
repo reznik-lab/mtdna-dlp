@@ -28,7 +28,7 @@ def mappingquality(reffile, datadir, libraryid):
     subprocess.run(f"samtools index {datadir}/{libraryid}.bam", shell=True, check=True)
 
 
-def variant_calling_normal(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species,normal,mincounts):
+def variant_calling_normal(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species,normal,normaldir,mincounts):
     try:
         os.makedirs(f"{resultsdir}/temp_MuTect2_results")
     except OSError:
@@ -44,8 +44,8 @@ def variant_calling_normal(resultsdir,datadir,libraryid,reffile,genome,minmapq,m
 
     # Running MTvariantpipeline with matched normal
     print("Running MTvariantpipeline with matched normal..")
-    subprocess.run(f"python3 {workingdir}/MTvariantpipeline.py -d {datadir}/ -v {resultsdir}/TEMPMAFfiles/ " +
-        f"-o {resultsdir}/MTvariant_results/ -t {libraryid}.bam -n {normal}.bam -f {genome} -q {minmapq} " +
+    subprocess.run(f"python3 {workingdir}/MTvariantpipeline2.py -d {datadir}/ -v {resultsdir}/TEMPMAFfiles/ " +
+        f"-o {resultsdir}/MTvariant_results/ -b {libraryid}.bam -n {normal}.bam -nd {normaldir}/ -f {genome} -q {minmapq} " +
         f"-Q {minbq} -s {minstrand} -w {workingdir}/ -vc {vepcache} -f {reffile} -m {mtchrom} -c {mincounts}", shell=True, check=True)
 
     # MuTect2 mitochondrial mode on tumor
@@ -57,7 +57,7 @@ def variant_calling_normal(resultsdir,datadir,libraryid,reffile,genome,minmapq,m
     # MuTect2 mitochondrial mode on normal
     print("Running MuTect2 on normal..")
     subprocess.run(f"gatk --java-options -Xmx4g Mutect2 -R {reffile} --mitochondria-mode true -L {mtchrom} " +
-        f"-mbq {minbq} --minimum-mapping-quality {minmapq} -I {datadir}/{normal}.bam " +
+        f"-mbq {minbq} --minimum-mapping-quality {minmapq} -I {normaldir}/{normal}.bam " +
         f"-tumor {normal.replace('-','_')} -O {resultsdir}/temp_MuTect2_results/{normal}.bam.vcf.gz", shell=True, check=True)
 
     # Left align MuTect2 results (-m - is there for a reason)
@@ -68,7 +68,7 @@ def variant_calling_normal(resultsdir,datadir,libraryid,reffile,genome,minmapq,m
     
     # Convert the MuTect2 result from vcf to maf file
     subprocess.run(f"perl {workingdir}/vcf2maf/vcf2maf.pl --species {species} --vep-data {vepcache} " +
-        f"--ncbi-build {ncbibuild} --input-vcf {resultsdir}/temp_MuTect2_results/{libraryid}.bam.vcf " + 
+        f"--ncbi-build {ncbibuild} --input-vcf {resultsdir}/temp_MuTect2_results/{libraryid}.bam.vcf " +
         f"--output-maf {resultsdir}/temp_MuTect2_results/{libraryid}.bam.maf --ref-fasta {reffile}", shell=True, check=True)
     subprocess.run(f"perl {workingdir}/vcf2maf/vcf2maf.pl --species {species} --vep-data {vepcache} " +
         f"--ncbi-build {ncbibuild} --input-vcf {resultsdir}/temp_MuTect2_results/{normal}.bam.vcf " + 
@@ -78,6 +78,8 @@ def variant_calling_normal(resultsdir,datadir,libraryid,reffile,genome,minmapq,m
     print("Merging tumor and normal mafs..")
     subprocess.run(f"Rscript {workingdir}/getMAFfromfile.R {resultsdir}/temp_MuTect2_results/{libraryid}.bam.maf " +
         f"{resultsdir}/temp_MuTect2_results/{normal}.bam.maf {resultsdir}/MuTect2_results/{libraryid}.bam.maf", shell=True, check=True)
+
+    subprocess.run(f"rm {resultsdir}/TEMPMAFfiles/*.bam_temp2.maf", shell=True, check=True)
 
 
 def variant_processing_normal(libraryid,resultsdir):
@@ -92,8 +94,7 @@ def variant_processing_normal(libraryid,resultsdir):
     MTvarfile = pd.read_csv(resultsdir + "/MTvariant_results/" + libraryid + ".bam.maf", sep = "\t", comment='#', low_memory=False)
 
     # Read in MuTect result
-    mutectfile = pd.read_csv(resultsdir + "/MuTect2_results/" + libraryid + ".bam.maf", low_memory=False)
-    saveasthis = resultsdir + "/" + libraryid + ".fillout"
+    mutectfile = pd.read_csv(resultsdir + "/MuTect2_results/" + libraryid + ".bam.maf", sep = "\t", header=0, low_memory=False)
 
     # Filter out variants falling in the repeat regions of 302-315, 513-525, and 3105-3109 (black listed regions)
     # Make sure End_Position is also not in the region
@@ -111,8 +112,9 @@ def variant_processing_normal(libraryid,resultsdir):
     MTvarfile["Hugo_Symbol"] = MTvarfile["Hugo_Symbol"].str.upper()
     
     # Output the overlap as final maf file
-    combinedfile = pd.merge(mutectfile, MTvarfile, how='inner', on=['Chromosome','Start_Position','Reference_Allele',
-        'Tumor_Seq_Allele2','Variant_Classification',"Variant_Type",'EXON'])
+    combinedfile = pd.merge(mutectfile, MTvarfile, how='inner', on=['Chromosome','Start_Position',
+        'Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Variant_Type'])
+        # 'EXON'])
     
     # Fix INDELs in the same position i.e. A:11866:AC and A:11866:ACC
     aux = combinedfile.loc[combinedfile['Variant_Type'] == 'INS'].groupby('Start_Position').count()['Hugo_Symbol_y'].reset_index()
@@ -143,13 +145,13 @@ def variant_processing_normal(libraryid,resultsdir):
     
     # Final annotation
     final_result = combinedfile.loc[:,['Tumor_Sample_Barcode_y','Matched_Norm_Sample_Barcode_y','Chromosome',
-        'Start_Position','Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Hugo_Symbol_y','EXON',
+        'Start_Position','Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Hugo_Symbol_y','EXON_y',
         'n_depth_y',"n_ref_count_y","n_alt_count_y",'t_depth_y','t_ref_count_y','t_alt_count_y',"t_alt_fwd","t_alt_rev"]]
     final_result.columns = ['Sample','NormalUsed','Chrom','Start','Ref','Alt','VariantClass','Gene','Exon',
         'N_TotalDepth',"N_RefCount","N_AltCount",'T_TotalDepth','T_RefCount','T_AltCount',"T_AltFwd","T_AltRev"]
     
     # output the fillout results
-    final_result.to_csv(saveasthis,sep = '\t',na_rep='NA',index=False)
+    final_result.to_csv(f"{resultsdir}/{libraryid}_master.tsv",sep = '\t',na_rep='NA',index=False)
 
 
 def variant_calling(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species,mincounts):
@@ -183,6 +185,8 @@ def variant_calling(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,mi
         f"--ncbi-build {ncbibuild} --input-vcf {resultsdir}/MuTect2_results/{libraryid}.bam.vcf " + 
         f"--output-maf {resultsdir}/MuTect2_results/{libraryid}.bam.maf --ref-fasta {reffile}", shell=True, check=True)
 
+    subprocess.run(f"rm {resultsdir}/TEMPMAFfiles/*.bam_temp2.maf", shell=True, check=True)
+
 
 def variant_processing(libraryid,resultsdir):
     """
@@ -197,7 +201,6 @@ def variant_processing(libraryid,resultsdir):
 
     # Read in MuTect result
     mutectfile = pd.read_csv(resultsdir + "/MuTect2_results/" + libraryid + ".bam.maf", sep = "\t", header=1, low_memory=False)
-    saveasthis = resultsdir + "/" + libraryid + ".fillout"
 
     # Filter out variants falling in the repeat regions of 302-315, 513-525, and 3105-3109 (black listed regions)
     # Make sure End_Position is also not in the region
@@ -253,7 +256,7 @@ def variant_processing(libraryid,resultsdir):
         'N_TotalDepth',"N_RefCount","N_AltCount",'T_TotalDepth','T_RefCount','T_AltCount',"T_AltFwd","T_AltRev"]
     
     # output the fillout results
-    final_result.to_csv(saveasthis,sep = '\t',na_rep='NA',index=False)
+    final_result.to_csv(f"{resultsdir}/{libraryid}_master.tsv",sep = '\t',na_rep='NA',index=False)
 
 
 def runhaplogrep(datadir,libraryid,reffile, workingdir, resultsdir):
@@ -296,31 +299,25 @@ def processfillout(libraryid, resultsdir, genome, molecule):
     print("Running the mutation estimation on the fillout..")
     
     # Import the final fillout file
-    filloutfile = pd.read_csv(resultsdir + "/" + libraryid + '.fillout', sep='\t')
+    filloutfile = pd.read_csv(f"{resultsdir}/{libraryid}_master.tsv",sep = '\t')
     
     # Set rownames
     filloutfile.index = [str(filloutfile['Ref'][i]) + ':' + str(int(filloutfile['Start'][i])) + ':' + 
         str(filloutfile['Alt'][i]) for i in range(len(filloutfile))]
     
-    # Import haplogrep result
-    if (genome == "GRCh38" or genome == "GRCh37") and molecule == "dna":
-        haplogrepfile = pd.read_csv(os.path.join(resultsdir + "/" + libraryid + '_haplogroups.txt'), sep='\t')
-        germlinepos = [x[:-1] for x in haplogrepfile['Found_Polys'][0].split(" ")]
-
-    # Assign variants with >95% VAF as germline if they are used in haplogroup assignment and as homoplasmic otherwise
-    filloutfile['ancestral'] = False
-    if (genome == "GRCh38" or genome == "GRCh37") and molecule == "dna":
-        filloutfile['ancestral'].iloc[np.where(np.logical_and((filloutfile['T_AltCount']/filloutfile['T_TotalDepth'] >= 0.95), 
-            (filloutfile['Start'].isin(germlinepos))))] = True
-    #     filloutfile['somaticstatus'].iloc[np.where(np.logical_and((filloutfile['T_AltCount']/filloutfile['T_TotalDepth'] >= 0.95), 
-    #         ~(filloutfile['Start'].isin(germlinepos))))] = 'homoplasmic'
-    # else:
-    #     filloutfile['somaticstatus'].iloc[np.where(filloutfile['T_AltCount']/filloutfile['T_TotalDepth'] >= 0.95)] = 'homoplasmic'
+    # # Assign variants with >95% VAF as germline if they are used in haplogroup assignment and as homoplasmic otherwise
+    # filloutfile['ancestral'] = False
+    # if (genome == "GRCh38" or genome == "GRCh37") and molecule == "dna":
+    #     haplogrepfile = pd.read_csv(os.path.join(resultsdir + "/" + libraryid + '_haplogroups.txt'), sep='\t')
+    #     germlinepos = [x[:-1] for x in haplogrepfile['Found_Polys'][0].split(" ")]
+    #     filloutfile['ancestral'].iloc[np.where(np.logical_and((filloutfile['T_AltCount']/filloutfile['T_TotalDepth'] >= 0.95), 
+    #         (filloutfile['Start'].isin(germlinepos))))] = True
 
     # Output filtered variant file
-    filteredvar = filloutfile.loc[:,['Sample','NormalUsed','Chrom','Start','Ref','Alt','VariantClass','Gene','Exon','ancestral']]
-    filteredvar.to_csv(resultsdir + "/" + libraryid + '_variants.tsv',sep = '\t')
-    
+    # filteredvar = filloutfile.loc[:,['Sample','NormalUsed','Chrom','Start','Ref','Alt','VariantClass','Gene','Exon']]
+    # filteredvar = filloutfile.loc[:,['Sample','NormalUsed','Chrom','Start','Ref','Alt','VariantClass','Gene','Exon','Ancestral']]
+    # filteredvar.to_csv(resultsdir + "/" + libraryid + '_variants.tsv',sep = '\t')
+    filloutfile.to_csv(f"{resultsdir}/{libraryid}_master.tsv",sep = '\t')    
 
 def genmaster(libraryid,reffile,resultsdir,genome):
     """
@@ -331,8 +328,8 @@ def genmaster(libraryid,reffile,resultsdir,genome):
     print('Generating a master file and a binary matrix of somatic variants for the sample..')
     
     # Import the relevant files
-    variantsfile = pd.read_csv(os.path.join(resultsdir + "/" + libraryid + '_variants.tsv'), sep='\t', index_col=0)
-    filloutfile = pd.read_csv(os.path.join(resultsdir + "/" + libraryid + '.fillout'), sep='\t')
+    # variantsfile = pd.read_csv(os.path.join(resultsdir + "/" + libraryid + '_variants.tsv'), sep='\t', index_col=0)
+    filloutfile = pd.read_csv(f"{resultsdir}/{libraryid}_master.tsv",sep = '\t',index_col=0)
     
     # # Fix the depth matrix to filter variants that are uncertain and order them based on filteredvariants matrix
     # masterfile = filloutfile
@@ -375,9 +372,12 @@ def genmaster(libraryid,reffile,resultsdir,genome):
         if 'MT' in currheader:
             sequence = [base for base in currsequence]
 
-    varref = [variants[0] for variants in pd.Series(variantsfile.index.values).str.split(':')]
-    varpos = [variants[1] for variants in pd.Series(variantsfile.index.values).str.split(':')]
-    varalt = [variants[2] for variants in pd.Series(variantsfile.index.values).str.split(':')]
+    varref = [variants[0] for variants in pd.Series(filloutfile.index.values).str.split(':')]
+    varpos = [variants[1] for variants in pd.Series(filloutfile.index.values).str.split(':')]
+    varalt = [variants[2] for variants in pd.Series(filloutfile.index.values).str.split(':')]
+    # varref = [variants[0] for variants in pd.Series(variantsfile.index.values).str.split(':')]
+    # varpos = [variants[1] for variants in pd.Series(variantsfile.index.values).str.split(':')]
+    # varalt = [variants[2] for variants in pd.Series(variantsfile.index.values).str.split(':')]
     mutsigmotifs = []
     for eachone in range(len(varpos)):
         prevpos = int(varpos[eachone])-2
@@ -438,7 +438,7 @@ def genmaster(libraryid,reffile,resultsdir,genome):
     filloutfile["Heteroplasmy"] = filloutfile['T_AltCount'].astype(int) / filloutfile['T_TotalDepth'].astype(int)
 
     # Combined matrices together
-    filloutfile.to_csv(resultsdir + "/" + libraryid + '_master.tsv',sep = '\t')
+    filloutfile.to_csv(f"{resultsdir}/{libraryid}_master.tsv",sep = '\t',na_rep='NA',index=False)
 
 if __name__ == "__main__":
     # Parse necessary arguments
@@ -455,6 +455,7 @@ if __name__ == "__main__":
     parser.add_argument("-t","--threshold",type=int,help="The critical threshold for calling a cell wild-type, default=0.1",default = 0.1)
     parser.add_argument("-vc", "--vepcache", type=str, help="Directory for vep cache", default="$HOME/.vep")
     parser.add_argument("-n", "--normal", type=str, help="matched normal file",default="")
+    parser.add_argument("-nd", "--normaldir", type=str, help="directory that contains matched normal file",default="")
     parser.add_argument("-m", "--molecule",type=str, help="Type of molecule (dna or rna), default=dna", default="dna")
     parser.add_argument("-c","--mincounts",type=int,help="Minimum number of read counts for MTvariantpipeline, default = 100", default = 100)
 
@@ -472,6 +473,7 @@ if __name__ == "__main__":
     vepcache = args.vepcache
     resultsdir = args.resultsdir
     normal = args.normal
+    normaldir = args.normaldir
     molecule = args.molecule
     mincounts = args.mincounts
 
@@ -507,13 +509,13 @@ if __name__ == "__main__":
     # if molecule == "rna":
     #     mappingquality(reffile,datadir,libraryid)
     if normal != "":
-        variant_calling_normal(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species,normal,mincounts)
+        variant_calling_normal(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species,normal,normaldir,mincounts)
         variant_processing_normal(libraryid,resultsdir)
     else:
         variant_calling(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species,mincounts)
         variant_processing(libraryid,resultsdir)
-    if (genome == "GRCh38" or genome == "GRCh37") and molecule == "dna":
-        runhaplogrep(datadir,libraryid,reffile, workingdir, resultsdir)
+    # if (genome == "GRCh38" or genome == "GRCh37") and molecule == "dna":
+    #     runhaplogrep(datadir,libraryid,reffile, workingdir, resultsdir)
     processfillout(libraryid, resultsdir,genome,molecule)
     genmaster(libraryid,reffile,resultsdir,genome)
 
