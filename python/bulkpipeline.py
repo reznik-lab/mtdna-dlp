@@ -20,14 +20,6 @@ def reference_detect(reffile):
     raise Exception("Chromosome is neither MT nor chrM")
 
 
-def mappingquality(reffile, datadir, libraryid):
-    print("Converting mapping qualities...")
-    subprocess.run(f"java -Xmx5G -Xms5G -jar {workingdir}/reference/GenomeAnalysisTK.jar " +
-        f"-T SplitNCigarReads -R {reffile} -I {datadir}/{libraryid}.bam -o {datadir}/{libraryid}.bam " +
-        "-rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS", shell=True, check=True)
-    subprocess.run(f"samtools index {datadir}/{libraryid}.bam", shell=True, check=True)
-
-
 def variant_calling_normal(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species,normal,normaldir,mincounts):
     try:
         os.makedirs(f"{resultsdir}/temp_MuTect2_results")
@@ -139,10 +131,6 @@ def variant_processing_normal(libraryid,resultsdir):
         combinedfile = pd.concat([combinedfile, dffaux])
         combinedfile = combinedfile.sort_values(by='Start_Position', ascending = True)
 
-        # Recalculate TumorVAF
-        # combinedfile['TumorVAF_y'] = combinedfile['t_alt_count_y'] / (combinedfile['t_ref_count_y'] + combinedfile['t_alt_count_y'])
-        # combinedfile['TumorVAF_x'] = combinedfile['t_alt_count_x'] / (combinedfile['t_ref_count_x'] + combinedfile['t_alt_count_x'])
-    
     # Final annotation
     final_result = combinedfile.loc[:,['Tumor_Sample_Barcode_y','Matched_Norm_Sample_Barcode_y','Chromosome',
         'Start_Position','Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Hugo_Symbol_y','EXON_y',
@@ -243,11 +231,7 @@ def variant_processing(libraryid,resultsdir):
         # Add unique indel variants with new values
         combinedfile = pd.concat([combinedfile, dffaux])
         combinedfile = combinedfile.sort_values(by='Start_Position', ascending = True)
-
-        # Recalculate TumorVAF
-        # combinedfile['TumorVAF_y'] = combinedfile['t_alt_count_y'] / (combinedfile['t_ref_count_y'] + combinedfile['t_alt_count_y'])
-        # combinedfile['TumorVAF_x'] = combinedfile['t_alt_count_x'] / (combinedfile['t_ref_count_x'] + combinedfile['t_alt_count_x'])
-    
+        
     # Final annotation
     final_result = combinedfile.loc[:,['Tumor_Sample_Barcode_y','Matched_Norm_Sample_Barcode_y','Chromosome',
         'Start_Position','Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Hugo_Symbol_y','EXON',
@@ -257,67 +241,7 @@ def variant_processing(libraryid,resultsdir):
     
     # output the fillout results
     final_result.to_csv(f"{resultsdir}/{libraryid}_master.tsv",sep = '\t',na_rep='NA',index=False)
-
-
-def runhaplogrep(datadir,libraryid,reffile, workingdir, resultsdir):
-    """
-    Run haplogrep to obtain the haplogroup information from the bam file
-    """
-    print("Running haplogrep..")
-    
-    # Filter the bam file for unmapped reads and mapping quality less than 1
-    subprocess.run(f"samtools view -bF 4 -q 1 {datadir}/{libraryid}.bam > {resultsdir}/{libraryid}_filtered.bam", shell=True, check=True)
-    
-    # Index the filtered bam file
-    subprocess.run(f"samtools index {resultsdir}/{libraryid}_filtered.bam", shell=True, check=True)
-    
-    # Edit the RG of the filtered bam file
-    subprocess.run(f"java -Xms8G -Xmx8G -jar {workingdir}/reference/picard.jar AddOrReplaceReadGroups " +
-        f"I={resultsdir}/{libraryid}_filtered.bam O={resultsdir}/haplogroup_{libraryid}.bam " +
-        f"RGID={libraryid.replace('-','_')} RGLB={libraryid} RGPL=illumina RGPU=unit1 RGSM={libraryid}", shell=True, check=True)
-    
-    # Index the resulting bam file
-    subprocess.run(f"samtools index {resultsdir}/haplogroup_{libraryid}.bam", shell=True, check=True)
-    
-    # Run MuTect2
-    subprocess.run(f"gatk --java-options -Xmx4g Mutect2 -R {reffile} --mitochondria-mode true -L {mtchrom} " +
-        f"-mbq {minbq} --minimum-mapping-quality {minmapq} -I haplogroup_{resultsdir}/{libraryid}.bam " +
-        f"-tumor result{libraryid.replace('-','_')} -O {resultsdir}/MuTect2_results/haplogroup_{libraryid}.bam.vcf.gz", shell=True, check=True)
-
-    # Run haplogrep2.1
-    subprocess.run(f"java -jar {workingdir}/reference/haplogrep/haplogrep-2.1.20.jar " +
-        f"--in {resultsdir}/MuTect2_results/haplogroup_{libraryid}.bam.vcf.gz --format vcf --extend-report " +
-        f"--out {resultsdir}/{libraryid}_haplogroups.txt", shell=True, check=True)
-
-
-def processfillout(libraryid, resultsdir, genome, molecule):
-    """
-    Run the combined mutation estimation on fillout
-    Post-processing of the fillout files
-    threshold: the critical threshold for calling a cell wild-type
-    """
-    print("Running the mutation estimation on the fillout..")
-    
-    # Import the final fillout file
-    filloutfile = pd.read_csv(f"{resultsdir}/{libraryid}_master.tsv",sep = '\t')
-    
-    # Set rownames
-    filloutfile.index = [str(filloutfile['Ref'][i]) + ':' + str(int(filloutfile['Start'][i])) + ':' + 
-        str(filloutfile['Alt'][i]) for i in range(len(filloutfile))]
-    
-    # # Assign variants with >95% VAF as germline if they are used in haplogroup assignment and as homoplasmic otherwise
-    # filloutfile['ancestral'] = False
-    # if (genome == "GRCh38" or genome == "GRCh37") and molecule == "dna":
-    #     haplogrepfile = pd.read_csv(os.path.join(resultsdir + "/" + libraryid + '_haplogroups.txt'), sep='\t')
-    #     germlinepos = [x[:-1] for x in haplogrepfile['Found_Polys'][0].split(" ")]
-    #     filloutfile['ancestral'].iloc[np.where(np.logical_and((filloutfile['T_AltCount']/filloutfile['T_TotalDepth'] >= 0.95), 
-    #         (filloutfile['Start'].isin(germlinepos))))] = True
-
-    # Output filtered variant file
-    # filteredvar = filloutfile.loc[:,['Sample','NormalUsed','Chrom','Start','Ref','Alt','VariantClass','Gene','Exon']]
-    # filteredvar = filloutfile.loc[:,['Sample','NormalUsed','Chrom','Start','Ref','Alt','VariantClass','Gene','Exon','Ancestral']]
-    # filteredvar.to_csv(resultsdir + "/" + libraryid + '_variants.tsv',sep = '\t')
-    filloutfile.to_csv(f"{resultsdir}/{libraryid}_master.tsv",sep = '\t')    
+ 
 
 def genmaster(libraryid,reffile,resultsdir,genome):
     """
@@ -330,27 +254,8 @@ def genmaster(libraryid,reffile,resultsdir,genome):
     # Import the relevant files
     # variantsfile = pd.read_csv(os.path.join(resultsdir + "/" + libraryid + '_variants.tsv'), sep='\t', index_col=0)
     filloutfile = pd.read_csv(f"{resultsdir}/{libraryid}_master.tsv",sep = '\t',index_col=0)
-    
-    # # Fix the depth matrix to filter variants that are uncertain and order them based on filteredvariants matrix
-    # masterfile = filloutfile
-    
-    # # Fix the read counts for individual cells for each row accounting for the germline variants
-    # sampleid = filloutfile['Sample'][0].split('.bam')[0]
-    # masterfile = pd.DataFrame(index=filloutfile.index.values, columns=[sampleid])
-    # masterfile[sampleid] = filloutfile['T_AltCount'].astype(int).astype(str).str.cat(filloutfile['T_TotalDepth'].astype(int).astype(str),sep='/')
-
-    # # Create a variant annotations file based on the fillout file
-    # variantannot = pd.DataFrame(index=filloutfile.index.values, columns=['Start','Ref','Alt','VariantClass','Gene','T_AltCount','T_RefCount'])
-    # variantannot = variantannot.fillna(0)
-    
-    # # Include columns for 'Start','Ref','Alt','VariantClass','Gene','T_AltCount','T_RefCount'
-    # variantannot['Ref'] = filloutfile['Ref']
-    # variantannot['Alt'] = filloutfile['Alt']
-    # variantannot['Gene'] = filloutfile['Gene']
-    # variantannot['VariantClass'] = filloutfile['VariantClass']
-    # variantannot['T_AltCount'] = filloutfile['T_AltCount']
-    # variantannot['T_RefCount'] = filloutfile['T_RefCount']
-    # variantannot['Start'] = filloutfile['Start']
+    filloutfile.index = [str(filloutfile['Ref'][i]) + ':' + str(int(filloutfile['Start'][i])) + ':' + 
+        str(filloutfile['Alt'][i]) for i in range(len(filloutfile))]
 
     # Obtain the mutation signature
     # Initialize the counts and mutation sigature matrix
@@ -375,9 +280,6 @@ def genmaster(libraryid,reffile,resultsdir,genome):
     varref = [variants[0] for variants in pd.Series(filloutfile.index.values).str.split(':')]
     varpos = [variants[1] for variants in pd.Series(filloutfile.index.values).str.split(':')]
     varalt = [variants[2] for variants in pd.Series(filloutfile.index.values).str.split(':')]
-    # varref = [variants[0] for variants in pd.Series(variantsfile.index.values).str.split(':')]
-    # varpos = [variants[1] for variants in pd.Series(variantsfile.index.values).str.split(':')]
-    # varalt = [variants[2] for variants in pd.Series(variantsfile.index.values).str.split(':')]
     mutsigmotifs = []
     for eachone in range(len(varpos)):
         prevpos = int(varpos[eachone])-2
@@ -427,12 +329,6 @@ def genmaster(libraryid,reffile,resultsdir,genome):
     
     # Saving the mutation signature
     mutsigfile.to_csv(resultsdir + "/" + libraryid + '_mutsig.tsv',sep = '\t')
-    
-    # # combine the matrix with the resulting matrix
-    # resultMT = pd.concat([variantannot,masterfile],axis=1,sort=False) # concatenate everything together
-    
-    # # Saving the final masterfile
-    # resultMT.to_csv(resultsdir + "/" + libraryid + '_master.tsv',sep = '\t')
 
     # Calculate heteroplasmy
     filloutfile["Heteroplasmy"] = filloutfile['T_AltCount'].astype(int) / filloutfile['T_TotalDepth'].astype(int)
@@ -506,17 +402,12 @@ if __name__ == "__main__":
     print("Reference file: " + reffile)
 
     # Filtering of cells
-    # if molecule == "rna":
-    #     mappingquality(reffile,datadir,libraryid)
     if normal != "":
         variant_calling_normal(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species,normal,normaldir,mincounts)
         variant_processing_normal(libraryid,resultsdir)
     else:
         variant_calling(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species,mincounts)
         variant_processing(libraryid,resultsdir)
-    # if (genome == "GRCh38" or genome == "GRCh37") and molecule == "dna":
-    #     runhaplogrep(datadir,libraryid,reffile, workingdir, resultsdir)
-    processfillout(libraryid, resultsdir,genome,molecule)
     genmaster(libraryid,reffile,resultsdir,genome)
 
     print("DONE WITH BULKPIPELINE")
