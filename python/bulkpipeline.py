@@ -71,7 +71,7 @@ def variant_calling_normal(resultsdir,datadir,libraryid,reffile,genome,minmapq,m
     subprocess.run(f"Rscript {workingdir}/getMAFfromfile.R {resultsdir}/temp_MuTect2_results/{libraryid}.bam.maf " +
         f"{resultsdir}/temp_MuTect2_results/{normal}.bam.maf {resultsdir}/MuTect2_results/{libraryid}.bam.maf", shell=True, check=True)
 
-    subprocess.run(f"rm {resultsdir}/TEMPMAFfiles/*.bam_temp2.maf", shell=True, check=True)
+    subprocess.run(f"rm {resultsdir}/TEMPMAFfiles/*.bam_temp2.maf", shell=True)
 
 
 def variant_processing_normal(libraryid,resultsdir):
@@ -173,7 +173,7 @@ def variant_calling(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,mi
         f"--ncbi-build {ncbibuild} --input-vcf {resultsdir}/MuTect2_results/{libraryid}.bam.vcf " + 
         f"--output-maf {resultsdir}/MuTect2_results/{libraryid}.bam.maf --ref-fasta {reffile}", shell=True, check=True)
 
-    subprocess.run(f"rm {resultsdir}/TEMPMAFfiles/*.bam_temp2.maf", shell=True, check=True)
+    subprocess.run(f"rm {resultsdir}/TEMPMAFfiles/*.bam_temp2.maf", shell=True)
 
 
 def variant_processing(libraryid,resultsdir):
@@ -275,6 +275,8 @@ def genmaster(libraryid,reffile,resultsdir,genome):
     for fasta in fasta_sequences:
         currheader, currsequence = fasta.id, fasta.seq
         if 'MT' in currheader:
+            sequence = [base for base in currsequence]
+        if 'chrM' in currheader:
             sequence = [base for base in currsequence]
 
     varref = [variants[0] for variants in pd.Series(filloutfile.index.values).str.split(':')]
