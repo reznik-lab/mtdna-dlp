@@ -273,6 +273,8 @@ def genmaster(libraryid,reffile,resultsdir,genome):
         currheader, currsequence = fasta.id, fasta.seq
         if 'MT' in currheader:
             sequence = [base for base in currsequence]
+        if 'chrM' in currheader:
+            sequence = [base for base in currsequence]
 
     # Account for germline variants
     # if genome == "GRCh38" or genome == "GRCh37":
