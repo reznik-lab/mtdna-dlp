@@ -31,7 +31,7 @@ def mappingquality(reffile, datadir):
         if file.endswith(".bam"):
             subprocess.run(f"java -Xmx5G -Xms5G -jar {workingdir}/reference/GenomeAnalysisTK.jar " +
                 f"-T SplitNCigarReads -R {reffile} -I {datadir}/{file} -o {datadir}/{file} " +
-                "-rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS", shell=True, check=True)
+                "-rf ReassignOneMappingQuality -RMQF 255 -RMQT 60 -U ALLOW_N_CIGAR_READS --disable_bam_indexing", shell=True, check=True)
             subprocess.run(f"samtools index {datadir}/{file}", shell=True, check=True)
 
 
@@ -41,8 +41,8 @@ def merging_bams(datadir,libraryid,resultsdir):
         os.makedirs(f"{resultsdir}/merged")
 
     # Merging filtered cells into pseudobulk and indexing the merged file
-    subprocess.run(f"samtools merge {resultsdir}/merged/{libraryid}-merged.bam {datadir}/*.bam", shell=True, check=True)
-    subprocess.run(f"samtools index {resultsdir}/merged/{libraryid}-merged.bam", shell=True, check=True)
+    subprocess.run(f"samtools merge {resultsdir}/merged/{libraryid}-merged.bam {datadir}/*.bam", shell=True)
+    subprocess.run(f"samtools index {resultsdir}/merged/{libraryid}-merged.bam", shell=True)
     
 
 def preproccess_bams(datadir, reffile, workingdir, vepcache, resultsdir, genome, mtchrom, species, ncbibuild,mincounts):
@@ -81,7 +81,7 @@ def preproccess_bams(datadir, reffile, workingdir, vepcache, resultsdir, genome,
             subprocess.run(f"samtools view -bq 20 {datadir}/{file} > {resultsdir}/filteredfiles/filtered{file}", shell=True)
             subprocess.run(f"samtools index {resultsdir}/filteredfiles/filtered{file}", shell=True, check=True)
 
-    subprocess.run(f"rm {resultsdir}/TEMPMAFfiles/*.bam_temp2.maf", shell=True, check=True)
+    subprocess.run(f"rm {resultsdir}/TEMPMAFfiles/*.bam_temp2.maf", shell=True)
 
     
 def variant_calling(libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,resultsdir,mtchrom,species,ncbibuild,mincounts):
@@ -830,10 +830,10 @@ if __name__ == "__main__":
     print("Miminum number of reads mapping to forward and reverse strand to call mutation of " + str(minstrand))
 
     # Filtering of cells
-    if molecule == "rna":
-        mappingquality(reffile,datadir)
-    merging_bams(datadir,libraryid,resultsdir)
-    preproccess_bams(datadir,reffile,workingdir,vepcache,resultsdir,genome,mtchrom,species,ncbibuild,mincounts)
+    # if molecule == "rna":
+    #     mappingquality(reffile,datadir)
+    # merging_bams(datadir,libraryid,resultsdir)
+    # preproccess_bams(datadir,reffile,workingdir,vepcache,resultsdir,genome,mtchrom,species,ncbibuild,mincounts)
     variant_calling(libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,resultsdir,mtchrom,species,ncbibuild,mincounts)
     variant_processing(libraryid,reffile,resultsdir, mtchrom)
     if (genome == "GRCh38" or genome == "GRCh37") and molecule == "dna": 
