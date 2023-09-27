@@ -36,7 +36,7 @@ def variant_calling_normal(resultsdir,datadir,libraryid,reffile,genome,minmapq,m
 
     # Running MTvariantpipeline with matched normal
     print("Running MTvariantpipeline with matched normal..")
-    subprocess.run(f"python3 {workingdir}/MTvariantpipeline2.py -d {datadir}/ -v {resultsdir}/TEMPMAFfiles/ " +
+    subprocess.run(f"python3 {workingdir}/MTvariantpipeline.py -d {datadir}/ -v {resultsdir}/TEMPMAFfiles/ " +
         f"-o {resultsdir}/MTvariant_results/ -b {libraryid}.bam -n {normal}.bam -nd {normaldir}/ -f {genome} -q {minmapq} " +
         f"-Q {minbq} -s {minstrand} -w {workingdir}/ -vc {vepcache} -f {reffile} -m {mtchrom} -c {mincounts}", shell=True, check=True)
 
