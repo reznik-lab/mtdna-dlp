@@ -20,9 +20,9 @@ def reference_detect(reffile):
     raise Exception("Chromosome is neither MT nor chrM")
 
 
-def variant_calling_normal(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species,normal,normaldir,mincounts):
+def variant_calling_normal(resultsdir,tumordir,tumor_id,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species,normal_id,normaldir,mincounts):
     try:
-        os.makedirs(f"{resultsdir}/temp_MuTect2_results")
+        os.makedirs(f"{resultsdir}/TEMPMAFfiles/tempMuTect2")
     except OSError:
         pass
     try:
@@ -36,113 +36,56 @@ def variant_calling_normal(resultsdir,datadir,libraryid,reffile,genome,minmapq,m
 
     # Running MTvariantpipeline with matched normal
     print("Running MTvariantpipeline with matched normal..")
-    subprocess.run(f"python3 {workingdir}/MTvariantpipeline.py -d {datadir}/ -v {resultsdir}/TEMPMAFfiles/ " +
-        f"-o {resultsdir}/MTvariant_results/ -b {libraryid}.bam -n {normal}.bam -nd {normaldir}/ -f {genome} -q {minmapq} " +
+    subprocess.run(f"python3 {workingdir}/MTvariantpipeline.py -d {tumordir}/ -v {resultsdir}/TEMPMAFfiles/ " +
+        f"-o {resultsdir}/MTvariant_results/ -b {tumor_id}.bam -n {normal_id}.bam -nd {normaldir}/ -f {genome} -q {minmapq} " +
         f"-Q {minbq} -s {minstrand} -w {workingdir}/ -vc {vepcache} -f {reffile} -m {mtchrom} -c {mincounts}", shell=True, check=True)
 
     # MuTect2 mitochondrial mode on tumor
     print("Running MuTect2 on tumor..")
     subprocess.run(f"gatk --java-options -Xmx4g Mutect2 -R {reffile} --mitochondria-mode true -L {mtchrom} " +
-        f"-mbq {minbq} --minimum-mapping-quality {minmapq} -I {datadir}/{libraryid}.bam " +
-        f"-tumor {libraryid.replace('-','_')} -O {resultsdir}/temp_MuTect2_results/{libraryid}.bam.vcf.gz", shell=True, check=True)
+        f"-mbq {minbq} --minimum-mapping-quality {minmapq} -I {tumordir}/{tumor_id}.bam " +
+        f"-tumor {tumor_id.replace('-','_')} -O {resultsdir}/TEMPMAFfiles/tempMuTect2/{tumor_id}.bam.vcf.gz", shell=True, check=True)
 
     # MuTect2 mitochondrial mode on normal
     print("Running MuTect2 on normal..")
     subprocess.run(f"gatk --java-options -Xmx4g Mutect2 -R {reffile} --mitochondria-mode true -L {mtchrom} " +
-        f"-mbq {minbq} --minimum-mapping-quality {minmapq} -I {normaldir}/{normal}.bam " +
-        f"-tumor {normal.replace('-','_')} -O {resultsdir}/temp_MuTect2_results/{normal}.bam.vcf.gz", shell=True, check=True)
+        f"-mbq {minbq} --minimum-mapping-quality {minmapq} -I {normaldir}/{normal_id}.bam " +
+        f"-tumor {normal_id.replace('-','_')} -O {resultsdir}/TEMPMAFfiles/tempMuTect2/{normal_id}.bam.vcf.gz", shell=True, check=True)
 
     # Left align MuTect2 results (-m - is there for a reason)
-    subprocess.run(f"bcftools norm -m - -f {reffile} {resultsdir}/temp_MuTect2_results/{libraryid}.bam.vcf.gz " +
-        f"-o {resultsdir}/temp_MuTect2_results/{libraryid}.bam.vcf", shell=True, check=True)
-    subprocess.run(f"bcftools norm -m - -f {reffile} {resultsdir}/temp_MuTect2_results/{normal}.bam.vcf.gz " +
-        f"-o {resultsdir}/temp_MuTect2_results/{normal}.bam.vcf", shell=True, check=True)
+    subprocess.run(f"bcftools norm -m - -f {reffile} {resultsdir}/TEMPMAFfiles/tempMuTect2/{tumor_id}.bam.vcf.gz " +
+        f"-o {resultsdir}/TEMPMAFfiles/tempMuTect2/{tumor_id}.bam.vcf", shell=True, check=True)
+    subprocess.run(f"bcftools norm -m - -f {reffile} {resultsdir}/TEMPMAFfiles/tempMuTect2/{normal_id}.bam.vcf.gz " +
+        f"-o {resultsdir}/TEMPMAFfiles/tempMuTect2/{normal_id}.bam.vcf", shell=True, check=True)
     
     # Convert the MuTect2 result from vcf to maf file
     subprocess.run(f"perl {workingdir}/vcf2maf/vcf2maf.pl --species {species} --vep-data {vepcache} " +
-        f"--ncbi-build {ncbibuild} --input-vcf {resultsdir}/temp_MuTect2_results/{libraryid}.bam.vcf " +
-        f"--output-maf {resultsdir}/temp_MuTect2_results/{libraryid}.bam.maf --ref-fasta {reffile}", shell=True, check=True)
+        f"--ncbi-build {ncbibuild} --input-vcf {resultsdir}/TEMPMAFfiles/tempMuTect2/{tumor_id}.bam.vcf " +
+        f"--output-maf {resultsdir}/TEMPMAFfiles/tempMuTect2/{tumor_id}.bam.maf --ref-fasta {reffile}", shell=True, check=True)
     subprocess.run(f"perl {workingdir}/vcf2maf/vcf2maf.pl --species {species} --vep-data {vepcache} " +
-        f"--ncbi-build {ncbibuild} --input-vcf {resultsdir}/temp_MuTect2_results/{normal}.bam.vcf " + 
-        f"--output-maf {resultsdir}/temp_MuTect2_results/{normal}.bam.maf --ref-fasta {reffile}", shell=True, check=True)
+        f"--ncbi-build {ncbibuild} --input-vcf {resultsdir}/TEMPMAFfiles/tempMuTect2/{normal_id}.bam.vcf " + 
+        f"--output-maf {resultsdir}/TEMPMAFfiles/tempMuTect2/{normal_id}.bam.maf --ref-fasta {reffile}", shell=True, check=True)
 
     # Run R script to merge tumor and normal mafs
     print("Merging tumor and normal mafs..")
-    subprocess.run(f"Rscript {workingdir}/getMAFfromfile.R {resultsdir}/temp_MuTect2_results/{libraryid}.bam.maf " +
-        f"{resultsdir}/temp_MuTect2_results/{normal}.bam.maf {resultsdir}/MuTect2_results/{libraryid}.bam.maf", shell=True, check=True)
-
+    
+    # Read in tumor result
+    tumorfile = pd.read_csv(resultsdir + "/TEMPMAFfiles/tempMuTect2/" + tumor_id + ".bam.maf", sep = "\t", header=1, low_memory=False)
+    
+    # Read in normal result
+    normalfile = pd.read_csv(resultsdir + "/TEMPMAFfiles/tempMuTect2/" + normal_id + ".bam.maf", sep = "\t", header=1, low_memory=False)
+    
+    # Output the overlap as final maf file
+    combinedfile = pd.merge(tumorfile.loc[:,['Chromosome','Start_Position','Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Variant_Type']], normalfile.loc[:,['Chromosome','Start_Position','Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Variant_Type']], how='inner', on=['Chromosome','Start_Position','Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Variant_Type'])
+    
+    # Combined matrices together
+    combinedfile.to_csv(f"{resultsdir}/MuTect2_results/{tumor_id}.bam.maf",sep = '\t',na_rep='NA',index=False)
+    
+    # Remove temporary files
     subprocess.run(f"rm {resultsdir}/TEMPMAFfiles/*.bam_temp2.maf", shell=True)
 
 
-def variant_processing_normal(libraryid,resultsdir):
-    """
-    Run MTvariantpipeline and MuTect2 on the filtered cells
-    MTvariantpipeline: A simple variant calling and annotation pipeline for mitochondrial DNA variants.
-    """
-    print("Starting variant processing...")
-
-    # Overlap between MuTect and MTvariantpipeline
-    # Read in MTvariantpipeline result
-    MTvarfile = pd.read_csv(resultsdir + "/MTvariant_results/" + libraryid + ".bam.maf", sep = "\t", comment='#', low_memory=False)
-
-    # Read in MuTect result
-    mutectfile = pd.read_csv(resultsdir + "/MuTect2_results/" + libraryid + ".bam.maf", sep = "\t", header=0, low_memory=False)
-
-    # Filter out variants falling in the repeat regions of 302-315, 513-525, and 3105-3109 (black listed regions)
-    # Make sure End_Position is also not in the region
-    rmregions = list(range(301,314)) + list(range(513,524)) + list(range(3105,3109))
-    if len(mutectfile['Start_Position'][mutectfile['Start_Position'].isin(rmregions)]) > 0:
-        mutectfile = mutectfile[~mutectfile['Start_Position'].isin(rmregions)]
-    if len(MTvarfile['Start_Position'][MTvarfile['Start_Position'].isin(rmregions)]) > 0:
-        rmthese = MTvarfile['Start_Position'].isin(rmregions)
-        MTvarfile = MTvarfile[~rmthese]
-    mutectfile.index = range(len(mutectfile.index))
-    MTvarfile.index = range(len(MTvarfile.index))
-
-    # convert Hugo_Symbol column to uppercase
-    mutectfile["Hugo_Symbol"] = mutectfile["Hugo_Symbol"].str.upper()
-    MTvarfile["Hugo_Symbol"] = MTvarfile["Hugo_Symbol"].str.upper()
-    
-    # Output the overlap as final maf file
-    combinedfile = pd.merge(mutectfile, MTvarfile, how='inner', on=['Chromosome','Start_Position',
-        'Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Variant_Type'])
-        # 'EXON'])
-    
-    # Fix INDELs in the same position i.e. A:11866:AC and A:11866:ACC
-    aux = combinedfile.loc[combinedfile['Variant_Type'] == 'INS'].groupby('Start_Position').count()['Hugo_Symbol_y'].reset_index()
-    positions = list(aux['Start_Position'].loc[aux['Hugo_Symbol_y'] > 1])
-    variants = list(combinedfile['ShortVariantID_y'].loc[(combinedfile['Start_Position'].isin(positions)) & (combinedfile['Variant_Type'] == 'INS')])
-    if len(positions) != 0:
-        dff = combinedfile.loc[combinedfile['ShortVariantID_y'].isin(variants)]
-
-        # Create an auxuliary file only with the last rows to keep: keep unique positions with the highest TumorVAF
-        dffaux = dff.sort_values(by='TumorVAF', ascending = False)
-        dffaux = dffaux.drop_duplicates('Start_Position', keep = 'first')
-        for i in positions:
-            vals = dff[['t_alt_count_y', 't_alt_count_x']].loc[dff['Start_Position'] == i].sum(axis = 0).reset_index()
-            dvals = dict(zip(list(vals['index']),list(vals[0])))
-            dffaux.loc[dffaux['Start_Position'] == i,'t_alt_count_y'] = dvals['t_alt_count_y']
-            dffaux.loc[dffaux['Start_Position'] == i,'t_alt_count_x'] = dvals['t_alt_count_x']
-
-        #Remove all variants with duplicated indels
-        combinedfile = combinedfile.loc[(~combinedfile['ShortVariantID_y'].isin(variants))]
-
-        # Add unique indel variants with new values
-        combinedfile = pd.concat([combinedfile, dffaux])
-        combinedfile = combinedfile.sort_values(by='Start_Position', ascending = True)
-
-    # Final annotation
-    final_result = combinedfile.loc[:,['Tumor_Sample_Barcode_y','Matched_Norm_Sample_Barcode_y','Chromosome',
-        'Start_Position','Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Hugo_Symbol_y','EXON_y',
-        'n_depth_y',"n_ref_count_y","n_alt_count_y",'t_depth_y','t_ref_count_y','t_alt_count_y',"t_alt_fwd","t_alt_rev"]]
-    final_result.columns = ['Sample','NormalUsed','Chrom','Start','Ref','Alt','VariantClass','Gene','Exon',
-        'N_TotalDepth',"N_RefCount","N_AltCount",'T_TotalDepth','T_RefCount','T_AltCount',"T_AltFwd","T_AltRev"]
-    
-    # output the fillout results
-    final_result.to_csv(f"{resultsdir}/{libraryid}_master.tsv",sep = '\t',na_rep='NA',index=False)
-
-
-def variant_calling(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species,mincounts):
+def variant_calling(resultsdir,tumordir,tumor_id,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species,mincounts):
     try:
         os.makedirs(f"{resultsdir}/MuTect2_results")
     except OSError:
@@ -154,29 +97,29 @@ def variant_calling(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,mi
 
     # Running MTvariantpipeline without matched normal
     print("Running MTvariantpipeline..")
-    subprocess.run(f"python3 {workingdir}/MTvariantpipeline.py -d {datadir}/ -v {resultsdir}/TEMPMAFfiles/ " +
-        f"-o {resultsdir}/MTvariant_results/ -b {libraryid}.bam -g {genome} -q {minmapq} -Q {minbq} " +
+    subprocess.run(f"python3 {workingdir}/MTvariantpipeline.py -d {tumordir}/ -v {resultsdir}/TEMPMAFfiles/ " +
+        f"-o {resultsdir}/MTvariant_results/ -b {tumor_id}.bam -g {genome} -q {minmapq} -Q {minbq} " +
         f"-s {minstrand} -w {workingdir}/ -vc {vepcache} -f {reffile} -m {mtchrom} -c {mincounts}", shell=True, check=True)
 
     # MuTect2 mitochondrial mode
     print("Running MuTect2..")
     subprocess.run(f"gatk --java-options -Xmx4g Mutect2 -R {reffile} --mitochondria-mode true -L {mtchrom} " +
-        f"-mbq {minbq} --minimum-mapping-quality {minmapq} -I {datadir}/{libraryid}.bam " +
-        f"-tumor {libraryid.replace('-','_')} -O {resultsdir}/MuTect2_results/{libraryid}.bam.vcf.gz", shell=True, check=True)
+        f"-mbq {minbq} --minimum-mapping-quality {minmapq} -I {tumordir}/{tumor_id}.bam " +
+        f"-tumor {tumor_id.replace('-','_')} -O {resultsdir}/MuTect2_results/{tumor_id}.bam.vcf.gz", shell=True, check=True)
 
     # Left align MuTect2 results (-m - is there for a reason)
-    subprocess.run(f"bcftools norm -m - -f {reffile} {resultsdir}/MuTect2_results/{libraryid}.bam.vcf.gz " +
-        f"-o {resultsdir}/MuTect2_results/{libraryid}.bam.vcf", shell=True, check=True)
+    subprocess.run(f"bcftools norm -m - -f {reffile} {resultsdir}/MuTect2_results/{tumor_id}.bam.vcf.gz " +
+        f"-o {resultsdir}/MuTect2_results/{tumor_id}.bam.vcf", shell=True, check=True)
     
     # Convert the MuTect2 result from vcf to maf file
     subprocess.run(f"perl {workingdir}/vcf2maf/vcf2maf.pl --species {species} --vep-data {vepcache} " +
-        f"--ncbi-build {ncbibuild} --input-vcf {resultsdir}/MuTect2_results/{libraryid}.bam.vcf " + 
-        f"--output-maf {resultsdir}/MuTect2_results/{libraryid}.bam.maf --ref-fasta {reffile}", shell=True, check=True)
+        f"--ncbi-build {ncbibuild} --input-vcf {resultsdir}/MuTect2_results/{tumor_id}.bam.vcf " + 
+        f"--output-maf {resultsdir}/MuTect2_results/{tumor_id}.bam.maf --ref-fasta {reffile}", shell=True, check=True)
 
     subprocess.run(f"rm {resultsdir}/TEMPMAFfiles/*.bam_temp2.maf", shell=True)
 
 
-def variant_processing(libraryid,resultsdir):
+def variant_processing(tumor_id,resultsdir):
     """
     Run MTvariantpipeline and MuTect2 on the filtered cells
     MTvariantpipeline: A simple variant calling and annotation pipeline for mitochondrial DNA variants.
@@ -185,14 +128,14 @@ def variant_processing(libraryid,resultsdir):
 
     # Overlap between MuTect and MTvariantpipeline
     # Read in MTvariantpipeline result
-    MTvarfile = pd.read_csv(resultsdir + "/MTvariant_results/" + libraryid + ".bam.maf", sep = "\t", comment='#', low_memory=False)
+    MTvarfile = pd.read_csv(resultsdir + "/MTvariant_results/" + tumor_id + ".bam.maf", sep = "\t", comment='#', low_memory=False)
 
     # Read in MuTect result
-    mutectfile = pd.read_csv(resultsdir + "/MuTect2_results/" + libraryid + ".bam.maf", sep = "\t", header=1, low_memory=False)
+    mutectfile = pd.read_csv(resultsdir + "/MuTect2_results/" + tumor_id + ".bam.maf", sep = "\t", header=0, low_memory=False)
 
-    # Filter out variants falling in the repeat regions of 302-315, 513-525, and 3105-3109 (black listed regions)
+    # Filter out variants falling in the repeat regions of 513-525, and 3105-3109 (black listed regions)
     # Make sure End_Position is also not in the region
-    rmregions = list(range(301,314)) + list(range(513,524)) + list(range(3105,3109))
+    rmregions = list(range(513,524)) + list(range(3105,3109))
     if len(mutectfile['Start_Position'][mutectfile['Start_Position'].isin(rmregions)]) > 0:
         mutectfile = mutectfile[~mutectfile['Start_Position'].isin(rmregions)]
     if len(MTvarfile['Start_Position'][MTvarfile['Start_Position'].isin(rmregions)]) > 0:
@@ -200,18 +143,14 @@ def variant_processing(libraryid,resultsdir):
         MTvarfile = MTvarfile[~rmthese]
     mutectfile.index = range(len(mutectfile.index))
     MTvarfile.index = range(len(MTvarfile.index))
-
-    # convert Hugo_Symbol column to uppercase
-    mutectfile["Hugo_Symbol"] = mutectfile["Hugo_Symbol"].str.upper()
-    MTvarfile["Hugo_Symbol"] = MTvarfile["Hugo_Symbol"].str.upper()
     
     # Output the overlap as final maf file
     combinedfile = pd.merge(mutectfile, MTvarfile, how='inner', on=['Chromosome','Start_Position','Reference_Allele',
-        'Tumor_Seq_Allele2','Variant_Classification',"Variant_Type",'EXON'])
+        'Tumor_Seq_Allele2','Variant_Classification','Variant_Type'])
     
     # Fix INDELs in the same position i.e. A:11866:AC and A:11866:ACC
-    aux = combinedfile.loc[combinedfile['Variant_Type'] == 'INS'].groupby('Start_Position').count()['Hugo_Symbol_y'].reset_index()
-    positions = list(aux['Start_Position'].loc[aux['Hugo_Symbol_y'] > 1])
+    aux = combinedfile.loc[combinedfile['Variant_Type'] == 'INS'].groupby('Start_Position').count()['Hugo_Symbol'].reset_index()
+    positions = list(aux['Start_Position'].loc[aux['Hugo_Symbol'] > 1])
     variants = list(combinedfile['ShortVariantID'].loc[(combinedfile['Start_Position'].isin(positions)) & (combinedfile['Variant_Type'] == 'INS')])
     if len(positions) != 0:
         dff = combinedfile.loc[combinedfile['ShortVariantID'].isin(variants)]
@@ -233,30 +172,13 @@ def variant_processing(libraryid,resultsdir):
         combinedfile = combinedfile.sort_values(by='Start_Position', ascending = True)
         
     # Final annotation
-    final_result = combinedfile.loc[:,['Tumor_Sample_Barcode_y','Matched_Norm_Sample_Barcode_y','Chromosome',
-        'Start_Position','Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Hugo_Symbol_y','EXON',
-        'n_depth_y',"n_ref_count_y","n_alt_count_y",'t_depth_y','t_ref_count_y','t_alt_count_y',"t_alt_fwd","t_alt_rev"]]
-    final_result.columns = ['Sample','NormalUsed','Chrom','Start','Ref','Alt','VariantClass','Gene','Exon',
-        'N_TotalDepth',"N_RefCount","N_AltCount",'T_TotalDepth','T_RefCount','T_AltCount',"T_AltFwd","T_AltRev"]
+    filloutfile = combinedfile.loc[:,['Hugo_Symbol','Entrez_Gene_Id','Center','NCBI_Build','Chromosome','Start_Position','End_Position','Strand','Variant_Classification','Variant_Type','Reference_Allele','Tumor_Seq_Allele1','Tumor_Seq_Allele2','dbSNP_RS','dbSNP_Val_Status','Tumor_Sample_Barcode','Matched_Norm_Sample_Barcode','Match_Norm_Seq_Allele1','Match_Norm_Seq_Allele2','Tumor_Validation_Allele1','Tumor_Validation_Allele2','Match_Norm_Validation_Allele1','Match_Norm_Validation_Allele2','Verification_Status','Validation_Status','Mutation_Status','Sequencing_Phase','Sequence_Source','Validation_Method','Score','BAM_File','Sequencer','Tumor_Sample_UUID','Matched_Norm_Sample_UUID','HGVSc','HGVSp','HGVSp_Short','Exon_Number','t_depth','t_ref_count','t_alt_count','n_depth','n_ref_count','n_alt_count','t_alt_fwd','t_alt_rev','all_effects','Gene','Feature','Feature_type','Consequence','cDNA_position','CDS_position','Protein_position','Amino_acids','Codons','Existing_variation','ALLELE_NUM','DISTANCE','STRAND_VEP','SYMBOL','SYMBOL_SOURCE','HGNC_ID','BIOTYPE','CANONICAL','CCDS','ENSP','SWISSPROT','TREMBL','UNIPARC','RefSeq','SIFT','PolyPhen','EXON','INTRON','DOMAINS','AF','AFR_AF','AMR_AF','ASN_AF','EAS_AF','EUR_AF','SAS_AF','AA_AF','EA_AF','CLIN_SIG','SOMATIC','PUBMED','MOTIF_NAME','MOTIF_POS','HIGH_INF_POS','MOTIF_SCORE_CHANGE','IMPACT','PICK','TSL','HGVS_OFFSET','PHENO','MINIMISED','GENE_PHENO','FILTER','flanking_bps','vcf_id','vcf_qual','gnomAD_AF','gnomAD_AFR_AF','gnomAD_AMR_AF','gnomAD_ASJ_AF','gnomAD_EAS_AF','gnomAD_FIN_AF','gnomAD_NFE_AF','gnomAD_OTH_AF','gnomAD_SAS_AF']]
+    filloutfile.columns = ['Hugo_Symbol','Entrez_Gene_Id','Center','NCBI_Build','Chrom','Start','End_Position','Strand',
+'VariantClass','Variant_Type','Ref','Tumor_Seq_Allele1','Alt','dbSNP_RS','dbSNP_Val_Status','Sample','NormalUsed','Match_Norm_Seq_Allele1','Match_Norm_Seq_Allele2','Tumor_Validation_Allele1','Tumor_Validation_Allele2','Match_Norm_Validation_Allele1','Match_Norm_Validation_Allele2','Verification_Status','Validation_Status','Mutation_Status','Sequencing_Phase','Sequence_Source','Validation_Method','Score','BAM_File','Sequencer','Tumor_Sample_UUID','Matched_Norm_Sample_UUID','HGVSc','HGVSp','HGVSp_Short','Exon_Number','T_TotalDepth','T_RefCount','T_AltCount','N_TotalDepth','N_RefCount','N_AltCount','T_AltFwd','T_AltRev','all_effects','Gene','Feature','Feature_type','Consequence','cDNA_position','CDS_position','Protein_position','Amino_acids','Codons','Existing_variation','ALLELE_NUM','DISTANCE','STRAND_VEP','SYMBOL','SYMBOL_SOURCE','HGNC_ID','BIOTYPE','CANONICAL','CCDS','ENSP','SWISSPROT','TREMBL','UNIPARC','RefSeq','SIFT','PolyPhen','Exon','INTRON','DOMAINS','AF','AFR_AF','AMR_AF','ASN_AF','EAS_AF','EUR_AF','SAS_AF','AA_AF','EA_AF','CLIN_SIG','SOMATIC','PUBMED','MOTIF_NAME','MOTIF_POS','HIGH_INF_POS','MOTIF_SCORE_CHANGE','IMPACT','PICK','TSL','HGVS_OFFSET','PHENO','MINIMISED','GENE_PHENO','FILTER','flanking_bps','vcf_id','vcf_qual','gnomAD_AF','gnomAD_AFR_AF','gnomAD_AMR_AF','gnomAD_ASJ_AF','gnomAD_EAS_AF','gnomAD_FIN_AF','gnomAD_NFE_AF','gnomAD_OTH_AF','gnomAD_SAS_AF']
     
-    # output the fillout results
-    final_result.to_csv(f"{resultsdir}/{libraryid}_master.tsv",sep = '\t',na_rep='NA',index=False)
- 
-
-def genmaster(libraryid,reffile,resultsdir,genome):
-    """
-    Run the combined mutation estimation on fillout
-    Post-processing of the fillout files
-    threshold: the critical threshold for calling a cell wild-type
-    """
-    print('Generating a master file and a binary matrix of somatic variants for the sample..')
-    
-    # Import the relevant files
-    # variantsfile = pd.read_csv(os.path.join(resultsdir + "/" + libraryid + '_variants.tsv'), sep='\t', index_col=0)
-    filloutfile = pd.read_csv(f"{resultsdir}/{libraryid}_master.tsv",sep = '\t',index_col=0)
     filloutfile.index = [str(filloutfile['Ref'][i]) + ':' + str(int(filloutfile['Start'][i])) + ':' + 
         str(filloutfile['Alt'][i]) for i in range(len(filloutfile))]
-
+    
     # Obtain the mutation signature
     # Initialize the counts and mutation sigature matrix
     motifs_C = ["ACA","ACC","ACG","ACT","CCA","CCC","CCG","CCT","GCA","GCC","GCG","GCT","TCA","TCC","TCG","TCT"]
@@ -330,19 +252,18 @@ def genmaster(libraryid,reffile,resultsdir,genome):
     filloutfile['mutsig'] = mutsigmotifs
     
     # Saving the mutation signature
-    mutsigfile.to_csv(resultsdir + "/" + libraryid + '_mutsig.tsv',sep = '\t')
+    mutsigfile.to_csv(resultsdir + "/" + tumor_id + '_mutsig.tsv',sep = '\t')
 
     # Calculate heteroplasmy
     filloutfile["Heteroplasmy"] = filloutfile['T_AltCount'].astype(int) / filloutfile['T_TotalDepth'].astype(int)
 
     # Combined matrices together
-    filloutfile.to_csv(f"{resultsdir}/{libraryid}_master.tsv",sep = '\t',na_rep='NA',index=False)
+    filloutfile.to_csv(f"{resultsdir}/{tumor_id}.bam.maf",sep = '\t',na_rep='',index=False)
 
 if __name__ == "__main__":
     # Parse necessary arguments
     parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument("-d", "--datadir",type=str, help="(REQUIRED) Directory for BAM files", required=True)
-    parser.add_argument("-l", "--libraryid",type=str, help="(REQUIRED) Library ID", required=True)
+    parser.add_argument("-t", "--tumor_id",type=str, help="(REQUIRED) Directory and the sample ID for the tumor sample", required=True)
     parser.add_argument("-w", "--workingdir", type=str, help="(REQUIRED) Working directory", required=True)
     parser.add_argument("-re", "--resultsdir", type=str, help="(REQUIRED) Directory for results", required=True)
     parser.add_argument("-r", "--reffile",type=str, help="Reference fasta file",default="")
@@ -350,29 +271,28 @@ if __name__ == "__main__":
     parser.add_argument("-q","--mapq",type=int,help="Minimum mapping quality, default = 20",default = 20)
     parser.add_argument("-Q","--baseq",type=int,help="Minimum base quality, default = 20",default = 20)
     parser.add_argument("-s","--strand",type=int,help="Minimum number of reads mapping to forward and reverse strand to call mutation, default=2",default = 2)
-    parser.add_argument("-t","--threshold",type=int,help="The critical threshold for calling a cell wild-type, default=0.1",default = 0.1)
+    parser.add_argument("-th","--threshold",type=int,help="The critical threshold for calling a cell wild-type, default=0.1",default = 0.1)
     parser.add_argument("-vc", "--vepcache", type=str, help="Directory for vep cache", default="$HOME/.vep")
-    parser.add_argument("-n", "--normal", type=str, help="matched normal file",default="")
-    parser.add_argument("-nd", "--normaldir", type=str, help="directory that contains matched normal file",default="")
-    parser.add_argument("-m", "--molecule",type=str, help="Type of molecule (dna or rna), default=dna", default="dna")
+    parser.add_argument("-n", "--normal_id", type=str, help="Directory and the sample ID for the matched normal sample",default="")
     parser.add_argument("-c","--mincounts",type=int,help="Minimum number of read counts for MTvariantpipeline, default = 100", default = 100)
 
     # read in arguments
     args = parser.parse_args()
-    datadir = args.datadir
+    tumor_id = args.tumor_id
+    tumordir = os.path.dirname(tumor_id)
+    tumor_id = os.path.basename(tumor_id)
     reffile = args.reffile
     genome = args.genome
     minmapq = args.mapq
     minbq = args.baseq
     minstrand = args.strand
     threshold = args.threshold
-    libraryid = args.libraryid
     workingdir = args.workingdir
     vepcache = args.vepcache
     resultsdir = args.resultsdir
-    normal = args.normal
-    normaldir = args.normaldir
-    molecule = args.molecule
+    normal_id = args.normal_id
+    normaldir = os.path.dirname(normal_id)
+    normal_id = os.path.basename(normal_id)
     mincounts = args.mincounts
 
     # Set the parameters for the genome build
@@ -394,6 +314,10 @@ if __name__ == "__main__":
     else:
         raise Exception("The genome build you entered is not supported. Supported genomes are GRCh37, GRCh38, GRCm38, and mm10.")
     
+    # Fix the Tumor or normal ID
+    if tumor_id.endswith('.bam'):
+        tumor_id = tumor_id[:-4]
+
     # Run reference_detect to determine mtchrom
     mtchrom = reference_detect(reffile)
     
@@ -404,12 +328,16 @@ if __name__ == "__main__":
     print("Reference file: " + reffile)
 
     # Filtering of cells
-    if normal != "":
-        variant_calling_normal(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species,normal,normaldir,mincounts)
-        variant_processing_normal(libraryid,resultsdir)
-    else:
-        variant_calling(resultsdir,datadir,libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species,mincounts)
-        variant_processing(libraryid,resultsdir)
-    genmaster(libraryid,reffile,resultsdir,genome)
+    if normal_id != "":
+        if normal_id.endswith('.bam'):
+            normal_id = normal_id[:-4]
+        
+        variant_calling_normal(resultsdir,tumordir,tumor_id,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,
+                           mtchrom,ncbibuild,species,normal_id,normaldir,mincounts)
 
+    else:
+        variant_calling(resultsdir,tumordir,tumor_id,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,
+                        ncbibuild,species,mincounts)
+        
+    variant_processing(tumor_id,resultsdir)
     print("DONE WITH BULKPIPELINE")
