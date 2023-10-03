@@ -66,21 +66,18 @@ def variant_calling_normal(resultsdir,tumordir,tumor_id,reffile,genome,minmapq,m
         f"--ncbi-build {ncbibuild} --input-vcf {resultsdir}/TEMPMAFfiles/tempMuTect2/{normal_id}.bam.vcf " + 
         f"--output-maf {resultsdir}/TEMPMAFfiles/tempMuTect2/{normal_id}.bam.maf --ref-fasta {reffile}", shell=True, check=True)
 
-    # Run R script to merge tumor and normal mafs
     print("Merging tumor and normal mafs..")
-    
     # Read in tumor result
     tumorfile = pd.read_csv(resultsdir + "/TEMPMAFfiles/tempMuTect2/" + tumor_id + ".bam.maf", sep = "\t", header=1, low_memory=False)
-    
     # Read in normal result
     normalfile = pd.read_csv(resultsdir + "/TEMPMAFfiles/tempMuTect2/" + normal_id + ".bam.maf", sep = "\t", header=1, low_memory=False)
     
     # Output the overlap as final maf file
-    combinedfile = pd.merge(tumorfile.loc[:,['Chromosome','Start_Position','Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Variant_Type']], normalfile.loc[:,['Chromosome','Start_Position','Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Variant_Type']], how='inner', on=['Chromosome','Start_Position','Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Variant_Type'])
-    
+    combinedfile = pd.merge(tumorfile.loc[:,['Chromosome','Start_Position','Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Variant_Type']], 
+                            normalfile.loc[:,['Chromosome','Start_Position','Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Variant_Type']], 
+                            how='inner', on=['Chromosome','Start_Position','Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Variant_Type'])
     # Combined matrices together
     combinedfile.to_csv(f"{resultsdir}/MuTect2_results/{tumor_id}.bam.maf",sep = '\t',na_rep='NA',index=False)
-    
     # Remove temporary files
     subprocess.run(f"rm {resultsdir}/TEMPMAFfiles/*.bam_temp2.maf", shell=True)
 
@@ -129,7 +126,6 @@ def variant_processing(tumor_id,resultsdir):
     # Overlap between MuTect and MTvariantpipeline
     # Read in MTvariantpipeline result
     MTvarfile = pd.read_csv(resultsdir + "/MTvariant_results/" + tumor_id + ".bam.maf", sep = "\t", comment='#', low_memory=False)
-
     # Read in MuTect result
     mutectfile = pd.read_csv(resultsdir + "/MuTect2_results/" + tumor_id + ".bam.maf", sep = "\t", comment='#', header=0, low_memory=False)
 
@@ -145,9 +141,36 @@ def variant_processing(tumor_id,resultsdir):
     MTvarfile.index = range(len(MTvarfile.index))
     
     # Output the overlap as final maf file
-    combinedfile = pd.merge(mutectfile, MTvarfile, how='inner', on=['Chromosome','Start_Position','Reference_Allele',
-        'Tumor_Seq_Allele2','Variant_Classification','Variant_Type'])
-    combinedfile = combinedfile.rename(columns={"Hugo_Symbol_y":"Hugo_Symbol","Entrez_Gene_Id_y":"Entrez_Gene_Id","Center_y":"Center","NCBI_Build_y":"NCBI_Build","End_Position_y":"End_Position","Strand_y":"Strand","Tumor_Seq_Allele1_y":"Tumor_Seq_Allele1","dbSNP_RS_y":"dbSNP_RS","dbSNP_Val_Status_y":"dbSNP_Val_Status","Tumor_Sample_Barcode_y":"Tumor_Sample_Barcode","Matched_Norm_Sample_Barcode_y":"Matched_Norm_Sample_Barcode","Match_Norm_Seq_Allele1_y":"Match_Norm_Seq_Allele1","Match_Norm_Seq_Allele2_y":"Match_Norm_Seq_Allele2","Tumor_Validation_Allele1_y":"Tumor_Validation_Allele1","Tumor_Validation_Allele2_y":"Tumor_Validation_Allele2","Match_Norm_Validation_Allele1_y":"Match_Norm_Validation_Allele1","Match_Norm_Validation_Allele2_y":"Match_Norm_Validation_Allele2","Verification_Status_y":"Verification_Status","Validation_Status_y":"Validation_Status","Mutation_Status_y":"Mutation_Status","Sequencing_Phase_y":"Sequencing_Phase","Sequence_Source_y":"Sequence_Source","Validation_Method_y":"Validation_Method","Score_y":"Score","BAM_File_y":"BAM_File","Sequencer_y":"Sequencer","Tumor_Sample_UUID_y":"Tumor_Sample_UUID","Matched_Norm_Sample_UUID_y":"Matched_Norm_Sample_UUID","HGVSc_y":"HGVSc","HGVSp_y":"HGVSp","HGVSp_Short_y":"HGVSp_Short","Exon_Number_y":"Exon_Number","t_depth_y":"t_depth","t_ref_count_y":"t_ref_count","t_alt_count_y":"t_alt_count","n_depth_y":"n_depth","n_ref_count_y":"n_ref_count","n_alt_count_y":"n_alt_count","all_effects_y":"all_effects","Gene_y":"Gene","Feature_y":"Feature","Feature_type_y":"Feature_type","Consequence_y":"Consequence","cDNA_position_y":"cDNA_position","CDS_position_y":"CDS_position","Protein_position_y":"Protein_position","Amino_acids_y":"Amino_acids","Codons_y":"Codons","Existing_variation_y":"Existing_variation","ALLELE_NUM_y":"ALLELE_NUM","DISTANCE_y":"DISTANCE","STRAND_VEP_y":"STRAND_VEP","SYMBOL_y":"SYMBOL","SYMBOL_SOURCE_y":"SYMBOL_SOURCE","HGNC_ID_y":"HGNC_ID","BIOTYPE_y":"BIOTYPE","CANONICAL_y":"CANONICAL","CCDS_y":"CCDS","ENSP_y":"ENSP","SWISSPROT_y":"SWISSPROT","TREMBL_y":"TREMBL","UNIPARC_y":"UNIPARC","RefSeq_y":"RefSeq","SIFT_y":"SIFT","PolyPhen_y":"PolyPhen","EXON_y":"EXON","INTRON_y":"INTRON","DOMAINS_y":"DOMAINS","AF_y":"AF","AFR_AF_y":"AFR_AF","AMR_AF_y":"AMR_AF","ASN_AF_y":"ASN_AF","EAS_AF_y":"EAS_AF","EUR_AF_y":"EUR_AF","SAS_AF_y":"SAS_AF","AA_AF_y":"AA_AF","EA_AF_y":"EA_AF","CLIN_SIG_y":"CLIN_SIG","SOMATIC_y":"SOMATIC","PUBMED_y":"PUBMED","MOTIF_NAME_y":"MOTIF_NAME","MOTIF_POS_y":"MOTIF_POS","HIGH_INF_POS_y":"HIGH_INF_POS","MOTIF_SCORE_CHANGE_y":"MOTIF_SCORE_CHANGE","IMPACT_y":"IMPACT","PICK_y":"PICK","TSL_y":"TSL","HGVS_OFFSET_y":"HGVS_OFFSET","PHENO_y":"PHENO","MINIMISED_y":"MINIMISED","GENE_PHENO_y":"GENE_PHENO","FILTER_y":"FILTER","flanking_bps_y":"flanking_bps","vcf_id_y":"vcf_id","vcf_qual_y":"vcf_qual","gnomAD_AF_y":"gnomAD_AF","gnomAD_AFR_AF_y":"gnomAD_AFR_AF","gnomAD_AMR_AF_y":"gnomAD_AMR_AF","gnomAD_ASJ_AF_y":"gnomAD_ASJ_AF","gnomAD_EAS_AF_y":"gnomAD_EAS_AF","gnomAD_FIN_AF_y":"gnomAD_FIN_AF","gnomAD_NFE_AF_y":"gnomAD_NFE_AF","gnomAD_OTH_AF_y":"gnomAD_OTH_AF","gnomAD_SAS_AF_y":"gnomAD_SAS_AF"})
+    combinedfile = pd.merge(mutectfile, MTvarfile, how='inner', on=['Chromosome','Start_Position',
+        'Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Variant_Type'])
+    combinedfile = combinedfile.rename(columns={"Hugo_Symbol_y":"Hugo_Symbol",
+        "Entrez_Gene_Id_y":"Entrez_Gene_Id","Center_y":"Center","NCBI_Build_y":"NCBI_Build",
+        "End_Position_y":"End_Position","Strand_y":"Strand","Tumor_Seq_Allele1_y":"Tumor_Seq_Allele1",
+        "dbSNP_RS_y":"dbSNP_RS","dbSNP_Val_Status_y":"dbSNP_Val_Status","Tumor_Sample_Barcode_y":"Tumor_Sample_Barcode",
+        "Matched_Norm_Sample_Barcode_y":"Matched_Norm_Sample_Barcode","Match_Norm_Seq_Allele1_y":"Match_Norm_Seq_Allele1",
+        "Match_Norm_Seq_Allele2_y":"Match_Norm_Seq_Allele2","Tumor_Validation_Allele1_y":"Tumor_Validation_Allele1",
+        "Tumor_Validation_Allele2_y":"Tumor_Validation_Allele2","Match_Norm_Validation_Allele1_y":"Match_Norm_Validation_Allele1",
+        "Match_Norm_Validation_Allele2_y":"Match_Norm_Validation_Allele2","Verification_Status_y":"Verification_Status",
+        "Validation_Status_y":"Validation_Status","Mutation_Status_y":"Mutation_Status","Sequencing_Phase_y":"Sequencing_Phase",
+        "Sequence_Source_y":"Sequence_Source","Validation_Method_y":"Validation_Method","Score_y":"Score","BAM_File_y":"BAM_File",
+        "Sequencer_y":"Sequencer","Tumor_Sample_UUID_y":"Tumor_Sample_UUID","Matched_Norm_Sample_UUID_y":"Matched_Norm_Sample_UUID",
+        "HGVSc_y":"HGVSc","HGVSp_y":"HGVSp","HGVSp_Short_y":"HGVSp_Short","Exon_Number_y":"Exon_Number","t_depth_y":"t_depth",
+        "t_ref_count_y":"t_ref_count","t_alt_count_y":"t_alt_count","n_depth_y":"n_depth","n_ref_count_y":"n_ref_count",
+        "n_alt_count_y":"n_alt_count","all_effects_y":"all_effects","Gene_y":"Gene","Feature_y":"Feature",
+        "Feature_type_y":"Feature_type","Consequence_y":"Consequence","cDNA_position_y":"cDNA_position",
+        "CDS_position_y":"CDS_position","Protein_position_y":"Protein_position","Amino_acids_y":"Amino_acids",
+        "Codons_y":"Codons","Existing_variation_y":"Existing_variation","ALLELE_NUM_y":"ALLELE_NUM","DISTANCE_y":"DISTANCE",
+        "STRAND_VEP_y":"STRAND_VEP","SYMBOL_y":"SYMBOL","SYMBOL_SOURCE_y":"SYMBOL_SOURCE","HGNC_ID_y":"HGNC_ID",
+        "BIOTYPE_y":"BIOTYPE","CANONICAL_y":"CANONICAL","CCDS_y":"CCDS","ENSP_y":"ENSP","SWISSPROT_y":"SWISSPROT",
+        "TREMBL_y":"TREMBL","UNIPARC_y":"UNIPARC","RefSeq_y":"RefSeq","SIFT_y":"SIFT","PolyPhen_y":"PolyPhen","EXON_y":"EXON",
+        "INTRON_y":"INTRON","DOMAINS_y":"DOMAINS","AF_y":"AF","AFR_AF_y":"AFR_AF","AMR_AF_y":"AMR_AF","ASN_AF_y":"ASN_AF",
+        "EAS_AF_y":"EAS_AF","EUR_AF_y":"EUR_AF","SAS_AF_y":"SAS_AF","AA_AF_y":"AA_AF","EA_AF_y":"EA_AF","CLIN_SIG_y":"CLIN_SIG",
+        "SOMATIC_y":"SOMATIC","PUBMED_y":"PUBMED","MOTIF_NAME_y":"MOTIF_NAME","MOTIF_POS_y":"MOTIF_POS","HIGH_INF_POS_y":"HIGH_INF_POS",
+        "MOTIF_SCORE_CHANGE_y":"MOTIF_SCORE_CHANGE","IMPACT_y":"IMPACT","PICK_y":"PICK","TSL_y":"TSL","HGVS_OFFSET_y":"HGVS_OFFSET",
+        "PHENO_y":"PHENO","MINIMISED_y":"MINIMISED","GENE_PHENO_y":"GENE_PHENO","FILTER_y":"FILTER","flanking_bps_y":"flanking_bps",
+        "vcf_id_y":"vcf_id","vcf_qual_y":"vcf_qual","gnomAD_AF_y":"gnomAD_AF","gnomAD_AFR_AF_y":"gnomAD_AFR_AF","gnomAD_AMR_AF_y":"gnomAD_AMR_AF",
+        "gnomAD_ASJ_AF_y":"gnomAD_ASJ_AF","gnomAD_EAS_AF_y":"gnomAD_EAS_AF","gnomAD_FIN_AF_y":"gnomAD_FIN_AF","gnomAD_NFE_AF_y":"gnomAD_NFE_AF",
+        "gnomAD_OTH_AF_y":"gnomAD_OTH_AF","gnomAD_SAS_AF_y":"gnomAD_SAS_AF"})
     
     # Fix INDELs in the same position i.e. A:11866:AC and A:11866:ACC
     aux = combinedfile.loc[combinedfile['Variant_Type'] == 'INS'].groupby('Start_Position').count()['Hugo_Symbol'].reset_index()
@@ -155,7 +178,6 @@ def variant_processing(tumor_id,resultsdir):
     variants = list(combinedfile['ShortVariantID'].loc[(combinedfile['Start_Position'].isin(positions)) & (combinedfile['Variant_Type'] == 'INS')])
     if len(positions) != 0:
         dff = combinedfile.loc[combinedfile['ShortVariantID'].isin(variants)]
-
         # Create an auxuliary file only with the last rows to keep: keep unique positions with the highest TumorVAF
         dffaux = dff.sort_values(by='TumorVAF', ascending = False)
         dffaux = dffaux.drop_duplicates('Start_Position', keep = 'first')
@@ -164,20 +186,44 @@ def variant_processing(tumor_id,resultsdir):
             dvals = dict(zip(list(vals['index']),list(vals[0])))
             dffaux.loc[dffaux['Start_Position'] == i,'t_alt_count_y'] = dvals['t_alt_count_y']
             dffaux.loc[dffaux['Start_Position'] == i,'t_alt_count_x'] = dvals['t_alt_count_x']
-
         #Remove all variants with duplicated indels
         combinedfile = combinedfile.loc[(~combinedfile['ShortVariantID'].isin(variants))]
-        
         # Add unique indel variants with new values
         combinedfile = pd.concat([combinedfile, dffaux])
         combinedfile = combinedfile.sort_values(by='Start_Position', ascending = True)
         
     # Final annotation
-    filloutfile = combinedfile.loc[:,['Hugo_Symbol','Entrez_Gene_Id','Center','NCBI_Build','Chromosome','Start_Position','End_Position','Strand','Variant_Classification','Variant_Type','Reference_Allele','Tumor_Seq_Allele1','Tumor_Seq_Allele2','dbSNP_RS','dbSNP_Val_Status','Tumor_Sample_Barcode','Matched_Norm_Sample_Barcode','Match_Norm_Seq_Allele1','Match_Norm_Seq_Allele2','Tumor_Validation_Allele1','Tumor_Validation_Allele2','Match_Norm_Validation_Allele1','Match_Norm_Validation_Allele2','Verification_Status','Validation_Status','Mutation_Status','Sequencing_Phase','Sequence_Source','Validation_Method','Score','BAM_File','Sequencer','Tumor_Sample_UUID','Matched_Norm_Sample_UUID','HGVSc','HGVSp','HGVSp_Short','Exon_Number','t_depth','t_ref_count','t_alt_count','n_depth','n_ref_count','n_alt_count','t_alt_fwd','t_alt_rev','all_effects','Gene','Feature','Feature_type','Consequence','cDNA_position','CDS_position','Protein_position','Amino_acids','Codons','Existing_variation','ALLELE_NUM','DISTANCE','STRAND_VEP','SYMBOL','SYMBOL_SOURCE','HGNC_ID','BIOTYPE','CANONICAL','CCDS','ENSP','SWISSPROT','TREMBL','UNIPARC','RefSeq','SIFT','PolyPhen','EXON','INTRON','DOMAINS','AF','AFR_AF','AMR_AF','ASN_AF','EAS_AF','EUR_AF','SAS_AF','AA_AF','EA_AF','CLIN_SIG','SOMATIC','PUBMED','MOTIF_NAME','MOTIF_POS','HIGH_INF_POS','MOTIF_SCORE_CHANGE','IMPACT','PICK','TSL','HGVS_OFFSET','PHENO','MINIMISED','GENE_PHENO','FILTER','flanking_bps','vcf_id','vcf_qual','gnomAD_AF','gnomAD_AFR_AF','gnomAD_AMR_AF','gnomAD_ASJ_AF','gnomAD_EAS_AF','gnomAD_FIN_AF','gnomAD_NFE_AF','gnomAD_OTH_AF','gnomAD_SAS_AF']]
-    filloutfile.columns = ['Hugo_Symbol','Entrez_Gene_Id','Center','NCBI_Build','Chrom','Start','End_Position','Strand','VariantClass','Variant_Type','Ref','Tumor_Seq_Allele1','Alt','dbSNP_RS','dbSNP_Val_Status','Sample','NormalUsed','Match_Norm_Seq_Allele1','Match_Norm_Seq_Allele2','Tumor_Validation_Allele1','Tumor_Validation_Allele2','Match_Norm_Validation_Allele1','Match_Norm_Validation_Allele2','Verification_Status','Validation_Status','Mutation_Status','Sequencing_Phase','Sequence_Source','Validation_Method','Score','BAM_File','Sequencer','Tumor_Sample_UUID','Matched_Norm_Sample_UUID','HGVSc','HGVSp','HGVSp_Short','Exon_Number','T_TotalDepth','T_RefCount','T_AltCount','N_TotalDepth','N_RefCount','N_AltCount','T_AltFwd','T_AltRev','all_effects','Gene','Feature','Feature_type','Consequence','cDNA_position','CDS_position','Protein_position','Amino_acids','Codons','Existing_variation','ALLELE_NUM','DISTANCE','STRAND_VEP','SYMBOL','SYMBOL_SOURCE','HGNC_ID','BIOTYPE','CANONICAL','CCDS','ENSP','SWISSPROT','TREMBL','UNIPARC','RefSeq','SIFT','PolyPhen','Exon','INTRON','DOMAINS','AF','AFR_AF','AMR_AF','ASN_AF','EAS_AF','EUR_AF','SAS_AF','AA_AF','EA_AF','CLIN_SIG','SOMATIC','PUBMED','MOTIF_NAME','MOTIF_POS','HIGH_INF_POS','MOTIF_SCORE_CHANGE','IMPACT','PICK','TSL','HGVS_OFFSET','PHENO','MINIMISED','GENE_PHENO','FILTER','flanking_bps','vcf_id','vcf_qual','gnomAD_AF','gnomAD_AFR_AF','gnomAD_AMR_AF','gnomAD_ASJ_AF','gnomAD_EAS_AF','gnomAD_FIN_AF','gnomAD_NFE_AF','gnomAD_OTH_AF','gnomAD_SAS_AF']
-    
+    filloutfile = combinedfile.loc[:,['Hugo_Symbol','Entrez_Gene_Id','Center','NCBI_Build','Chromosome',
+        'Start_Position','End_Position','Strand','Variant_Classification','Variant_Type','Reference_Allele',
+        'Tumor_Seq_Allele1','Tumor_Seq_Allele2','dbSNP_RS','dbSNP_Val_Status','Tumor_Sample_Barcode',
+        'Matched_Norm_Sample_Barcode','Match_Norm_Seq_Allele1','Match_Norm_Seq_Allele2','Tumor_Validation_Allele1',
+        'Tumor_Validation_Allele2','Match_Norm_Validation_Allele1','Match_Norm_Validation_Allele2','Verification_Status',
+        'Validation_Status','Mutation_Status','Sequencing_Phase','Sequence_Source','Validation_Method','Score','BAM_File',
+        'Sequencer','Tumor_Sample_UUID','Matched_Norm_Sample_UUID','HGVSc','HGVSp','HGVSp_Short','Exon_Number','t_depth',
+        't_ref_count','t_alt_count','n_depth','n_ref_count','n_alt_count','t_alt_fwd','t_alt_rev','all_effects','Gene',
+        'Feature','Feature_type','Consequence','cDNA_position','CDS_position','Protein_position','Amino_acids','Codons',
+        'Existing_variation','ALLELE_NUM','DISTANCE','STRAND_VEP','SYMBOL','SYMBOL_SOURCE','HGNC_ID','BIOTYPE','CANONICAL',
+        'CCDS','ENSP','SWISSPROT','TREMBL','UNIPARC','RefSeq','SIFT','PolyPhen','EXON','INTRON','DOMAINS','AF','AFR_AF',
+        'AMR_AF','ASN_AF','EAS_AF','EUR_AF','SAS_AF','AA_AF','EA_AF','CLIN_SIG','SOMATIC','PUBMED','MOTIF_NAME',
+        'MOTIF_POS','HIGH_INF_POS','MOTIF_SCORE_CHANGE','IMPACT','PICK','TSL','HGVS_OFFSET','PHENO','MINIMISED',
+        'GENE_PHENO','FILTER','flanking_bps','vcf_id','vcf_qual','gnomAD_AF','gnomAD_AFR_AF','gnomAD_AMR_AF',
+        'gnomAD_ASJ_AF','gnomAD_EAS_AF','gnomAD_FIN_AF','gnomAD_NFE_AF','gnomAD_OTH_AF','gnomAD_SAS_AF']]
+    filloutfile.columns = ['Hugo_Symbol','Entrez_Gene_Id','Center','NCBI_Build','Chrom','Start','End_Position','Strand',
+        'VariantClass','Variant_Type','Ref','Tumor_Seq_Allele1','Alt','dbSNP_RS','dbSNP_Val_Status','Sample','NormalUsed',
+        'Match_Norm_Seq_Allele1','Match_Norm_Seq_Allele2','Tumor_Validation_Allele1','Tumor_Validation_Allele2',
+        'Match_Norm_Validation_Allele1','Match_Norm_Validation_Allele2','Verification_Status','Validation_Status',
+        'Mutation_Status','Sequencing_Phase','Sequence_Source','Validation_Method','Score','BAM_File','Sequencer',
+        'Tumor_Sample_UUID','Matched_Norm_Sample_UUID','HGVSc','HGVSp','HGVSp_Short','Exon_Number','T_TotalDepth',
+        'T_RefCount','T_AltCount','N_TotalDepth','N_RefCount','N_AltCount','T_AltFwd','T_AltRev','all_effects','Gene',
+        'Feature','Feature_type','Consequence','cDNA_position','CDS_position','Protein_position','Amino_acids','Codons',
+        'Existing_variation','ALLELE_NUM','DISTANCE','STRAND_VEP','SYMBOL','SYMBOL_SOURCE','HGNC_ID','BIOTYPE','CANONICAL',
+        'CCDS','ENSP','SWISSPROT','TREMBL','UNIPARC','RefSeq','SIFT','PolyPhen','Exon','INTRON','DOMAINS','AF','AFR_AF',
+        'AMR_AF','ASN_AF','EAS_AF','EUR_AF','SAS_AF','AA_AF','EA_AF','CLIN_SIG','SOMATIC','PUBMED','MOTIF_NAME','MOTIF_POS',
+        'HIGH_INF_POS','MOTIF_SCORE_CHANGE','IMPACT','PICK','TSL','HGVS_OFFSET','PHENO','MINIMISED','GENE_PHENO','FILTER',
+        'flanking_bps','vcf_id','vcf_qual','gnomAD_AF','gnomAD_AFR_AF','gnomAD_AMR_AF','gnomAD_ASJ_AF','gnomAD_EAS_AF',
+        'gnomAD_FIN_AF','gnomAD_NFE_AF','gnomAD_OTH_AF','gnomAD_SAS_AF']
     filloutfile.index = [str(filloutfile['Ref'][i]) + ':' + str(int(filloutfile['Start'][i])) + ':' + 
-        str(filloutfile['Alt'][i]) for i in range(len(filloutfile))]
+                         str(filloutfile['Alt'][i]) for i in range(len(filloutfile))]
     
     # Obtain the mutation signature
     # Initialize the counts and mutation sigature matrix
@@ -200,7 +246,6 @@ def variant_processing(tumor_id,resultsdir):
             sequence = [base for base in currsequence]
         if 'chrM' in currheader:
             sequence = [base for base in currsequence]
-
     varref = [variants[0] for variants in pd.Series(filloutfile.index.values).str.split(':')]
     varpos = [variants[1] for variants in pd.Series(filloutfile.index.values).str.split(':')]
     varalt = [variants[2] for variants in pd.Series(filloutfile.index.values).str.split(':')]
@@ -250,30 +295,28 @@ def variant_processing(tumor_id,resultsdir):
     
     # store the mutation signature info in variants file
     filloutfile['mutsig'] = mutsigmotifs
-    
     # Saving the mutation signature
     mutsigfile.to_csv(resultsdir + "/" + tumor_id + '_mutsig.tsv',sep = '\t')
-
     # Calculate heteroplasmy
     filloutfile["Heteroplasmy"] = filloutfile['T_AltCount'].astype(int) / filloutfile['T_TotalDepth'].astype(int)
-
     # Combined matrices together
     filloutfile.to_csv(f"{resultsdir}/{tumor_id}.bam.maf",sep = '\t',na_rep='',index=False)
+
 
 if __name__ == "__main__":
     # Parse necessary arguments
     parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument("-t", "--tumor_id",type=str, help="(REQUIRED) Directory and the sample ID for the tumor sample", required=True)
-    parser.add_argument("-w", "--workingdir", type=str, help="(REQUIRED) Working directory", required=True)
+    parser.add_argument("-t", "--tumor_id",type=str, help="(REQUIRED) Path of the tumor sample", required=True)
+    parser.add_argument("-w", "--workingdir", type=str, help="(REQUIRED) Working directory with scripts", required=True)
     parser.add_argument("-re", "--resultsdir", type=str, help="(REQUIRED) Directory for results", required=True)
     parser.add_argument("-r", "--reffile",type=str, help="Reference fasta file",default="")
-    parser.add_argument("-g", "--genome",type=str, help="Genome version",default = "GRCh37")    
+    parser.add_argument("-g", "--genome",type=str, help="Genome version, default=GRCh37",default = "GRCh37")    
     parser.add_argument("-q","--mapq",type=int,help="Minimum mapping quality, default = 20",default = 20)
     parser.add_argument("-Q","--baseq",type=int,help="Minimum base quality, default = 20",default = 20)
     parser.add_argument("-s","--strand",type=int,help="Minimum number of reads mapping to forward and reverse strand to call mutation, default=2",default = 2)
     parser.add_argument("-th","--threshold",type=int,help="The critical threshold for calling a cell wild-type, default=0.1",default = 0.1)
     parser.add_argument("-vc", "--vepcache", type=str, help="Directory for vep cache", default="$HOME/.vep")
-    parser.add_argument("-n", "--normal_id", type=str, help="Directory and the sample ID for the matched normal sample",default="")
+    parser.add_argument("-n", "--normal_id", type=str, help="Path of the normal sample",default="")
     parser.add_argument("-c","--mincounts",type=int,help="Minimum number of read counts for MTvariantpipeline, default = 100", default = 100)
 
     # read in arguments
@@ -317,10 +360,8 @@ if __name__ == "__main__":
     else:
         # It is a file name
         tumordir = os.getcwd()
-    
     # Get the basename for Tumor ID
     tumor_id = os.path.basename(tumor_id)
-    
     # Remove the bam suffix if there is any
     if tumor_id.endswith('.bam'):
         tumor_id = tumor_id[:-4]
@@ -343,19 +384,14 @@ if __name__ == "__main__":
         else:
             # It is a file name
             normaldir = os.getcwd()
-        
         # Get the basename for Normal ID
         normal_id = os.path.basename(normal_id)
-        
         if normal_id.endswith('.bam'):
             normal_id = normal_id[:-4]
-        
         variant_calling_normal(resultsdir,tumordir,tumor_id,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,
                            mtchrom,ncbibuild,species,normal_id,normaldir,mincounts)
-
     else:
         variant_calling(resultsdir,tumordir,tumor_id,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,
                         ncbibuild,species,mincounts)
-        
     variant_processing(tumor_id,resultsdir)
     print("DONE WITH BULKPIPELINE")
