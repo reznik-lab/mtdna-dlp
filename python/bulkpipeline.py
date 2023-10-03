@@ -20,7 +20,7 @@ def reference_detect(reffile):
     raise Exception("Chromosome is neither MT nor chrM")
 
 
-def variant_calling_normal(resultsdir,tumordir,tumor_id,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species,normal_id,normaldir,mincounts):
+def variant_calling_normal(resultsdir,tumordir,tumor_id,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species,normal_id,normaldir,molecule,mincounts):
     try:
         os.makedirs(f"{resultsdir}/TEMPMAFfiles/tempMuTect2")
     except OSError:
@@ -36,9 +36,9 @@ def variant_calling_normal(resultsdir,tumordir,tumor_id,reffile,genome,minmapq,m
 
     # Running MTvariantpipeline with matched normal
     print("Running MTvariantpipeline with matched normal..")
-    subprocess.run(f"python3 {workingdir}/MTvariantpipeline.py -d {tumordir}/ -v {resultsdir}/TEMPMAFfiles/ " +
+    subprocess.run(f"python3 {workingdir}/MTvariantpipeline.py -d {tumordir}/ -v {resultsdir}/TEMPMAFfiles/ -w {workingdir}/ " +
         f"-o {resultsdir}/MTvariant_results/ -b {tumor_id}.bam -n {normal_id}.bam -nd {normaldir}/ -f {genome} -q {minmapq} " +
-        f"-Q {minbq} -s {minstrand} -w {workingdir}/ -vc {vepcache} -f {reffile} -m {mtchrom} -c {mincounts}", shell=True, check=True)
+        f"-Q {minbq} -s {minstrand} -vc {vepcache} -f {reffile} -m {mtchrom} -mo {molecule} -c {mincounts}", shell=True, check=True)
 
     # MuTect2 mitochondrial mode on tumor
     print("Running MuTect2 on tumor..")
@@ -82,7 +82,7 @@ def variant_calling_normal(resultsdir,tumordir,tumor_id,reffile,genome,minmapq,m
     subprocess.run(f"rm {resultsdir}/TEMPMAFfiles/*.bam_temp2.maf", shell=True)
 
 
-def variant_calling(resultsdir,tumordir,tumor_id,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species,mincounts):
+def variant_calling(resultsdir,tumordir,tumor_id,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species,molecule,mincounts):
     try:
         os.makedirs(f"{resultsdir}/MuTect2_results")
     except OSError:
@@ -95,8 +95,8 @@ def variant_calling(resultsdir,tumordir,tumor_id,reffile,genome,minmapq,minbq,mi
     # Running MTvariantpipeline without matched normal
     print("Running MTvariantpipeline..")
     subprocess.run(f"python3 {workingdir}/MTvariantpipeline.py -d {tumordir}/ -v {resultsdir}/TEMPMAFfiles/ " +
-        f"-o {resultsdir}/MTvariant_results/ -b {tumor_id}.bam -g {genome} -q {minmapq} -Q {minbq} " +
-        f"-s {minstrand} -w {workingdir}/ -vc {vepcache} -f {reffile} -m {mtchrom} -c {mincounts}", shell=True, check=True)
+        f"-o {resultsdir}/MTvariant_results/ -b {tumor_id}.bam -g {genome} -q {minmapq} -Q {minbq} -s {minstrand} " +
+        f"-w {workingdir}/ -vc {vepcache} -f {reffile} -m {mtchrom} -mo {molecule} -c {mincounts}", shell=True, check=True)
 
     # MuTect2 mitochondrial mode
     print("Running MuTect2..")
@@ -317,6 +317,7 @@ if __name__ == "__main__":
     parser.add_argument("-th","--threshold",type=int,help="The critical threshold for calling a cell wild-type, default=0.1",default = 0.1)
     parser.add_argument("-vc", "--vepcache", type=str, help="Directory for vep cache", default="$HOME/.vep")
     parser.add_argument("-n", "--normal_id", type=str, help="Path of the normal sample",default="")
+    parser.add_argument("-m", "--molecule",type=str, help="Type of molecule (dna or rna), default=dna", default="dna")
     parser.add_argument("-c","--mincounts",type=int,help="Minimum number of read counts for MTvariantpipeline, default = 100", default = 100)
 
     # read in arguments
@@ -332,6 +333,7 @@ if __name__ == "__main__":
     vepcache = args.vepcache
     resultsdir = args.resultsdir
     normal_id = args.normal_id
+    molecule = args.molecule
     mincounts = args.mincounts
     
     # Set the parameters for the genome build
@@ -388,10 +390,10 @@ if __name__ == "__main__":
         normal_id = os.path.basename(normal_id)
         if normal_id.endswith('.bam'):
             normal_id = normal_id[:-4]
-        variant_calling_normal(resultsdir,tumordir,tumor_id,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,
-                           mtchrom,ncbibuild,species,normal_id,normaldir,mincounts)
+        variant_calling_normal(resultsdir,tumordir,tumor_id,reffile,genome,minmapq,minbq,minstrand,workingdir,
+                               vepcache,mtchrom,ncbibuild,species,normal_id,normaldir,molecule,mincounts)
     else:
-        variant_calling(resultsdir,tumordir,tumor_id,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,
-                        ncbibuild,species,mincounts)
+        variant_calling(resultsdir,tumordir,tumor_id,reffile,genome,minmapq,minbq,minstrand,workingdir,
+                        vepcache,mtchrom,ncbibuild,species,molecule,mincounts)
     variant_processing(tumor_id,resultsdir)
     print("DONE WITH BULKPIPELINE")

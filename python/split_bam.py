@@ -25,7 +25,7 @@ class SplitBam(object):
     def __enter__(self):
         return self
 
-    def __exit__(self):
+    def __exit__(self, exc_type, exc_val, exc_tb):
         self.bam.close()
 
     def __get_chr_lengths(self):
@@ -93,7 +93,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('bam', help='specify the path to the input bam file')
     parser.add_argument('odir', help='specify path to the output dir')
-    parser.add_argument('--chromosomes', nargs='*', default=list(map(str, range(1, 23))) + ['chrM'], help='specify target chromosomes')
+    parser.add_argument('--chromosomes', nargs='*', default=list(map(str, range(1, 23))) + ['chrM', 'MT'], help='specify target chromosomes')
     parser.add_argument('--barcode_csv', help='threshold for the mapping quality, reads with quality lower than threshold will be ignored')
     args = parser.parse_args()
 

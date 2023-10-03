@@ -84,7 +84,7 @@ def preproccess_bams(datadir, reffile, workingdir, vepcache, resultsdir, genome,
     subprocess.run(f"rm {resultsdir}/TEMPMAFfiles/*.bam_temp2.maf", shell=True)
 
     
-def variant_calling(libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,resultsdir,mtchrom,species,ncbibuild,mincounts):
+def variant_calling(libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,resultsdir,mtchrom,species,ncbibuild,molecule,mincounts):
     if not os.path.exists(f"{resultsdir}/MuTect2_results"):
         os.makedirs(f"{resultsdir}/MuTect2_results")
     if not os.path.exists(f"{resultsdir}/MTvariant_results"):
@@ -93,8 +93,8 @@ def variant_calling(libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,
     # Running MTvariantpipeline
     print("Running MTvariantpipeline..")
     subprocess.run(f"python3 {workingdir}/MTvariantpipeline.py -d {resultsdir}/merged/ -v {resultsdir}/mergedTEMPMAFfiles/ " +
-        f"-o {resultsdir}/MTvariant_results/ -b {libraryid}-merged.bam -g {genome} -q {minmapq} -Q {minbq} " +
-        f"-s {minstrand} -w {workingdir}/ -vc {vepcache} -f {reffile} -m {mtchrom} -c {mincounts}", shell=True, check=True)
+        f"-o {resultsdir}/MTvariant_results/ -b {libraryid}-merged.bam -g {genome} -q {minmapq} -Q {minbq} -s {minstrand} " +
+        f"-w {workingdir}/ -vc {vepcache} -f {reffile} -m {mtchrom} -mo {molecule} -c {mincounts}", shell=True, check=True)
 
     # MuTect2 mitochondrial mode
     print("Running MuTect2..")
@@ -834,7 +834,7 @@ if __name__ == "__main__":
     #     mappingquality(reffile,datadir)
     # merging_bams(datadir,libraryid,resultsdir)
     # preproccess_bams(datadir,reffile,workingdir,vepcache,resultsdir,genome,mtchrom,species,ncbibuild,mincounts)
-    variant_calling(libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,resultsdir,mtchrom,species,ncbibuild,mincounts)
+    variant_calling(libraryid,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,resultsdir,mtchrom,species,ncbibuild,molecule,mincounts)
     variant_processing(libraryid,reffile,resultsdir, mtchrom)
     if (genome == "GRCh38" or genome == "GRCh37") and molecule == "dna": 
         runhaplogrep(libraryid,reffile,workingdir,resultsdir,minbq,minmapq,mtchrom)

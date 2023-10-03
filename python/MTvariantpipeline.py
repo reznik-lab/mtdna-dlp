@@ -7,7 +7,7 @@ import argparse
 import pysam
 
 
-def variant_calling(datadir, tumorbam, normalbam, normaldir, vcfdir, outdir, workingdir, vepcache, fasta, minmapq, minbq, minstrand, genome, mtchrom, mincounts):
+def variant_calling(datadir, tumorbam, normalbam, normaldir, vcfdir, outdir, workingdir, vepcache, fasta, minmapq, minbq, minstrand, genome, mtchrom, molecule, mincounts):
     '''
     Variant calling
     '''
@@ -138,8 +138,10 @@ def variant_calling(datadir, tumorbam, normalbam, normaldir, vcfdir, outdir, wor
     tempmaf = tempmaf.drop(cols2use, 1)
 
     # Make sure that any variants we keep have at least minimum reads, with at least one alternate read in both directions
-    tempmaf = tempmaf[ tempmaf['t_alt_fwd'].map(int) >= minstrand ]
-    tempmaf = tempmaf[ tempmaf['t_alt_rev'].map(int) >= minstrand ]
+    if molecule == 'dna':
+        tempmaf = tempmaf[ (tempmaf['t_alt_fwd'].map(int) >= minstrand) & (tempmaf['t_alt_rev'].map(int) >= minstrand) ]
+    elif molecule == 'rna':
+        tempmaf = tempmaf[ (tempmaf['t_alt_fwd'].map(int) >= minstrand) | (tempmaf['t_alt_rev'].map(int) >= minstrand) ]
 
     # remove position 3106
     tempmaf = tempmaf[~tempmaf['Start_Position'].isin(list(range(3106, 3107)))]
@@ -268,6 +270,7 @@ if __name__ == "__main__":
     parser.add_argument("-Q","--baseq",type=int,help="minimum base quality, default = 10",default = 10)
     parser.add_argument("-s","--strand",type=int,help="Minimum number of reads mapping to forward and reverse strand to call mutation, default=2",default = 2)
     parser.add_argument("-m", "--mtchrom",type=str, help="Chromosome type", default="MT")
+    parser.add_argument("-mo", "--molecule",type=str, help="Type of molecule (dna or rna), default=dna", default="dna")
     parser.add_argument("-c", "--mincounts",type=int, help="Minimum number of read counts, default = 100", default=100)
     
     # read arguments
@@ -286,6 +289,7 @@ if __name__ == "__main__":
     minbq = args.baseq
     minstrand = args.strand
     mtchrom = args.mtchrom
+    molecule = args.molecule
     mincounts = args.mincounts
     
     # make output directories if they don't exist
@@ -294,7 +298,8 @@ if __name__ == "__main__":
     if not os.path.exists(outdir):
         os.makedirs(outdir)
 
-    variant_calling(datadir, tumorbam, normalbam, normaldir, vcfdir, outdir, workingdir, vepcache, fasta, minmapq, minbq, minstrand, genome, mtchrom, mincounts)
+    variant_calling(datadir, tumorbam, normalbam, normaldir, vcfdir, outdir, workingdir, vepcache, 
+                    fasta, minmapq, minbq, minstrand, genome, mtchrom, molecule, mincounts)
     final_processing(outdir, workingdir, tumorbam, normalbam)
 
     print("DONE WITH MT VARIANT PIPELINE")
