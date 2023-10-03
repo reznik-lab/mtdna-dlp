@@ -136,8 +136,8 @@ def variant_processing(libraryid,reffile,resultsdir, mtchrom):
     MTvarfile.index = range(len(MTvarfile.index))
 
     # combine pseudo-bulk results
-    MTvarfile = pd.merge(mutectfile, MTvarfile, how='inner', on=['Chromosome','Start_Position','Reference_Allele',
-        'Tumor_Seq_Allele2','Variant_Classification',"Variant_Type",'EXON'])
+    MTvarfile = pd.merge(mutectfile, MTvarfile, how='inner', on=['Chromosome','Start_Position',
+        'Reference_Allele','Tumor_Seq_Allele2','Variant_Classification',"Variant_Type"])
 
     # Import the reference fasta file and get only the mtDNA sequence
     fasta_sequences = SeqIO.parse(open(reffile),'fasta')
@@ -541,14 +541,14 @@ def processfillout(libraryid,threshold,resultsdir,genome,molecule):
         # print(varid.split(":")[1])
         if int(varid.split(":")[1]) != prevpos and filteredvar.loc[varid,'bulk'] >= 0.95:
             if (genome == "GRCh38" or genome == "GRCh37") and molecule == "dna" and varid.split(":")[1] in germlinepos:
-                #         filteredvar.loc[varid,'ancestral'] = True
-        # else:
-        #     filteredvar.loc[varid,'ancestral'] = False
-                filteredvar.loc[varid,'somaticstatus'] = 'germline'
-            else:
-                filteredvar.loc[varid,'somaticstatus'] = 'homoplasmic'
+                filteredvar.loc[varid,'ancestral'] = True
         else:
-            filteredvar.loc[varid,'somaticstatus'] = 'somatic'
+            filteredvar.loc[varid,'ancestral'] = False
+        #         filteredvar.loc[varid,'somaticstatus'] = 'germline'
+        #     else:
+        #         filteredvar.loc[varid,'somaticstatus'] = 'homoplasmic'
+        # else:
+        #     filteredvar.loc[varid,'somaticstatus'] = 'somatic'
         prevpos = int(varid.split(":")[1])
 
     # Output filtered variant file
