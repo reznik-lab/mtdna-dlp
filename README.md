@@ -58,44 +58,39 @@ samtools index [library_id].bam
 
 Navigate to the directory with the `bulkpipeline.py` file and run the following (replace all brackets):
 ```
-python3 bulkpipeline.py -d [data_directory] -w [working_directory] -l [library_id] -re [results_directory] -vc [optional_vep_cache_directory] -q [optional_mapping_quality] -Q [optional_base_quality] -s [optional_strand] -t [optional_threshold] -g [optional_genome] -r [optional_reference_fasta] -n [optional_normal] -m [optional_molecule] -c [optional_mincounts]
+python3 bulkpipeline.py -d [data_directory] -w [working_directory] -l [library_id] -re [results_directory] -vc [optional_vep_cache_directory] -q [optional_mapping_quality] -Q [optional_base_quality] -s [optional_strand] -t [optional_threshold] -g [optional_genome] -r [optional_reference_fasta] -n [optional_normal] -nd [optional_normaldir] -m [optional_molecule] -c [optional_mincounts]
 ```
 
 Parameter descriptions:
 
-- __Data directory__: path to directory with input .bam files
+- __Tumor file__: Path of the tumor sample
 - __Working directory__: path to directory with `bulkpipeline.py` file in it
-- __Library ID__: name of .bam file to use as input
 - __Results directory__: path to directory where results will be stored
-- __(OPTIONAL)VEP cache directory__: path to directory with VEP cache (default="$HOME/.vep")
+- __(OPTIONAL) VEP cache directory__: path to directory with VEP cache (default="$HOME/.vep")
 - __(OPTIONAL) Mapping quality__: minimum mapping quality (default=20)
 - __(OPTIONAL) Base quality__: minimum base quality (default=20)
 - __(OPTIONAL) Strand__: minimum number of reads mapping to forward and reverse strand to call mutation (default=2)
 - __(OPTIONAL) Threshold__: critical threshold for calling a cell wild-type (default=0.1)
 - __(OPTIONAL) Genome__: genome version (supported genomes are GRCh37, GRCh38, GRCm38, and mm10, default="GRCh37")
 - __(OPTIONAL) Reference fasta__: path to fasta file (by default will use a file from the reference folder that matches the genome, but best to use same reference used to align fastqs)
-- __(OPTIONAL) Normal__: matched normal file (default="")
+- __(OPTIONAL) Normal__: Path of the matched normal sample (default="")
 - __(OPTIONAL) Molecule__: type of molecule (dna or rna, default="dna")
 - __(OPTIONAL) Minimum counts__: minimum number of read counts for MTvariantpipeline (default=100)
 
 For example, a call to run the bulk pipeline with the required paramaters could look like this:
 ```
-python3 bulkpipeline.py -d /my_data/ -w /my_home/mtdna-dlp/python/ -l my_file -re /my_home/mtdna-dlp/results/
+python3 bulkpipeline.py -t /my_data/file.bam -w /my_home/mtdna-dlp/python/ -re /my_home/mtdna-dlp/results/
 ```
 
 ### Bulk pipeline outputs
 
 The bulk pipeline should have the following files and subdirectories in the results directory:
 
+- [sample].bam.maf
+- [sample]_mutsig.tsv
 - MuTect2_results
 - MTvariant_results
 - TEMPMAFfiles
-- [sample].fillout
-- [sample]_master.tsv
-- [sample]_variants.tsv
-- [sample]_mutsig.tsv
-- [sample]_haplogroups.txt (only for human DNA)
-- [sample]_filtered.bam (only for human DNA)
 
 ## Single cell pipeline
 
