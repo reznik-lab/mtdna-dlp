@@ -18,19 +18,16 @@ def variant_calling(datadir, tumorbam, normalbam, normaldir, vcfdir, outdir, wor
         if fasta == "":
             fasta = workingdir + '/reference/b37/b37_MT.fa'
         ncbibuild = 'GRCh37'
-        maf2maf_fasta = fasta
         bcfploidy_genome = 'GRCh37'
     elif genome == "GRCm38" or genome == "mm10":
         if fasta == "":
             fasta = workingdir + "/reference/mm10/mm10_MT.fa"
         ncbibuild = 'mm10'
-        maf2maf_fasta = fasta
         bcfploidy_genome = 'mm10'
     elif genome == 'GRCh38':
         if fasta == "":
             fasta = workingdir + '/reference/GRCh38/genome_MT.fa'
         ncbibuild = 'GRCh38'
-        maf2maf_fasta = fasta
         bcfploidy_genome = 'GRCh38'
     else:
         print('The genome build you entered is not supported.')
