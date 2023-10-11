@@ -17,22 +17,18 @@ def variant_calling(datadir, tumorbam, normalbam, normaldir, vcfdir, outdir, wor
     if genome == 'GRCh37':
         if fasta == "":
             fasta = workingdir + '/reference/b37/b37_MT.fa'
-        mtchrom = 'MT'
         ncbibuild = 'GRCh37'
         maf2maf_fasta = fasta
         bcfploidy_genome = 'GRCh37'
     elif genome == "GRCm38" or genome == "mm10":
         if fasta == "":
             fasta = workingdir + "/reference/mm10/mm10_MT.fa"
-        # mtchrom = 'chrM'
-        mtchrom = 'MT'
         ncbibuild = 'mm10'
         maf2maf_fasta = fasta
         bcfploidy_genome = 'mm10'
     elif genome == 'GRCh38':
         if fasta == "":
             fasta = workingdir + '/reference/GRCh38/genome_MT.fa'
-        mtchrom = 'MT'
         ncbibuild = 'GRCh38'
         maf2maf_fasta = fasta
         bcfploidy_genome = 'GRCh38'
