@@ -37,7 +37,7 @@ def variant_calling_normal(resultsdir,tumordir,tumor_id,reffile,genome,minmapq,m
     # Running MTvariantpipeline with matched normal
     print("Running MTvariantpipeline with matched normal..")
     subprocess.run(f"python3 {workingdir}/MTvariantpipeline.py -d {tumordir}/ -v {resultsdir}/TEMPMAFfiles/ -w {workingdir}/ " +
-        f"-o {resultsdir}/MTvariant_results/ -b {tumor_id}.bam -n {normal_id}.bam -nd {normaldir}/ -f {genome} -q {minmapq} " +
+        f"-o {resultsdir}/MTvariant_results/ -b {tumor_id}.bam -n {normal_id}.bam -nd {normaldir}/ -g {genome} -q {minmapq} " +
         f"-Q {minbq} -s {minstrand} -vc {vepcache} -f {reffile} -m {mtchrom} -mo {molecule} -c {mincounts}", shell=True, check=True)
 
     # MuTect2 mitochondrial mode on tumor
