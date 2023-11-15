@@ -106,7 +106,7 @@ python3 split_bam.py possorted_genome_bam.bam output_directory --barcode_csv bar
 Index the split input .bam files:
 ```
 conda activate [environment]
-samtools index [library_id]/*.bam
+for each in [library_id]/*.bam; do samtools index "$each"; done
 ```
 
 Navigate to the directory with the `scMTpipeline.py` file and run the following (replace all brackets):
