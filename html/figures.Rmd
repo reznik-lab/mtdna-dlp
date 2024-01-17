@@ -10,190 +10,123 @@ params:
 title: '`r params$set_title`'
 ---
 
+```{r}
 
-
-```{r setup,include = FALSE,echo = FALSE}
 knitr::opts_chunk$set(echo = FALSE,message = FALSE,warning = FALSE,autodep = knitr::dep_prev())
 
 source(here::here('r/prerequisites.R'))
 
-message('Loading required datasets,please wait ...')
-
-# MITOMAP gene annotations
-mitomap <- read.table('../data/ext/mitomap.txt',header=T,sep='\t',comment.char="", stringsAsFactors=FALSE)
-
-# Import the coverage information across all the cells
-coveragefile <- read.delim('../data/processed_data/combinedcoverage.txt',header=T,sep='\t',quote='',stringsAsFactors=F)
-
-# Import the comprehensive file with all the cells
-allcellsfile <- read.table('../data/processed_data/all_cells.tsv',header=T,sep='\t',quote='',stringsAsFactors=F)
-
-# Import mutation signature information
-mutsigfile <- read.table('../data/processed_data/mutsig.tsv',header=T,sep='\t',quote='',stringsAsFactors=F)
-
-# Import the combined variant list across all data
-variantsfile <- read.table('../data/processed_data/combinedvariantslist.txt',header=T,sep='\t',quote='',stringsAsFactors=F)
-
-# Import the master and mutation probability files for SA039 sample
-master_file <- read.table('../data/masterfiles/SA039-ALL_master.tsv',header=T,sep='\t',quote='',stringsAsFactors=F)
-mutprob_file <- read.table('../data/masterfiles/SA039-ALL_mutprob.tsv',header=T,sep='\t',quote='',stringsAsFactors=F)
-
-# Import the custom color file
-customcolors <- yaml::read_yaml("../data/colors.yaml") %>% 
-  lapply(function(x) purrr::map_depth(x, purrr::vec_depth(x)-2, unlist))
 
 ```
-
 
 
 ***
 
 # Figure 1
 
-## 1a Schematic of the DLP+
+```{r eval=T, echo=F}
 
-## 1b
-```{r panel_1b,fig.height=5,fig.width=2.75,eval=T}
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Circos plot of the median read coverage of the DLP+ across all ten cell lines
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# MITOMAP gene annotations
+mitomap <- read.table('../data/ext/mitomap.txt',header=T,sep='\t',comment.char="",stringsAsFactors=FALSE)
 
 # Separate the MITOMAP file into L- and H- strands
 mitomap2 = mitomap[which(mitomap$gene %in% c('TE','ND6','TA','TN','TC','TY','TQ','TS1','TP')),] # L-strand
 mitomap1 = mitomap[-which(mitomap$gene %in% c('TE','ND6','TA','TN','TC','TY','TQ','TS1','TP')),] # H-strand
 
+# Import the custom color file
+customcolors <- yaml::read_yaml('../data/colors.yaml') %>%
+  lapply(function(x) purrr::map_depth(x, purrr::pluck_depth(x)-2, unlist))
+
+allcells_DNA <- read.table('../data/processed_data/combined_coverageDNA.txt',header=T,sep='\t',comment.char="",stringsAsFactors=FALSE)
+
+allcells_RNA <- read.table('../data/processed_data/combined_coverageRNA.txt',header=T,sep='\t',comment.char="",stringsAsFactors=FALSE)
+
+# Import coverage files
+lorenz_curve <- read.table('../data/processed_data/lorenz_curve.txt',header=T,sep='\t',stringsAsFactors=FALSE)
+
+coveragebreadth <- read.table('../data/processed_data/coveragebreadth_sample.txt',header=T,sep='\t',stringsAsFactors=FALSE)
+
+# Import oncoprint
+oncoprint = read.table('../data/processed_data/oncoprint.txt', row.names = 1, header=F, sep="\t", na.strings="na", stringsAsFactors=FALSE)
+
+# Finds a consecutive positions and concatenates into regions
+findIntRuns <- function(run){
+  rundiff <- c(1, diff(run))
+  difflist <- split(run, cumsum(rundiff>12))
+  unlist(lapply(difflist, function(x){
+    if(length(x) %in% 1:2) as.character(x) else seq(x[1],x[length(x)])
+  }), use.names=FALSE)
+}
+
+```
+
+## 1a Schematic of the DLP+
+
+## 1b Circos plot of the median read coverage of the DLP+
+```{r panel_1b,fig.height=2.25,fig.width=2.25,message=F,warning=F,eval=T}
+
+s <- which(allcells_RNA$third > allcells_DNA$third)
+sreseq <- findIntRuns(s)
+
+ceilingval = max(max(allcells_RNA$third),max(allcells_DNA$third))
+
 # Plot
 # Backbone of the circos plot
-circos.par(start.degree = 90,gap.degree = 0,track.margin = c(0,0),cell.padding = c(0,0,0,0),'canvas.xlim' = c(-1.12,1.12),'canvas.ylim' = c(-1.12,1.12))
-circos.initialize(factors = 'MT',xlim = c(1,16569))
+circos.par(start.degree = 90, gap.degree = 0, track.margin = c(0,0), cell.padding = c(0,0,0,0),"canvas.xlim" = c(-1.12, 1.12), "canvas.ylim" = c(-1.12, 1.12))
+circos.initialize(factors = "MT", xlim = c(1, 16569))
 
-# The circos plot track layout for the coverage
-circos.track(ylim = c(0,max(coveragefile$third)),track.index = 1,track.height = 0.3)
+# the circos plot track layout for the comparison coverage
+circos.track(ylim = c(0, 0.02), track.index = 1, track.height = 0.05)
+circos.rect(sreseq, rep(0,length(sreseq)), sreseq, rep(0.02,length(sreseq)), track = 1, col = 'gray18', border = 'gray18')
+circos.axis(track = 1, major.at = seq(0, 16569, 1000), labels.cex = 0.8, direction = "outside")
 
-# The circos plot gap in between coverage plot and gene annotations
-circos.track(ylim = c(0,0.1),track.index = 2,track.height = 0.1)
-circos.rect(0,rep(0,1),16569,rep(0.1,1),track = 2,col = 'white',border = 'white')
+# the circos plot track layout for the median coverage
+circos.track(ylim = c(-0.5, ceilingval), track.index = 2, track.height = 0.3)
 
-# The circos plot track of the median coverage with 1st and 3rd quartile
-circos.rect(coveragefile$pos,coveragefile$first,coveragefile$pos,coveragefile$third,col = 'grey',border = 'grey',track = 1,lwd = 2)
-circos.lines(coveragefile$pos,coveragefile$median,track = 1,lwd = 2)
-circos.axis(track = 1,major.at = seq(0,16569,1000),labels.cex = 0.8,direction = 'outside')
-circos.yaxis(side = 'right') # break values are automatically calculated
+# The circos plot track of the median coverage for DNA
+circos.rect(allcells_DNA$pos, allcells_DNA$first, allcells_DNA$pos, allcells_DNA$third, col = add_transparency("grey", 0.5), border = add_transparency("grey", 0.5), track = 2, lwd = 2)
+circos.lines(allcells_DNA$pos, allcells_DNA$median, col = '#4A82B2', track = 2, lwd = 2)
 
-# The circos plot H-strand
-circos.track(ylim = c(0,0.04),track.index = 3,track.height = 0.04)
-circos.rect(mitomap1[,2],rep(0,31),mitomap1[,3],rep(0.04,31),track = 3,col = mitomap1$col)
-circos.rect(mitomap1[-c(1,31),2],rep(0,29),mitomap1[-c(1,31),3],rep(0.04,29),track = 3,col = mitomap1$col[-c(1,40)])
+# The circos plot track of the median coverage for RNA
+circos.rect(allcells_RNA$pos, allcells_RNA$first, allcells_RNA$pos, allcells_RNA$third, col = "grey", border = "grey", track = 2, lwd = 2)
+circos.lines(allcells_RNA$pos, allcells_RNA$median, col = '#F9931D', track = 2, lwd = 2)
+circos.yaxis(side = "right", labels.cex = 0.7, at = seq(0, 100, 20), track.index = 2) # break values are automatically calculated
 
-# The circos plot gap in between the two strands
-circos.track(ylim = c(0,0.02),track.index = 4,track.height = 0.02)
-circos.rect(0,rep(0,1),16569,rep(0.02,1),track = 4,col = 'white',border = 'white')
+# The circos plot gap in between first
+circos.track(ylim = c(0,0.05), track.index = 3, track.height = 0.05)
+circos.rect(0, 0, 16569, 0.05, track = 3, col = NULL, border = NULL)
 
-# The circos plot L-strand
-circos.track(ylim = c(0,0.04),track.index = 5,track.height = 0.04)
-circos.rect(mitomap2[,2],rep(0,9),mitomap2[,3],rep(0.04,9),track = 5,col = mitomap2$col,border = mitomap2$col)
-circos.rect(mitomap2[,2],rep(0,9),mitomap2[,3],rep(0.04,9),track = 5,col = mitomap2$col)
+# the circos plot H-strand and labeling the coordinates
+circos.track(ylim = c(0,0.04), track.index = 4, track.height = 0.04)
+circos.rect(mitomap1[,2], rep(0,31), mitomap1[,3], rep(0.04,31), track = 4, col = mitomap1$col)
+circos.rect(mitomap1[-c(1,31),2], rep(0,29), mitomap1[-c(1,31),3], rep(0.04,29), track = 4, col = mitomap1$col[-c(1,40)])
 
-# Clear the plot
-#circos.clear()
+# the circos plot gap in between
+circos.track(ylim = c(0,0.02), track.index = 5, track.height = 0.02)
+circos.rect(0, rep(0,1), 16569, rep(0.02,1), track = 5, col = "white", border = "white")
+
+# the circos plot L-strand
+circos.track(ylim = c(0,0.04), track.index = 6, track.height = 0.04)
+circos.rect(mitomap2[,2], rep(0,9), mitomap2[,3], rep(0.04,9), track = 6, col = mitomap2$col, border = mitomap2$col)
+
+# circos.clear()
 
 ```
 
 
-## 1c
+## 1c 
 ```{r panel_1c,fig.height=1.8,fig.width=2.4,eval=T}
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Distribution of per-cell mtDNA copy number with perturbations
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-# Remove cisplatin treatment samples
-cell_lines = allcellsfile[-grep('_t',allcellsfile$suplibrary),]
-cell_lines = allcellsfile[-grep('_un',allcellsfile$suplibrary),]
-
-# Keep only the first half of the library information
-cell_lines$suplibrary = apply(data.frame(cell_lines$suplibrary),1,function(x)strsplit(x,'-')[[1]][1])
-
-# Iterate through the samples and keep only the earliest time points
-all_libraries = c()
-for (eachsuplib in c('SA039','SA906a','SA906b','SA1101a','SA1101b','SA1188','SA1055','SA1056','SA1054')){
-  if (length(unique(cell_lines$timepoint[which(cell_lines$suplibrary==eachsuplib)])) > 1){
-    # Earliest timepoint
-    earliest = paste0('X',min(as.numeric(gsub('X','',unique(cell_lines$timepoint[which(cell_lines$suplibrary==eachsuplib)])))))
-    all_libraries = append(all_libraries,unique(cell_lines$library[which((cell_lines$suplibrary==eachsuplib) & (cell_lines$timepoint==earliest))]))
-  }else{
-    all_libraries = append(all_libraries,unique(cell_lines$library[which(cell_lines$suplibrary==eachsuplib)]))
-  }
-}
-cell_lines = cell_lines[which(cell_lines$library %in% all_libraries),]
-
-# Determining the order of the groups based on decreasing mtDNA copy number 
-# Calculating the median mtDNA copy number for each group
-ordergroup = cell_lines %>% group_by(suplibrary) %>% mutate(medcn=median(copynumber)) %>% select(suplibrary,medcn) %>% distinct()
-ordergroup = ordergroup[order(ordergroup$medcn,decreasing = T),]
-
-# Iterate through the libraries within the samples and calculate the order based on median mtDNA copy number
-finalorder = c()
-for (eachsuplib in ordergroup$suplibrary){
-  filtres = cell_lines[which(cell_lines$suplibrary==eachsuplib),]
-  ordering = filtres %>% group_by(library) %>% mutate(median = median(copynumber),n = n()) %>% select(suplibrary,median,n) %>% distinct()
-  finalorder = append(finalorder,ordering$library[order(ordering$median,decreasing = T)])
-}
-
-# Sorting the groups based on the median mtDNA copy number
-ordergroup = cell_lines %>% group_by(suplibrary) %>% mutate(medcn=median(copynumber)) %>% select(suplibrary,medcn) %>% distinct()
-ordergroup = ordergroup[order(ordergroup$medcn,decreasing = T),]
-
-# Determine the length of the med line for each library based on the number of cells in the library
-medline = data.frame(t(c(1,1,1,1)))
-colnames(medline) = c('cell_id','center','median','library')
-for (eachlib in finalorder){
-  currpoints = cell_lines[which(cell_lines$library==eachlib),]
-  tempres2 = data.frame(currpoints$cell_id[order(currpoints$copynumber)[(as.integer(length(currpoints$copynumber)/2)-as.integer(length(currpoints$copynumber)*0.05)):(as.integer(length(currpoints$copynumber)/2)+as.integer(length(currpoints$copynumber)*0.05))]])
-  tempres2$center = currpoints$cell_id[order(currpoints$copynumber)[as.integer(length(currpoints$copynumber)/2)]]
-  tempres2$median = median(currpoints$copynumber[which(currpoints$library==eachlib)])
-  tempres2$library = eachlib
-  colnames(tempres2) = colnames(medline)
-  medline = rbind(medline,tempres2)
-}
-medline = medline[-1,]
-
-# Sorting the libraries as levels
-medline$library = factor(medline$library,levels=finalorder)
-res = cell_lines %>% group_by(library) %>% mutate(medcn=median(copynumber))
-res$library = factor(res$library,levels=finalorder)
-res$tissue = 'Normal Breast'
-res$tissue = factor(res$tissue,levels=unique(res$tissue))
-
-# Updating the labels for better visualization
-newlabels=list('SA039-A73044B'='184hTERT\n(SA039)','SA906-A96180B'='TP53-/-\n(SA906a)','SA906-A96215A'='TP53-/-\n(SA906b)','SA1101-A96225B'='TP53-/-\n(SA1101a)','SA1101-A96233B'='TP53-/-\n(SA1101b)','SA1054-A95632A'='BRCA1-/-;TP53-/-\n(SA1054)','SA1055-A95621A'='BRCA2-/-;TP53-/-\n(SA1055)','SA1056-A95635A'='BRCA2-/-;TP53-/-\n(SA1056)','SA1188-A95618B'='BRCA2+/-;TP53-/-\n(SA1188a)','SA1188-A95652A'='BRCA2+/-;TP53-/-\n(SA1188b)')
-finalorder = as.character(newlabels)[match(finalorder,names(newlabels))]
-res$library = factor(as.character(newlabels)[match(res$library,names(newlabels))],levels=finalorder)
-medline$library = factor(as.character(newlabels)[match(medline$library,names(newlabels))],levels=finalorder)
-
-# Plot
-fig1c <- ggplot() +
-  geom_rect(data = subset(res,library %in% finalorder[seq(1,length(finalorder),by=2)]),fill = 'lightgrey',xmin = -Inf,xmax = Inf,ymin = -Inf,ymax = Inf,alpha=0.1,inherit.aes = F) +
-  geom_point(data=res,aes(x = reorder(cell_id,copynumber),y = copynumber,color=tissue),alpha=0.3,inherit.aes = F) +
-  scale_color_manual(values=customcolors$tissuetypes) +
-  theme_classic() +
-  geom_point(data=medline,inherit.aes = F,aes(x=cell_id,y=median),col='grey34') +
-  facet_wrap(library~.,nrow=1,scales = 'free_x') +
-  coord_cartesian(clip = 'off') +
-  ylab('Per-cell mtDNA copy number') +
-  scale_y_continuous(limits = c(1,5800)) +
-  scale_x_discrete(breaks=unique(medline$center),labels=finalorder) +
-  theme(axis.text.x = element_text(size=12,angle = 55,hjust = 1,vjust = 1),
-        axis.text.y = element_text(size=12),
-        axis.title.x = element_blank(),
-        axis.title.y = element_text(size=12),
-        strip.background = element_blank(),
-        strip.text.x = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.grid.major.x = element_blank(),
-        panel.spacing = unit(0.1,'lines'),
-        legend.position = 'none',
-  )
+fig1c <- ggplot(lorenz_curve,aes(x=frac_genome,y=tot_coverage,group=interaction(type, sample_id),color=type)) + geom_line(alpha=0.7,linewidth = 0.4) + geom_abline(slope = 1,linetype='dashed') + theme_classic() +
+  xlab('Cumulative fraction of genome') + ylab('Cumulative fraction\nof total coverage') + scale_x_continuous(expand = c(0,0)) + scale_y_continuous(expand = c(0,0)) +
+  scale_color_manual(breaks = c('DNA','RNA'), values = c('#4984B4','#F59323')) +
+  theme(legend.position = c(0.2,0.8),
+        axis.text = element_text(size=8),
+        axis.title = element_text(size=8),
+        legend.key.size = unit(0.5, 'cm'),
+        legend.key.height = unit(0.5, 'cm'),
+        legend.key.width = unit(0.5, 'cm'),
+        legend.title = element_blank())
 
 fig1c
 
@@ -202,35 +135,16 @@ fig1c
 
 
 ## 1d
-```{r panel_1d,fig.height=1.6,fig.width=1.8,eval=T}
+```{r panel_1d,fig.height=2,fig.width=2.5,eval=T}
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Bar plots for mutation signature
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-# Update the labels
-mutsigfile$CR[which(mutsigfile$CR=='ControlRegion')] = 'Control\nRegion'
-mutsigfile$CR[which(mutsigfile$CR=='Non-ControlRegion')] = 'Non-Control\nRegion'
-mutsigfile$motifs = factor(mutsigfile$motifs,levels=c('others','C>T','T>C'))
-
-# Plot
-fig1d <- ggplot(mutsigfile,aes(x = strand,y = value,fill = motifs)) +
-  geom_bar(position = 'fill',stat = 'identity') + facet_wrap( ~ CR) + xlab('Strand') + ylab('Proportion') +
-  scale_fill_manual(name = 'Mutation\nSignature',values=c('#999999','#CF3C32','#F1BE6D')) + theme_classic() +
-  scale_y_continuous(expand = c(0,0),labels = scales::percent_format()) + guides(fill=guide_legend(title=''))
-
-fig1d <- fig1d + theme(axis.text = element_text(size=12),
-                       axis.title.x = element_blank(),
-                       axis.title.y = element_text(size=12),
-                       axis.text.x = element_text(size=12,angle=55,hjust=1),
-                       panel.grid.major = element_line(colour = 'grey',size=0.1),
-                       axis.line=element_line(colour='black'),
-                       plot.title = element_text(lineheight=1.5,face='bold',size=12,hjust=0.5),
-                       plot.subtitle = element_text(lineheight=1.5,face='bold',size=12,hjust=0.5),
-                       legend.position = 'right',
-                       legend.title=element_text(size=10),
-                       legend.text=element_text(size=10)
-)
+fig1d <- ggplot(coveragebreadth,aes(x=index,y=frac_genome,color=type,group=sample_id)) + geom_line() + theme_classic() +
+  xlab('Normalized cell index') + ylab('Genome covered (in bp)') + scale_color_manual(values = c('DNA'='#4A83B3','RNA'='#F59322')) +
+  scale_x_continuous(expand = c(0,0)) + scale_y_continuous(expand = c(0,0), limits = c(0,16569)) +
+  theme(axis.text = element_text(size=8),
+        axis.title = element_text(size=8),
+        legend.key.size = unit(0.5, 'cm'),
+        legend.title = element_blank(),
+        legend.position = c(0.85,0.3))
 
 fig1d
 
@@ -238,235 +152,545 @@ fig1d
 ```
 
 
+
 ## 1e
-```{r panel_1e,fig.height=2.8,fig.width=2.8,eval=T}
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Difference in pseudo-bulk estimate and median per-cell heteroplasmy level plotted against mutant cell proportion
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+```{r panel_1e,fig.height=2.5,fig.width=2.5,eval=T}
 
-# Calculating the difference between bulk heteroplasmy and median per-cell heteroplasmy for each variant
-variantsfile$diff <- variantsfile$bulk_het - variantsfile$per_cell_het
+# Sample ID
+filtoncoprint = oncoprint[,which(oncoprint[3,] == 'cell_line')]
+samplemat = as.matrix(filtoncoprint[which(rownames(filtoncoprint) == 'sample'),])
+samplecol = c("#FED9A6","#E7298A","#FB8072","#CAB2D6","#FFFF99","#E78AC3","#CBD5E8","#E31A1C","#F4CAE4",
+              "#F0027F","#FDBF6F","#A6CEE3","#E6F5C9","#984EA3")
+names(samplecol) = unique(as.character(filtoncoprint[which(rownames(filtoncoprint) == 'sample'),]))
 
-# Plot
-fig1e <- ggplot(variantsfile,aes(x=mutantprop,y=diff,color=per_cell_het)) + geom_point() + theme_classic() +
-  xlab('Mutant cell proportion') + ylab('Pseudobulk estimate - median per-cell heteroplasmy') + labs(color = 'Per-cell\nHeteroplasmy') +
-  scale_color_viridis(option='plasma') +
-  theme(
-    axis.text = element_text(size=14),
-    axis.title = element_text(size=14),
-    legend.position = c(0.8,0.4)
-  )
+fig1 <- oncoPrint(samplemat,
+                  alter_fun = list(
+                    background = function(...) NULL,
+                    SA039 = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, gp = gpar(fill = samplecol["SA039"], col = NA)),
+                    SA1054 = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, gp = gpar(fill = samplecol["SA1054"], col = NA)),
+                    SA1055 = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, gp = gpar(fill = samplecol["SA1055"], col = NA)),
+                    SA1056 = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, gp = gpar(fill = samplecol["SA1056"], col = NA)),
+                    SA1087 = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, gp = gpar(fill = samplecol["SA1087"], col = NA)),
+                    SA1188 = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, gp = gpar(fill = samplecol["SA1188"], col = NA)),
+                    SA1292 = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, gp = gpar(fill = samplecol["SA1292"], col = NA)),
+                    SA906a = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, gp = gpar(fill = samplecol["SA906a"], col = NA)),
+                    SA906b = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, gp = gpar(fill = samplecol["SA906b"], col = NA)),
+                    SA1101a = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, gp = gpar(fill = samplecol["SA1101a"], col = NA)),
+                    SA1101b = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, gp = gpar(fill = samplecol["SA1101b"], col = NA)),
+                    SA1044 = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, gp = gpar(fill = samplecol["SA1044"], col = NA)),
+                    SA928 = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, gp = gpar(fill = samplecol["SA928"], col = NA)),
+                    SA1090 = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, gp = gpar(fill = samplecol["SA1090"], col = NA))
+                  ), col = samplecol, top_annotation = NULL, right_annotation = NULL, show_pct = FALSE, row_names_side = "left", row_labels = 'Sample', show_heatmap_legend = FALSE)
 
-fig1e
+lgd1 = Legend(labels = names(samplecol), legend_gp = gpar(fill = samplecol), labels_gp = gpar(fontsize = 4), title = "", direction = "horizontal")
+
+# Sample type
+datamat = as.matrix(filtoncoprint[which(rownames(filtoncoprint) == 'Datatype'),])
+datacol = c(cell_line = "deepskyblue3")
+fig2 <- oncoPrint(datamat,
+                  alter_fun = list(
+                    background = function(...) NULL,
+                    cell_line = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, 
+                                                               gp = gpar(fill = datacol["cell_line"], col = NA))
+                  ), col = rep('grey',3), top_annotation = NULL, right_annotation = NULL, show_pct = FALSE, row_names_side = "left", row_labels = 'Sample type', show_heatmap_legend = FALSE)
+
+newnames_datacol = names(datacol)
+newnames_datacol[which(newnames_datacol == 'cell_line')] = 'Cell Line'
+lgd2 = Legend(labels = newnames_datacol, legend_gp = gpar(fill = datacol), labels_gp = gpar(fontsize = 6), title = "", direction = "horizontal")
+
+# Tissue type
+tissuemat = as.matrix(filtoncoprint[which(rownames(filtoncoprint) == 'Tissuetype'),])
+tissuecol = c(Breast = "#000296", Lymphoblastoid = "#FBCE78", Cervical = "#F4D8DD", Ovary = "khaki4")
+fig3 <- oncoPrint(tissuemat,
+                  alter_fun = list(
+                    background = function(...) NULL,
+                    Breast = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, 
+                                                            gp = gpar(fill = tissuecol["Breast"], col = NA)),
+                    Lymphoblastoid = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, 
+                                                            gp = gpar(fill = tissuecol["Lymphoblastoid"], col = NA)),
+                    Cervical = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, 
+                                                                    gp = gpar(fill = tissuecol["Cervical"], col = NA)),
+                    Ovary = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, 
+                                                           gp = gpar(fill = tissuecol["Ovary"], col = NA))
+                  ), col = tissuecol, top_annotation = NULL, right_annotation = NULL, show_pct = FALSE, row_names_side = "left", row_labels = 'Tissue type', show_heatmap_legend = FALSE)
+
+lgd3 = Legend(labels = names(tissuecol), legend_gp = gpar(fill = tissuecol), labels_gp = gpar(fontsize = 6), title = "", direction = "horizontal")
+
+# Matching scRNA-seq
+scrnamat = as.matrix(filtoncoprint[which(rownames(filtoncoprint) == 'scRNA.seq'),])
+presencecol = c(Yes = "black", No = "ivory")
+fig4 <- oncoPrint(scrnamat,
+                  alter_fun = list(
+                    background = function(...) NULL,
+                    Yes = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, 
+                                                         gp = gpar(fill = presencecol["Yes"], col = NA)),
+                    No = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, 
+                                                        gp = gpar(fill = presencecol["No"], col = NA))
+                  ), col = presencecol, top_annotation = NULL, right_annotation = NULL, show_pct = FALSE, row_names_side = "left", row_labels = 'scRNA-seq', show_heatmap_legend = FALSE)
+
+lgd4 = Legend(labels = names(presencecol), legend_gp = gpar(fill = presencecol), labels_gp = gpar(fontsize = 6), title = "", direction = "horizontal")
+
+# Histogram
+ncellmat = as.matrix(filtoncoprint[which(rownames(filtoncoprint) == 'Ncells'),])
+ncellmat = apply(ncellmat, 2, as.numeric)
+ncellmat = t(ncellmat)
+ha = HeatmapAnnotation(ncell = anno_barplot(ncellmat, beside = TRUE, gp = gpar(fill = 1), height = unit(4, "cm")), show_annotation_name = FALSE)
+plot(ha)
+
+ht_list = fig1 %v% fig2 %v% fig3 %v% fig4
+print(ht_list)
+
+pd1 <- packLegend(lgd1, direction = "vertical")
+grid::grid.newpage()
+draw(pd1)
+
+# Sample type
+datacol = c('Cell Line' = "deepskyblue3", 'Tumor (PDX)' = "olivedrab3", 'Tumor (Primary)' = "pink3")
+lgd2 = Legend(labels = datacol, legend_gp = gpar(fill = datacol), labels_gp = gpar(fontsize = 6), title = "", direction = "horizontal")
+
+pd2 <- packLegend(lgd2, lgd3, lgd4, direction = 'horizontal')
+grid::grid.newpage()
+draw(pd2)
+
+## Tumors
+filtoncoprint = oncoprint[,which((oncoprint[3,] != 'cell_line') & (as.character(oncoprint[5,]) != 'Treated'))]
+
+# Sample ID
+samplemat = as.matrix(filtoncoprint[which(rownames(filtoncoprint) == 'sample'),])
+samplecol = c("#E3B172","#CCDCDB","#76BFBA","#00427D","#0186BA","#9404D2","#998884","#DED3CC","#55B700","#BB937E","#915549","#D38842","#8B3415","#362F37","#EEFFAA")
+names(samplecol) = unique(as.character(filtoncoprint[which(rownames(filtoncoprint) == 'sample'),]))
+
+fig1 <- oncoPrint(samplemat,
+                  alter_fun = list(
+                    background = function(...) NULL,
+                    SA1035 = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, gp = gpar(fill = samplecol["SA1035"], col = NA)),
+                    SA1052 = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, gp = gpar(fill = samplecol["SA1052"], col = NA)),
+                    SA1142 = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, gp = gpar(fill = samplecol["SA1142"], col = NA)),
+                    SA501 = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, gp = gpar(fill = samplecol["SA501"], col = NA)),
+                    SA530 = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, gp = gpar(fill = samplecol["SA530"], col = NA)),
+                    SA535 = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, gp = gpar(fill = samplecol["SA535"], col = NA)),
+                    SA604 = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, gp = gpar(fill = samplecol["SA604"], col = NA)),
+                    SA605 = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, gp = gpar(fill = samplecol["SA605"], col = NA)),
+                    SA609 = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, gp = gpar(fill = samplecol["SA609"], col = NA)),
+                    SA610 = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, gp = gpar(fill = samplecol["SA610"], col = NA)),
+                    OV022 = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, gp = gpar(fill = samplecol["OV022"], col = NA)),
+                    OV081 = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, gp = gpar(fill = samplecol["OV081"], col = NA)),
+                    SA1047 = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, gp = gpar(fill = samplecol["SA1047"], col = NA)),
+                    SA1135 = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, gp = gpar(fill = samplecol["SA1135"], col = NA)),
+                    SA1162 = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, gp = gpar(fill = samplecol["SA1162"], col = NA))
+                  ), col = samplecol, top_annotation = NULL, right_annotation = NULL, show_pct = FALSE, row_names_side = "left", row_labels = '', show_heatmap_legend = FALSE)
+
+lgd1 = Legend(labels = gsub('_','-',names(samplecol)), legend_gp = gpar(fill = samplecol), labels_gp = gpar(fontsize = 4), title = "", direction = "horizontal")
+
+# Sample type
+datamat = as.matrix(filtoncoprint[which(rownames(filtoncoprint) == 'Datatype'),])
+datacol = c(PDX = "olivedrab3", primary = "pink3")
+fig2 <- oncoPrint(datamat,
+                  alter_fun = list(
+                    background = function(...) NULL,
+                    PDX = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, 
+                                                         gp = gpar(fill = datacol["PDX"], col = NA)),
+                    primary = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, 
+                                                             gp = gpar(fill = datacol["primary"], col = NA))
+                  ), col = rep('grey',3), top_annotation = NULL, right_annotation = NULL, show_pct = FALSE, row_names_side = "left", row_labels = '', show_heatmap_legend = FALSE)
+
+newnames_datacol = names(datacol)
+newnames_datacol[which(newnames_datacol == 'PDX')] = 'Tumor (PDX)'
+newnames_datacol[which(newnames_datacol == 'primary')] = 'Tumor (Primary)'
+lgd2 = Legend(labels = newnames_datacol, legend_gp = gpar(fill = datacol), labels_gp = gpar(fontsize = 4), title = "", direction = "horizontal")
+
+# Tissue type
+tissuemat = as.matrix(filtoncoprint[which(rownames(filtoncoprint) == 'Tissuetype'),])
+tissuecol = c(Breast = "#000296", Ovary = "khaki4")
+fig3 <- oncoPrint(tissuemat,
+                  alter_fun = list(
+                    background = function(...) NULL,
+                    Breast = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, 
+                                                            gp = gpar(fill = tissuecol["Breast"], col = NA)),
+                    Ovary = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, 
+                                                           gp = gpar(fill = tissuecol["Ovary"], col = NA))
+                  ), col = tissuecol, top_annotation = NULL, right_annotation = NULL, show_pct = FALSE, row_names_side = "left", row_labels = '', show_heatmap_legend = FALSE)
+
+lgd3 = Legend(labels = names(tissuecol), legend_gp = gpar(fill = tissuecol), labels_gp = gpar(fontsize = 4), title = "", direction = "horizontal")
+
+# Treatment status
+treatmentmat = as.matrix(filtoncoprint[which(rownames(filtoncoprint) == 'Cisplatin'),])
+treatmentcol= c(Untreated = "violet", Treated = "green4")
+fig4 <- oncoPrint(treatmentmat,
+                  alter_fun = list(
+                    background = function(...) NULL,
+                    Untreated = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, 
+                                                               gp = gpar(fill = treatmentcol["Untreated"], col = NA)),
+                    Treated = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, 
+                                                             gp = gpar(fill = treatmentcol["Treated"], col = NA))
+                  ), col = treatmentcol, top_annotation = NULL, right_annotation = NULL, show_pct = FALSE, row_names_side = "left", show_heatmap_legend = FALSE)
+
+
+lgd4 = Legend(labels = names(treatmentcol), legend_gp = gpar(fill = treatmentcol), labels_gp = gpar(fontsize = 4), title = "", direction = "horizontal")
+
+
+# Matching scRNA-seq
+scrnamat = as.matrix(filtoncoprint[which(rownames(filtoncoprint) == 'scRNA.seq'),])
+presencecol = c(Yes = "black", No = "ivory")
+fig4 <- oncoPrint(scrnamat,
+                  alter_fun = list(
+                    background = function(...) NULL,
+                    Yes = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, 
+                                                         gp = gpar(fill = presencecol["Yes"], col = NA)),
+                    No = function(x, y, w, h) grid.rect(x, y, w*0.9, h*0.9, 
+                                                        gp = gpar(fill = presencecol["No"], col = NA))
+                  ), col = presencecol, top_annotation = NULL, right_annotation = NULL, show_pct = FALSE, row_names_side = "left", row_labels = '', show_heatmap_legend = FALSE)
+
+lgd4 = Legend(labels = names(presencecol), legend_gp = gpar(fill = presencecol), labels_gp = gpar(fontsize = 4), title = "", direction = "horizontal")
+
+# Histogram
+ncellmat = as.matrix(filtoncoprint[which(rownames(filtoncoprint) == 'Ncells'),])
+ncellmat = apply(ncellmat, 2, as.numeric)
+ncellmat = t(ncellmat)
+ha = HeatmapAnnotation(ncell = anno_barplot(ncellmat, beside = TRUE, gp = gpar(fill = 1), height = unit(4, "cm"), axis = F), show_annotation_name = FALSE)
+plot(ha)
+
+ht_list = fig1 %v% fig2 %v% fig3 %v% fig4
+print(ht_list)
+
+pd1 <- packLegend(lgd1, direction = "vertical")
+pd2 <- packLegend(lgd2, lgd3, lgd4, direction = 'horizontal')
+
+grid::grid.newpage()
+draw(pd1)
+grid::grid.newpage()
+draw(pd2)
 
 ```
 
 
-
 ***
 
-# Fig. 2
+# Figure 2
 
-```{r setup,include = FALSE,echo = FALSE}
+```{r eval=T, echo=F}
+
+# Import the master result file across all cells
+resultfile = read.csv(paste0('../data/processed_data/final_master.tsv'), header=T, sep='\t', stringsAsFactors=F)
+
+# Subset the cell image data
+micron_resultfile = resultfile[which(resultfile$spotter == "rachael"),] # Sort by rachael spotter
+pixel_resultfile = resultfile[which(resultfile$spotter == "deckard"),] # Sort by deckard spotter
+
+resultfile = resultfile[-which((resultfile$library_label == 'SA928-ALL') | (resultfile$group %in% c("treated TNBC PDX(SA1035)","treated TNBC PDX(SA535)","treated TNBC PDX(SA609)"))),]
+resultfile$library_label = gsub('OV_022','OV022',resultfile$library_label)
+resultfile$library_label = gsub('OV_081','OV081',resultfile$library_label)
+
+# Annotating the timepoints
+SA039_passages = list("A73044B"="p25","A96199B"="p30","A73047D"="p51","A96226B"="p60") # SA039
+SA906a_passages = list("A96180B"="p10","A96210C"="p15","A96216A"="p25","A96175C"="p30","A96183C"="p40","A96186A"="p50","A96146A"="p57") # SA906a
+SA906b_passages = list("A96215A"="p20","A96211C"="p30","A96172B"="p35","A96155B"="p40","A96220B"="p45","A96228B"="p50","A96149B"="p55") # SA906b
+SA1101a_passages = list("A96225B"="p10","A96162A"="p15","A96155C"="p20","A96240A"="p25","A96225C"="p30","A96193B"="p35","A96183B"="p40","A96240B"="p45","A96181C"="p50") # SA1101a
+SA1101b_passages = list("A96233B"="p15","A96190A"="p20","A95634B"="p25","A95668B"="p30","A95663B"="p35","A96118A"="p40","A96120A"="p41","A96114A"="p45","A96124B"="p45","A95697B"="p50","A98271A"="p50","A95700A"="p55","A95723A"="p55","A98295B"="p60","A98274B"="p60") # SA1101b
+SA1035_passages = list('A95626A'='p4','A95646A'='p4','A95731B'='p5','A95623B'='p6','A98290B'='p7','A98251B'='p7','A98253A'='p8','A98256A'='p8')
+SA609_passages = list('A95724A'='p3','A96201A'='p3','A95632D'='p6','A96219B'='p10')
+SA501_passages = list('A95621B'='p2','A96109A'='p2','A96171A'='p2','A95670A'='p5','A96213A'='p6','A95670B'='p6','A96174A'='p11','A96187A'='p11','A96173A'='p15')
+
+cell_line_passages = c(SA039_passages,SA906a_passages,SA906b_passages,SA1101a_passages,SA1101b_passages)
+tumor_passages = c(SA1035_passages,SA609_passages,SA501_passages)
+
+# Adding timepoint information
+last = apply(data.frame(resultfile$library_id),1,function(x) strsplit(x,'-')[[1]][2])
+
+# Filtering for timepoint file in cell lines
+CL_timepointfile = resultfile
+CL_timepointfile$timepoint = as.character(cell_line_passages[last])
+CL_timepointfile = CL_timepointfile[-which(CL_timepointfile$timepoint == 'NULL'),]
+CL_timepointfile$timepoint = factor(CL_timepointfile$timepoint, levels = paste0("p",sort(as.numeric(unique(gsub("p","",CL_timepointfile$timepoint))))))
+
+# Filtering for timepoint file in tumors
+T_timepointfile = resultfile
+T_timepointfile$timepoint = as.character(tumor_passages[last])
+T_timepointfile = T_timepointfile[-which(T_timepointfile$timepoint == 'NULL'),]
+T_timepointfile = T_timepointfile[-which(T_timepointfile$group == "HGSC cell line(SA1090)"),]
+T_timepointfile$timepoint = factor(T_timepointfile$timepoint, levels = paste0("p",sort(as.numeric(unique(gsub("p","",T_timepointfile$timepoint))))))
 
 # Import SA906a TP53-/- 184-hTERT epithelial cell line master file
-SA906a_master <- read.table('../data/masterfiles/SA906a-ALL_master.tsv',header=T,sep='\t',quote='',stringsAsFactors=F)
+SA906a_master <- read.table('../data/master_files/SA906a-ALL_master.tsv',header=T,sep='\t',quote='',stringsAsFactors=F)
 
 # Import SA039 184-hTERT epithelial cell line passage data
 passage_file <- read.table('../data/processed_data/SA039_passage.tsv',header=T,sep='\t',quote='',stringsAsFactors=F)
+
+# Import oncoprint
+oncoprint = read.table('../data/processed_data/oncoprint.txt', row.names = 1, header=F, sep="\t", na.strings="na", stringsAsFactors=FALSE)
 
 ```
 
 
 ## 2a
 
-```{r panel_2a,fig.height=2,fig.width=2,eval=T}
+```{r panel_2a,fig.height=3,fig.width=5,eval=T}
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Serial passage experiment of 184-hTERT breast epithelial cell line
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-# Plot
-fig2a <- ggplot(passage_file,aes(x=passage,y=avgindiv,size=mutprop,group=variants,col=col,alpha=alpha)) + geom_line(size=0.7) + scale_y_continuous(limits=c(0,0.15)) + scale_size_continuous(name='Mutant Cell\nProportion') + geom_point() + theme_bw() + 
-  xlab('Passage') + ylab('Per-cell heteroplasmy') + scale_color_manual(breaks=c('Others','C:4881:T','G:13240:A'),values=c('#999999','#E58700','#619CFF'),guide=guide_legend(title=NULL)) + scale_alpha_manual(breaks=c('Y','N'),values=c(1,0.4),guide=NULL)
+PDXfile = resultfile[grep('PDX',resultfile$group),]
+primaryfile = resultfile[c(grep('primary',resultfile$group),grep('SPECTRUM',resultfile$group)),]
+cell_linefile = resultfile[-c(grep('primary',resultfile$group),grep('PDX',resultfile$group),grep('SPECTRUM',resultfile$group)),]
 
-fig2a <- fig2a + theme(axis.text=element_text(size=10),
-                       axis.title.x=element_text(size=10),
-                       axis.title.y=element_text(size=10),
-                       axis.text.x=element_text(size=10),
-                       panel.grid.major=element_line(colour='grey',size=0.1),
-                       axis.line=element_line(colour='black'),
-                       plot.title=element_text(lineheight=1.5,face='bold',size=10,hjust=0.5),
-                       plot.subtitle=element_text(lineheight=1.5,face='bold',size=10,hjust=0.5),
-                       legend.title=element_text(size=8),
-                       legend.text=element_text(size=8)
-)
+## Distribution of per-cell mtDNA copy number with perturbations
+oncoprint = oncoprint[,-which(as.character(oncoprint[5,]) == 'Treated')]
 
-fig2a
+# Library ID and tissue type
+metadat = data.frame(paste0(oncoprint[which(rownames(oncoprint) == 'sample'),],'-',oncoprint[which(rownames(oncoprint) == 'library_id'),]),as.character(oncoprint[which(rownames(oncoprint) == 'Tissuetype'),]))
+colnames(metadat) = c('library_id','tissue')
+
+## Calculate the median mtDNA copy number per library
+ordergroup = resultfile %>% group_by(library_label) %>% mutate(medcn=median(copynumber)) %>% select(library_label, medcn) %>% distinct()
+ordergroup = ordergroup[order(ordergroup$medcn, decreasing = T),]
+
+finalorder = ordergroup$library_label
+
+medline = data.frame(t(c(1,1,1,1)))
+colnames(medline) = c("cell_id","center","median","library_label")
+for (eachlib in finalorder){
+  currpoints = resultfile[which(resultfile$library_label == eachlib),]
+  if (nrow(currpoints) < 10){
+    tempres2 = data.frame(currpoints$cell_id[order(currpoints$copynumber)])
+  }else if(nrow(currpoints) < 30){
+    tempres2 = data.frame(currpoints$cell_id[order(currpoints$copynumber)[(as.integer(length(currpoints$copynumber)/2)-as.integer(length(currpoints$copynumber)*0.3)):(as.integer(length(currpoints$copynumber)/2)+as.integer(length(currpoints$copynumber)*0.3))]])
+  }else{
+    tempres2 = data.frame(currpoints$cell_id[order(currpoints$copynumber)[(as.integer(length(currpoints$copynumber)/2)-as.integer(length(currpoints$copynumber)*0.2)):(as.integer(length(currpoints$copynumber)/2)+as.integer(length(currpoints$copynumber)*0.2))]])
+  }
+  tempres2$center = currpoints$cell_id[order(currpoints$copynumber)[as.integer(length(currpoints$copynumber)/2)]]
+  tempres2$median = median(currpoints$copynumber[which(currpoints$library_label == eachlib)])
+  tempres2$library_label = eachlib
+  colnames(tempres2) = colnames(medline)
+  medline = rbind(medline, tempres2)
+}
+medline = medline[-1,]
+
+medline$library_label = factor(medline$library_label, levels=finalorder)
+
+for (eachtype in c('PDX','primary','cell_line')){
+  print(eachtype)
+  currfile = get(paste0(eachtype,'file'))
+  currorder = finalorder[which(finalorder %in% unique(currfile$library_label))]
+  currmedline = medline[which(medline$library_label %in% unique(currfile$library_label)),]
+  currmedline$library_label = factor(currmedline$library_label,currorder)
+  
+  res = currfile %>% group_by(library_label) %>% mutate(medcn=median(copynumber))
+  res$library_label = factor(res$library_label, levels=currorder)
+  res$tissue = metadat$tissue[match(res$library_label,metadat$library_id)]
+  res$tissue = factor(res$tissue, levels=unique(res$tissue))
+  
+  if (eachtype == 'cell_line'){
+    plotcell_line = ggplot() +
+      geom_rect(data = subset(res,library_label %in% currorder[seq(1,length(currorder),by=2)]),fill = "lightgrey",xmin = -Inf,xmax = Inf,ymin = -Inf,ymax = Inf,alpha=0.1,inherit.aes = F) +
+      geom_point(data = res, aes(x = reorder(cell_id,copynumber), y = copynumber, color=tissue), size = 0.6, alpha=0.3, inherit.aes = F) +
+      scale_color_manual(values=customcolors$tissuetypes) +
+      theme_classic() +
+      geom_point(data=currmedline, inherit.aes = F, aes(x=cell_id,y=median), size = 0.4, shape = 15, col="black") +
+      facet_wrap(library_label~.,nrow=1, scales = "free_x") +
+      coord_cartesian(clip = "off") +
+      ylab("Per-cell\nmtDNA copy number") +
+      scale_y_continuous(limits = c(1,7500)) +
+      scale_x_discrete(breaks=unique(currmedline$center), labels=currorder) +
+      theme(axis.text.x = element_text(size=5, angle = 55, hjust = 1, vjust = 1),
+            axis.text.y = element_text(size=8),
+            axis.title.x = element_blank(),
+            axis.title.y = element_text(size=10),
+            strip.background = element_blank(),
+            strip.text.x = element_blank(),
+            panel.grid.minor = element_blank(),
+            panel.grid.major.x = element_blank(),
+            panel.spacing = unit(0.1, "lines"),
+            legend.position = "none",
+            plot.margin = margin(l = 5, r = 5),
+            rect = element_rect(fill = "transparent",colour = NA),
+            plot.background = element_rect(fill = "transparent",colour = NA)
+      )
+  }else if (eachtype == 'PDX'){
+    plotPDX = ggplot() +
+      geom_rect(data = subset(res,library_label %in% currorder[seq(1,length(currorder),by=2)]),fill = "lightgrey",xmin = -Inf,xmax = Inf,ymin = -Inf,ymax = Inf,alpha=0.1,inherit.aes = F) +
+      geom_point(data = res, aes(x = reorder(cell_id,copynumber), y = copynumber, color=tissue), size = 0.6, alpha=0.3, inherit.aes = F) +
+      scale_color_manual(values=customcolors$tissuetypes) +
+      theme_classic() +
+      geom_point(data=currmedline, inherit.aes = F, aes(x=cell_id,y=median), size = 0.4, shape = 15, col="black") +
+      facet_wrap(library_label~.,nrow=1, scales = "free_x") +
+      coord_cartesian(clip = "off") +
+      ylab("Per-cell mtDNA copy number") +
+      scale_y_continuous(limits = c(1,7500)) +
+      scale_x_discrete(breaks=unique(currmedline$center), labels=currorder) +
+      theme(axis.text.x = element_text(size=5, angle = 55, hjust = 1, vjust = 1),
+            axis.text.y = element_blank(),
+            axis.title = element_blank(),
+            strip.background = element_blank(),
+            strip.text.x = element_blank(),
+            panel.grid.minor = element_blank(),
+            panel.grid.major.x = element_blank(),
+            panel.spacing = unit(0.1, "lines"),
+            legend.position = "none",
+            plot.margin = margin(l = 16, r = 5),
+            rect = element_rect(fill = "transparent",colour = NA),
+            plot.background = element_rect(fill = "transparent",colour = NA)
+      )
+  }else if (eachtype == 'primary'){
+    plotprimary = ggplot() +
+      geom_rect(data = subset(res,library_label %in% currorder[seq(1,length(currorder),by=2)]),fill = "lightgrey",xmin = -Inf,xmax = Inf,ymin = -Inf,ymax = Inf,alpha=0.1,inherit.aes = F) +
+      geom_point(data = res, aes(x = reorder(cell_id,copynumber), y = copynumber, color=tissue), size = 0.6, alpha=0.3, inherit.aes = F) +
+      scale_color_manual(values=customcolors$tissuetypes) +
+      theme_classic() +
+      geom_point(data=currmedline, inherit.aes = F, aes(x=cell_id,y=median), size = 0.4, shape = 15, col="black") +
+      facet_wrap(library_label~.,nrow=1, scales = "free_x") +
+      coord_cartesian(clip = "off") +
+      scale_y_continuous(limits = c(1,7500)) +
+      scale_x_discrete(breaks=unique(currmedline$center), labels=currorder) +
+      theme(axis.text.x = element_text(size=5, angle = 55, hjust = 1, vjust = 1),
+            axis.text.y = element_blank(),
+            axis.title = element_blank(),
+            strip.background = element_blank(),
+            strip.text.x = element_blank(),
+            panel.grid.minor = element_blank(),
+            panel.grid.major.x = element_blank(),
+            panel.spacing = unit(0.1, "lines"),
+            legend.position = "none",
+            plot.margin = margin(l = 20, r = 5),
+            rect = element_rect(fill = "transparent",colour = NA),
+            plot.background = element_rect(fill = "transparent",colour = NA)
+      )
+  }
+}
+
+plotcell_line
+plotPDX
+plotprimary
+
+# Legend
+legend = Legend(labels = names(customcolors$tissuetypes), legend_gp = gpar(fill = as.character(customcolors$tissuetypes)), labels_gp = gpar(fontsize = 6), title = "", direction = "vertical", nrow = 1)
+grid::grid.newpage()
+draw(legend)
+
 
 ```
 
 
+
 ## 2b
 
-```{r panel_2b,fig.height=3,fig.width=6,eval=T}
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Heatmap of mtDNA heteroplasmic variants across mtDNA-based clones
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+```{r panel_2b,fig.height=2,fig.width=4,eval=T}
 
-# Getting all the clones for SA906a sample, removing cells that are not assigned to any clones
-SA906a_cells = allcellsfile[which(allcellsfile$suplibrary=='SA906a-ALL'),]
-SA906a_cells$cell_id = gsub('-','.',SA906a_cells$cell_id)
-SA906a_cells = SA906a_cells[-which(SA906a_cells$clone=='Un'),]
-
-# Import master file and filtering for somatic SNVs
-filtSA906a_master = SA906a_master[which((nchar(SA906a_master$Ref)==1) & (nchar(SA906a_master$Alt)==1)),]
-filtSA906a_master = filtSA906a_master[which(filtSA906a_master$somaticstatus=='somatic'),24:ncol(filtSA906a_master)]
-
-# Converting to numeric values
-alt_frac = apply(filtSA906a_master,c(1,2),function(x) eval(parse(text = x)))
-coverage = apply(filtSA906a_master,c(1,2),function(x) as.numeric(strsplit(x,'/')[[1]][2]))
-
-# Remove cells with median coverage of 0
-rmcells = which(apply(coverage,2,function(x) median(x))==0)
-alt_frac = alt_frac[,-rmcells]
-coverage = coverage[,-rmcells]
-
-# Filter for variants that have sufficiently high coverage across most cells
-filtcrit = median(as.numeric(apply(data.frame(coverage),1,function(x) summary(x)[4])))
-if (round(filtcrit)==0){
-  filtcrit = round(filtcrit) + 1
-}else{
-  filtcrit = round(filtcrit)
+pvals = c()
+for (eachsample in unique(CL_timepointfile$group)){
+  filtresultfile = CL_timepointfile[which(CL_timepointfile$group == eachsample),]
+  pval = kruskal.test(copynumber ~ timepoint, data = filtresultfile)$p.value
+  pvals = append(pvals, pval)
 }
 
-# Indicator based on the coverage sufficiency
-coverage[coverage < filtcrit] <- 0
-coverage[coverage >= filtcrit] <- 1
+summarydata = CL_timepointfile %>% group_by(group,timepoint) %>% mutate(medcopynumber = median(copynumber), sdcopynumber = (sd(copynumber)), secopynumber = (sdcopynumber/sqrt(n())), n = n()) %>% select(group,timepoint,medcopynumber,sdcopynumber,secopynumber,n) %>% distinct()
+colnames(summarydata) = c("group","timepoint","median_copynumber","sd_copynumber","se_copynumber","n")
 
-# Import fitness based clustering file
-# Filter for cells that are wt for all
-if (length(which(colSums(alt_frac)==0)) > 0){
-  coverage = coverage[,-which(colSums(alt_frac)==0)]
-  alt_frac = alt_frac[,-which(colSums(alt_frac)==0)]
-}
+# Fixing the group labels
+summarydata$group[which(summarydata$group == '184hTERT(TP53-/-)(SA1101a)')] = 'TP53-/-(SA1101a)'
+summarydata$group[which(summarydata$group == '184hTERT(TP53-/-)(SA1101b)')] = 'TP53-/-(SA1101b)'
+summarydata$group[which(summarydata$group == '184hTERT(TP53-/-)(SA906a)')] = 'TP53-/-(SA906a)'
+summarydata$group[which(summarydata$group == '184hTERT(TP53-/-)(SA906b)')] = 'TP53-/-(SA906b)'
 
-# Filter cells by those that are included in the fitness
-SA906a_cells = SA906a_cells[which(gsub('-','.',SA906a_cells$cell_id) %in% colnames(alt_frac)),]
-alt_frac <- alt_frac[,which(colnames(alt_frac) %in% SA906a_cells$cell_id)]
-coverage <- coverage[,which(colnames(coverage) %in% SA906a_cells$cell_id)]
+fig2b <- ggplot(subset(summarydata,group == '184hTERT'),aes(x=timepoint,y=median_copynumber)) + geom_errorbar(aes(ymin=median_copynumber-se_copynumber, ymax=median_copynumber+se_copynumber), width=.2, position=position_dodge(.9)) +
+  geom_line(aes(group=group,col=group),size=0.6) + geom_point(size=0.6) + theme_classic() +
+  xlab("Timepoints") + ylab(label = "mtDNA copy number") +
+  scale_y_continuous(limits = c(0,2000), expand=c(0,0)) +
+  theme(legend.position = 'none',
+        axis.title = element_text(size=9),
+        axis.text = element_text(size=6),
+        axis.title.x = element_blank(),
+        axis.text.x = element_text(angle=90, vjust = 0.5, hjust = 0.5, size=6))
 
-# Create a CNVclusters variable with cells and matching clones
-CNVclusters <- SA906a_cells$clone
-names(CNVclusters) = SA906a_cells$cell_id
+fig2b
 
-# Order the variants
-alt_frac = alt_frac[order(rowSums(alt_frac,na.rm = T)/ncol(alt_frac)),]
-
-# Informative variants that are heteroplasmic and have high mutant proportions
-informative = c('C:6869:T','C:11724:T','C:1429:T')
-
-# Indicator of whether the cell is already accounted for
-indicator = colnames(alt_frac)
-
-# For each heteroplasmic mtDNA variants, define mtclone
-cloneslist = c()
-for (eachvar in informative){
-  # Filter for the cells of interest and check if it's already taken
-  cellsofinterest = which(alt_frac[which(rownames(alt_frac)==eachvar),] != 0)
-  cellsofinterest = cellsofinterest[which(names(cellsofinterest) %in% indicator)]
-  
-  # Assign the cells into the clone
-  assign(paste0('clone',LETTERS[which(informative==eachvar)]),names(cellsofinterest))
-  
-  # Fix the indicator
-  indicator = indicator[-which(indicator %in% names(cellsofinterest))]
-  
-  if (length(indicator) != 0){
-    # Add the clone name into the cloneslist
-    cloneslist = append(cloneslist,paste0('clone',LETTERS[which(informative==eachvar)]))
-  }
-}
-
-# All of the remaining cells go into an additional mtclone
-restalt_frac = alt_frac[,indicator]
-MTclusters <- data.frame(colnames(restalt_frac),4)
-colnames(MTclusters) <- c('cellID','cluster')
-MTclusters <- data.table(MTclusters)
-MTclusters = MTclusters[which(MTclusters$cellID %in% colnames(restalt_frac)),]
-
-# Place the rest of the cells into a clone
-cellsofinterest = which(colnames(alt_frac) %in% MTclusters$cellID[which(MTclusters$cluster==4)])
-assign(paste0('clone',LETTERS[length(informative)+1]),colnames(alt_frac)[cellsofinterest])
-
-# Add the clone name into the cloneslist
-cloneslist = append(cloneslist,paste0('clone',LETTERS[length(informative)+1]))
-
-## Heatmap using the filtered variants
-for (eachclone in cloneslist){
-  currresultfile <- alt_frac[,get(eachclone)]
-  ha = HeatmapAnnotation(mtDNAclones = rep(as.character(which(cloneslist==eachclone)),length(get(eachclone))),nuDNAclones = CNVclusters[match(colnames(currresultfile),names(CNVclusters))],col = list(nuDNAclones = customcolors$nuDNAclones,mtDNAclones = customcolors$mtDNAclones),annotation_legend_param = list(mtDNAclones = list(nrow = 1),nuDNAclones = list(nrow = 1)),show_annotation_name = FALSE)
-  assign(paste0(gsub('clone','',eachclone),'_plot'),Heatmap(as.matrix(currresultfile),top_annotation = ha,name = 'Heteroplasmy',col = colorRamp2(c(0,0.6),inferno(2)),cluster_columns = T,na_col = 'black',border = T,show_column_names = F,cluster_rows = F,heatmap_legend_param = list(direction = 'horizontal')))
-}
-
-# Plot
-combinedplot = A_plot + B_plot + C_plot + D_plot
-
-draw(combinedplot,ht_gap = unit(0.1,'cm'),annotation_legend_side = 'bottom',heatmap_legend_side = 'bottom')
 
 ```
 
 
 ## 2c
 
-```{r panel_2c,fig.height=4,fig.width=2,eval=T}
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Confusion matrix indicating the clonal assignment
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+```{r panel_2c,fig.height=2,fig.width=4,eval=T}
 
-# Remove cells without any clone labels
-CNVclusters = CNVclusters[-which(CNVclusters == '')]
+summarydata = CL_timepointfile %>% group_by(group,timepoint) %>% mutate(medcopynumber = median(copynumber), sdcopynumber = (sd(copynumber)), secopynumber = (sdcopynumber/sqrt(n())), n = n()) %>% select(group,timepoint,medcopynumber,sdcopynumber,secopynumber,n) %>% distinct()
+colnames(summarydata) = c("group","timepoint","median_copynumber","sd_copynumber","se_copynumber","n")
 
-# Create a data frame for mtDNA-based clone labels
-MTclusters = data.frame(unlist(lapply(cloneslist,function(x) get(x))),unlist(lapply(1:4, function(x) rep(x,unlist(lapply(cloneslist,function(x) length(get(x))))[x]))))
-colnames(MTclusters) = c('cellID','cluster')
+# Fixing the group labels
+summarydata$group[which(summarydata$group == '184hTERT(TP53-/-)(SA1101a)')] = 'TP53-/-(SA1101a)'
+summarydata$group[which(summarydata$group == '184hTERT(TP53-/-)(SA1101b)')] = 'TP53-/-(SA1101b)'
+summarydata$group[which(summarydata$group == '184hTERT(TP53-/-)(SA906a)')] = 'TP53-/-(SA906a)'
+summarydata$group[which(summarydata$group == '184hTERT(TP53-/-)(SA906b)')] = 'TP53-/-(SA906b)'
 
-# Merge the CNV-based and mtDNA-based clones
-compareclusters = data.table(names(CNVclusters),CNVclusters)
-colnames(compareclusters) = c('cellID','CNVcluster')
-compareclusters$MTcluster = MTclusters$cluster[match(compareclusters$cellID,MTclusters$cellID)]
+fig2c <- ggplot(subset(summarydata,group != '184hTERT'),aes(x=timepoint,y=median_copynumber)) + geom_errorbar(aes(ymin=median_copynumber-se_copynumber, ymax=median_copynumber+se_copynumber), width=.2, position=position_dodge(.9)) +
+  geom_line(aes(group=group,col=group),size=0.6) + geom_point(size=0.6) + theme_classic() +
+  xlab("Timepoints") + ylab(label = "mtDNA copy number") +
+  scale_y_continuous(limits = c(0,2500), expand=c(0,0)) +
+  theme(axis.title = element_text(size=9),
+        axis.text = element_text(size=6),
+        axis.text.x = element_text(angle=90, vjust = 0.5, hjust = 0.5, size=6),
+        axis.title.x = element_blank())
 
-# For each mtDNA-based clone, calculate the overlap
-resmatrix = data.frame(t(rep(1,length(unique(compareclusters$CNVcluster)))))
-colnames(resmatrix) = LETTERS[1:length(unique(compareclusters$CNVcluster))]
-for (eachclone in sort(unique(compareclusters$MTcluster))){
-  tempres = table(factor(compareclusters$CNVcluster[which(compareclusters$MTcluster==eachclone)],levels = unique(compareclusters$CNVcluster)))
-  tempres = tempres[order(names(tempres))]
-  resmatrix = rbind(resmatrix,tempres)
-}
-resmatrix = resmatrix[-1,]
+fig2c_legend <- as_ggplot(get_legend(fig2c))
 
-# Sort, log-normalize, and transpose the matrix
-rownames(resmatrix) = sort(unique(compareclusters$MTcluster))
-resmatrix = as.matrix(resmatrix)
-resmatrix = log1p(resmatrix)
-resmatrix = t(resmatrix)
-
-# Plot
-draw(Heatmap(resmatrix,name = 'Concordance\n(log(cell counts+1))',col=viridis(100),cluster_columns = T,na_col = 'black',border = T,show_column_names = T,cluster_rows = T,show_row_names = T,cell_fun = function(j,i,x,y,w,h,col) {grid.text(round(2^resmatrix[i,j]),x,y)}),newpage = T)
+fig2c <- fig2c + theme(legend.position = 'none')
+fig2c
+fig2c_legend
 
 ```
 
 
 ## 2d
 
-```{r panel_2d,fig.height=2,fig.width=1.5,eval=T}
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Phylogenetic tree backbone of mtDNA variants-based clones overlaid with nuDNA copy number-based clonal assignment
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+```{r panel_2d,fig.height=2,fig.width=4,eval=T}
 
-# Plot
-fig2d <- read.tree(text = '(((F,G),(B,C)),(((((E,I),D),(A,J)),H),K));')
-plot(fig2d,edge.width = 2)
+pvals = c()
+for (eachsample in unique(T_timepointfile$group)){
+  filtresultfile = T_timepointfile[which(T_timepointfile$group == eachsample),]
+  pval = kruskal.test(copynumber ~ timepoint, data = filtresultfile)$p.value
+  pvals = append(pvals, pval)
+}
+
+summarydata = T_timepointfile %>% group_by(group,timepoint) %>% mutate(medcopynumber = median(copynumber), sdcopynumber = (sd(copynumber)), secopynumber = (sdcopynumber/sqrt(n())), n = n()) %>% select(group,timepoint,medcopynumber,sdcopynumber,secopynumber,n) %>% distinct()
+colnames(summarydata) = c("group","timepoint","median_copynumber","sd_copynumber","se_copynumber","n")
+
+# Fixing the group labels
+summarydata$group[which(summarydata$group == 'untreated TNBC PDX(SA1035)')] = 'TNBC PDX(SA1035)'
+summarydata$group[which(summarydata$group == 'untreated TNBC PDX(SA535)')] = 'TNBC PDX(SA535)'
+summarydata$group[which(summarydata$group == 'untreated TNBC PDX(SA609)')] = 'TNBC PDX(SA609)'
+
+fig2d <- ggplot(summarydata,aes(x=timepoint,y=median_copynumber)) + geom_errorbar(aes(ymin=median_copynumber-se_copynumber, ymax=median_copynumber+se_copynumber), width=.2, position=position_dodge(.9)) +
+  geom_line(aes(group=group,col=group),size=0.6) + geom_point(size=0.6) + theme_classic() +
+  xlab("Timepoints") + ylab(label = "mtDNA copy number") +
+  scale_y_continuous(limits = c(0,1800), expand=c(0,0)) +
+  theme(axis.title = element_text(size=9),
+        axis.text = element_text(size=6),
+        axis.text.x = element_text(angle=90, vjust = 0.5, hjust = 0.5, size=6),
+        axis.title.x = element_blank())
+
+fig2d_legend <- as_ggplot(get_legend(fig2d))
+
+fig2d <- fig2d + theme(legend.position = 'none')
+fig2d
+fig2d_legend
+
+
+```
+
+
+## 2e
+
+```{r panel_2e,fig.height=2,fig.width=2,eval=T}
+
+filtmicron_resultfile = micron_resultfile[which(micron_resultfile$library_id == 'SA906-A96155B'),]
+
+fig2e <- ggplot(subset(filtmicron_resultfile, ploidylab == 2), aes(x=diameter, y=copynumber)) + stat_density2d(aes(fill = ..density..^0.25), geom = "tile", contour = FALSE, n = 400) +
+  geom_point(size=0.8, alpha = 0.3, shape = 16) + stat_cor(size = 4) + scale_fill_continuous(low = "white", high = "dodgerblue4") + geom_smooth(method = lm, size = 0.5, col= 'red', linetype = "dashed") + theme_classic() +
+  xlab('Cell diameter (in microns)') + ylab('mtDNA copy number') + ggtitle('SA906-A96155B') +
+  theme(axis.text = element_text(size=10),
+        axis.title = element_text(size=10),
+        title = element_text(size=8),
+        legend.position = 'none')
+
+fig2e
 
 ```
 
@@ -474,50 +698,92 @@ plot(fig2d,edge.width = 2)
 
 ***
 
-# Fig. 3
+# Figure 3
 
-```{r setup,include = FALSE,echo = FALSE}
+```{r eval=T, echo=F}
 
-# Import the master files for both treated and untreated SA535 PDX model
-SA535PDX_un <- read.table('../data/masterfiles/SA535PDX_untreated_master.tsv',header=T,row.names = 1,sep='\t',quote='',stringsAsFactors=F)
-SA535PDX_t <- read.table('../data/masterfiles/SA535PDX_treated_master.tsv',header=T,row.names = 1,sep='\t',quote='',stringsAsFactors=F)
+# Import the master result file across all cells
+resultfile = read.csv(paste0('../data/processed_data/final_master.tsv'), header=T, sep='\t', stringsAsFactors=F)
 
-# Import the master files for both treated and untreated SA609 PDX model
-SA609PDX_un <- read.table('../data/masterfiles/SA609PDX_untreated_master.tsv',header=T,row.names = 1,sep='\t',quote='',stringsAsFactors=F)
-SA609PDX_t <- read.table('../data/masterfiles/SA609PDX_treated_master.tsv',header=T,row.names = 1,sep='\t',quote='',stringsAsFactors=F)
+# Load clone label file
+clonelabels <- read.table(paste0('../data/processed_data/clonelabels.tsv'), header=T, sep='\t', stringsAsFactors=F)
 
-# Import the master files for both treated and untreated SA1035 PDX model
-SA1035PDX_un <- read.table('../data/masterfiles/SA1035PDX_untreated_master.tsv',header=T,row.names = 1,sep='\t',quote='',stringsAsFactors=F)
-SA1035PDX_t <- read.table('../data/masterfiles/SA1035PDX_treated_master.tsv',header=T,row.names = 1,sep='\t',quote='',stringsAsFactors=F)
+## Load SA906a file
+SA906a_CNbins <- read.table(paste0('../data/processed_data/SA906a_CNbins.tsv'), header=T, sep='\t', stringsAsFactors=F)
+SA906a_clonelabels <- clonelabels[which(clonelabels$sample_id == 'SA906a'),]
+SA906a_allclones <- c("2N D","4N D","2N C","4N C","2N G","4N G","2N A","4N A")
 
-# Import the processed genotype lists for cisplatin treated samples
-cisplatin_geno = read.table('../data/processed_data/treatment_vars.txt',header=T,sep='\t')
+## Load OV-081 file
+OV081_CNbins <- read.table(paste0('../data/processed_data/OV081_CNbins.tsv'), header=T, sep='\t', stringsAsFactors=F)
+OV081_clonelabels <- clonelabels[which(clonelabels$sample_id == 'OV-081'),]
+OV081_allclones <- c("2N C","4N C","2N B","2N A")
 
 ```
 
 
 ## 3a
 
-```{r panel_3a,fig.height=2,fig.width=4,eval=T}
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Variants that are newly/no longer observed after cisplatin treatment
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+```{r panel_3a,fig.height=2,fig.width=3,eval=T}
 
-# Calculate the median heteroplasmy for each library, variant, and treatment status
-cisplatinvars = cisplatin_geno %>% group_by(libraryid,variant,treatment) %>% mutate(medhet = median(heteroplasmy)) %>% select(medhet) %>% distinct()
-cisplatinvars$position = as.numeric(apply(data.frame(cisplatinvars$variant),1,function(x) strsplit(x,':')[[1]][2]))
+filtresultfile = resultfile[which(resultfile$ploidylab %in% c(2,4)),]
+filtresultfile$ploidylab = factor(filtresultfile$ploidylab, levels=c(2,4))
+keepthese = filtresultfile %>% group_by(library_id) %>% distinct(library_id,ploidylab) %>% mutate(n=n()) %>% filter(n == 2) %>% distinct(library_id)
+filtresultfile = filtresultfile[which(filtresultfile$library_id %in% keepthese$library_id),]
 
-# Update the labels
-cisplatinvars$treatment[which(cisplatinvars$treatment=='pre-T')] = 'Decreased'
-cisplatinvars$treatment[which(cisplatinvars$treatment=='post-T')] = 'Increased'
-cisplatinvars$treatment = factor(cisplatinvars$treatment,levels=c('Decreased','Increased'))
+ploidyinfo = filtresultfile %>% group_by(library_id,ploidylab) %>% mutate(n = n()) %>% distinct(library_id,n)
 
-# Plot
-fig3a <- ggplot(cisplatinvars,aes(x=position,y=medhet,col=treatment,label=variant)) + geom_point() + geom_segment(aes(x=position,xend=position,y=0,yend=medhet)) + theme_classic() +
-  xlab('Genomic Position') + ylab('Median heteroplasmy') + scale_x_continuous(limits=c(0,17200),expand=c(0,0)) + scale_y_continuous(limits=c(0,0.78),expand=c(0,0)) +
-  scale_color_manual(labels=c('Decreased','Increased'),values=c('black','red')) + guides(color=guide_legend(title='After\nTreatment')) +
-  geom_text_repel() +
-  theme(legend.position = c(0.1,0.8))
+res_summary = filtresultfile %>% group_by(library_id) %>% mutate(medtet=median(copynumber[ploidylab==4]), meddip=median(copynumber[ploidylab==2]), sdtet=sd(copynumber[ploidylab==4]), sddip=sd(copynumber[ploidylab==2]), diffmed=median(copynumber[ploidylab==4])-median(copynumber[ploidylab==2]), diffsd=sd(copynumber[ploidylab==4])-sd(copynumber[ploidylab==2])) %>% distinct(library_id,meddip,medtet,sddip,sdtet,diffmed,diffsd)
+
+# Separate the diploid and tetraploid cells
+diploidinfo = ploidyinfo[which(ploidyinfo$ploidylab == 2),]
+tetraploidinfo = ploidyinfo[which(ploidyinfo$ploidylab == 4),]
+
+# Obtain the sample size
+res_summary$ndip = diploidinfo$n[match(res_summary$library_id,diploidinfo$library_id)]
+res_summary$ntet = tetraploidinfo$n[match(res_summary$library_id,tetraploidinfo$library_id)]
+
+# Filter for libraries with at least 15 cells in both groups
+res_summary = res_summary[which((res_summary$ndip >= 15) & (res_summary$ntet >= 15)),]
+table(res_summary$medtet > res_summary$meddip*2)
+
+# Comparing the MNR
+filtresultfile = filtresultfile[which(filtresultfile$library_id %in% res_summary$library_id),]
+
+signiflibs = c()
+for (eachlib in unique(filtresultfile$library_id)){
+  currlib = filtresultfile[which(filtresultfile$library_id == eachlib),]
+  tetdata = data.frame("4N",currlib$MNR[which(currlib$ploidylab == 4)])
+  colnames(tetdata) = c("ploidy","MNR")
+  dipdata = data.frame("2N",currlib$MNR[which(currlib$ploidylab == 2)])
+  colnames(dipdata) = c("ploidy","MNR")
+  currdata = rbind(tetdata,dipdata)
+  
+  testres <- wilcox.test(currdata$MNR ~ currdata$ploidy)
+  if (testres$p.value < 0.05){
+    signiflibs = append(signiflibs,eachlib)
+  }
+}
+
+filtresultfile = filtresultfile[order(as.numeric(filtresultfile$copynumber), decreasing = T),]
+filtresultfile$cell_id = factor(filtresultfile$cell_id, levels = unique(filtresultfile$cell_id))
+filtresultfile <- filtresultfile[which(filtresultfile$ploidylab %in% c(2,4)),]
+filtresultfile$newploidylab = as.character(filtresultfile$ploidylab)
+filtresultfile$newploidylab[which(filtresultfile$newploidylab == 4)] = "4N"
+filtresultfile$newploidylab[which(filtresultfile$newploidylab == 2)] = "2N"
+filtresultfile$newploidylab = factor(filtresultfile$newploidylab, levels = c("2N","4N"))
+
+my_comparisons <- list(c('2N','4N'))
+
+fig3a <- ggplot(filtresultfile, aes(x=newploidylab, y=log2(copynumber))) + geom_violin(aes(fill=newploidylab)) + geom_boxplot(outlier.size = -1, width=0.2) +
+  scale_fill_manual(name="Ploidy",values=c("#5074AF","#F1AF31")) + theme_classic() + xlab("Ploidy") + scale_x_discrete(expand = c(0.04,0.04)) +
+  scale_y_continuous(expand = c(0,0), limits=c(8,14)) +
+  stat_compare_means(comparisons = my_comparisons, label.y = 12, method = "wilcox.test", size = 4, label = 'p.signif') +
+  ylab(expression('log'[2]~'(mtDNA copy number)')) +
+  theme(axis.title.y = element_text(size=8),
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.key.size = unit(0.4, 'cm'))
 
 fig3a
 
@@ -526,353 +792,411 @@ fig3a
 
 ## 3b
 
-```{r panel_3b,fig.height=2,fig.width=2.5,eval=T}
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Differential heteroplasmy level of 13 variants after cisplatin treatment
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+```{r panel_3b,fig.height=2,fig.width=4,eval=T}
 
-treatmentres = data.frame(t(c(1,1,1,1,1)))
-colnames(treatmentres) = c('variant','cell_id','heteroplasmy','libraryid','treatment')
+## tetraploid comparison
+cell_linefile = resultfile[grep('184hTERT',resultfile$group),]
+cell_linefile = cell_linefile[which(cell_linefile$ploidylab %in% c(2,4)),]
+cell_linefile$ploidylab = factor(cell_linefile$ploidylab, levels=c(2,4))
 
-# Iterate through variants that have been called and genotyped in both pre- and post- treated SA535 PDX sample
-for (eachvar in c('G:822:A','T:2275:C','G:6384:A','G:11004:A','C:16192:T','C:16192:CT')){
-  # Pre-treated SA535 PDX sample
-  alt = as.numeric(apply(data.frame(SA535PDX_un[which(rownames(SA535PDX_un)==eachvar),24:ncol(SA535PDX_un)]),2,function(x) strsplit(x,'/')[[1]][1]))
-  depth = as.numeric(apply(data.frame(SA535PDX_un[which(rownames(SA535PDX_un)==eachvar),24:ncol(SA535PDX_un)]),2,function(x) strsplit(x,'/')[[1]][2]))
-  vaf = alt/depth
-  tempres = data.frame(eachvar,colnames(SA535PDX_un)[24:ncol(SA535PDX_un)][which(vaf != 0)],vaf[which(vaf != 0)],'SA535PDX','pre-T')
-  colnames(tempres) = colnames(treatmentres)
-  treatmentres = rbind(treatmentres,tempres)
-  
-  # Post-treated SA535 PDX sample
-  alt = as.numeric(apply(data.frame(SA535PDX_t[which(rownames(SA535PDX_t)==eachvar),24:ncol(SA535PDX_t)]),2,function(x) strsplit(x,'/')[[1]][1]))
-  depth = as.numeric(apply(data.frame(SA535PDX_t[which(rownames(SA535PDX_t)==eachvar),24:ncol(SA535PDX_t)]),2,function(x) strsplit(x,'/')[[1]][2]))
-  vaf = alt/depth
-  tempres = data.frame(eachvar,colnames(SA535PDX_t)[24:ncol(SA535PDX_t)][which(vaf != 0)],vaf[which(vaf != 0)],'SA535PDX','post-T')
-  colnames(tempres) = colnames(treatmentres)
-  treatmentres = rbind(treatmentres,tempres)
-}
+# Diploid and tetraploid analysis with marginal histogram
+# Count the number of diploid and tetraploid cells
+filtfinalres_n1 = cell_linefile %>% group_by(group, ploidylab) %>% filter(ploidylab == 4) %>% dplyr::mutate(n1 = n()) %>% filter(n1 >= 10) %>% dplyr::select(group,ploidylab,n1) %>% distinct()
+filtfinalres_n2 = cell_linefile %>% group_by(group, ploidylab) %>% filter(ploidylab == 2) %>% dplyr::mutate(n2 = n()) %>% filter(n2 >= 10) %>% dplyr::select(group,ploidylab,n2) %>% distinct()
 
-# Iterate through variants that have been called and genotyped to ensure they are in both pre- and post- treated SA609 PDX sample
-for (eachvar in c('A:9531:AC','G:10197:A')){
-  # Pre-treated SA609 PDX sample
-  alt = as.numeric(apply(data.frame(SA609PDX_un[which(rownames(SA609PDX_un)==eachvar),24:ncol(SA609PDX_un)]),2,function(x) strsplit(x,'/')[[1]][1]))
-  depth = as.numeric(apply(data.frame(SA609PDX_un[which(rownames(SA609PDX_un)==eachvar),24:ncol(SA609PDX_un)]),2,function(x) strsplit(x,'/')[[1]][2]))
-  vaf = alt/depth
-  tempres = data.frame(eachvar,colnames(SA609PDX_un)[24:ncol(SA609PDX_un)][which(vaf != 0)],vaf[which(vaf != 0)],'SA609PDX','pre-T')
-  colnames(tempres) = colnames(treatmentres)
-  treatmentres = rbind(treatmentres,tempres)
-  
-  # Post-treated SA609 PDX sample
-  alt = as.numeric(apply(data.frame(SA609PDX_t[which(rownames(SA609PDX_t)==eachvar),24:ncol(SA609PDX_t)]),2,function(x) strsplit(x,'/')[[1]][1]))
-  depth = as.numeric(apply(data.frame(SA609PDX_t[which(rownames(SA609PDX_t)==eachvar),24:ncol(SA609PDX_t)]),2,function(x) strsplit(x,'/')[[1]][2]))
-  vaf = alt/depth
-  tempres = data.frame(eachvar,colnames(SA609PDX_t)[24:ncol(SA609PDX_t)][which(vaf != 0)],vaf[which(vaf != 0)],'SA609PDX','post-T')
-  colnames(tempres) = colnames(treatmentres)
-  treatmentres = rbind(treatmentres,tempres)
-}
+# Keep those groups that have both diploid and tetraploid cells
+filtfinalres_n1 = filtfinalres_n1[which(filtfinalres_n1$group %in% intersect(filtfinalres_n2$group, filtfinalres_n1$group)),]
+filtfinalres_n2 = filtfinalres_n2[which(filtfinalres_n2$group %in% intersect(filtfinalres_n1$group, filtfinalres_n2$group)),]
 
-# Iterate through variants that have been called and genotyped to ensure they are in both pre- and post- treated SA1035 PDX sample
-for (eachvar in c('G:1263:A','T:2648:C','G:2701:A','C:12417:CA','CA:12417:C')){
-  # Pre-treated SA1035 PDX sample
-  alt = as.numeric(apply(data.frame(SA1035PDX_un[which(rownames(SA1035PDX_un)==eachvar),24:ncol(SA1035PDX_un)]),2,function(x) strsplit(x,'/')[[1]][1]))
-  depth = as.numeric(apply(data.frame(SA1035PDX_un[which(rownames(SA1035PDX_un)==eachvar),24:ncol(SA1035PDX_un)]),2,function(x) strsplit(x,'/')[[1]][2]))
-  vaf = alt/depth
-  tempres = data.frame(eachvar,colnames(SA1035PDX_un)[24:ncol(SA1035PDX_un)][which(vaf != 0)],vaf[which(vaf != 0)],'SA1035PDX','pre-T')
-  colnames(tempres) = colnames(treatmentres)
-  treatmentres = rbind(treatmentres,tempres)
-  
-  # Post-treated SA1035 PDX sample
-  alt = as.numeric(apply(data.frame(SA1035PDX_t[which(rownames(SA1035PDX_t)==eachvar),24:ncol(SA1035PDX_t)]),2,function(x) strsplit(x,'/')[[1]][1]))
-  depth = as.numeric(apply(data.frame(SA1035PDX_t[which(rownames(SA1035PDX_t)==eachvar),24:ncol(SA1035PDX_t)]),2,function(x) strsplit(x,'/')[[1]][2]))
-  vaf = alt/depth
-  tempres = data.frame(eachvar,colnames(SA1035PDX_t)[24:ncol(SA1035PDX_t)][which(vaf != 0)],vaf[which(vaf != 0)],'SA1035PDX','post-T')
-  colnames(tempres) = colnames(treatmentres)
-  treatmentres = rbind(treatmentres,tempres)
-}
-treatmentres = treatmentres[-1,]
+# Concatenating the sample size for diploid and tetraploid cells
+filtfinalres_n = data.frame(intersect(filtfinalres_n2$group, filtfinalres_n1$group))
+filtfinalres_n$n = paste0("n=",filtfinalres_n1$n1,",n=",filtfinalres_n2$n2)
+colnames(filtfinalres_n) = c("group","n")
 
-# Update the labels
-treatmentres$treatment[which(treatmentres$treatment=='pre-T')] = 'Before'
-treatmentres$treatment[which(treatmentres$treatment=='post-T')] = 'After'
+# Reassign the group label to include sample size
+cell_linefile = cell_linefile[which(cell_linefile$group %in% intersect(cell_linefile$group, filtfinalres_n$group)),]
+cell_linefile$group = paste0(cell_linefile$group, "\n", filtfinalres_n$n[match(cell_linefile$group, filtfinalres_n$group)])
 
-# Calculating the difference in median heteroplasmy and p-value
-changeres = treatmentres %>% group_by(variant,libraryid) %>% mutate(diffmedhet = median(heteroplasmy[treatment=='After']) - median(heteroplasmy[treatment=='Before']),p_value = t.test(heteroplasmy[treatment=='After'],heteroplasmy[treatment=='Before'])$p.value) %>% select(libraryid,variant,treatment,diffmedhet,p_value) %>% distinct() 
-changeres$labels = ''
-changeres$labels[which((abs(changeres$diffmedhet) > 0.09) | (-log10(changeres$p_value) > 40))] = changeres$variant[which((abs(changeres$diffmedhet) > 0.09) | (-log10(changeres$p_value) > 40))]
-changeres$trans_p_value = -log10(changeres$p_value)
+cell_lines <- cell_linefile[,c('cell_id','ploidylab','MNR','group')]
+colnames(cell_lines) = c('cell_id','ploidylab','MNR','group')
 
-# Transform the y-axis to account for the large step
-trans <- function(x){pmin(x,25) + 0.05*pmax(x-200,0)}
+cell_lines$group = factor(cell_lines$group, levels = c("184hTERT\nn=350,n=3475",
+                                                       "184hTERT(TP53-/-)(SA906a)\nn=1234,n=3376",
+                                                       "184hTERT(TP53-/-)(SA906b)\nn=833,n=5555",
+                                                       "184hTERT(TP53-/-)(SA1101a)\nn=1012,n=5290",
+                                                       "184hTERT(TP53-/-)(SA1101b)\nn=1071,n=10503",
+                                                       "184hTERT(BRCA2+/-;TP53-/-)(SA1188)\nn=101,n=1876",
+                                                       "184hTERT(BRCA2-/-;TP53-/-)(SA1055)\nn=199,n=264",
+                                                       "184hTERT(BRCA2-/-;TP53-/-)(SA1056)\nn=25,n=549",
+                                                       "184hTERT(BRCA1+/-;TP53-/-)(SA1292)\nn=11,n=446",
+                                                       "184hTERT(BRCA1-/-;TP53-/-)(SA1054)\nn=216,n=131"))
 
-# Plot
-fig3b <- ggplot(changeres,aes(x=diffmedhet,y=trans(trans_p_value),label=labels)) + theme_classic() + geom_vline(xintercept=0,linetype='dashed') + geom_vline(xintercept = c(-0.1,0.1),color='red',alpha=0.3) + geom_hline(yintercept = 2,color='red',alpha=0.3) +
-  scale_x_continuous(limits = c(-0.3,0.5),expand=c(0.01,0.01)) + scale_y_continuous(limits = c(0,40),breaks=trans(c(0,5,10,15,200,300)),labels=c(0,5,10,15,200,300),expand=c(0.01,0.01)) +
-  geom_point(aes(color=libraryid)) + geom_text(hjust=-0.1,vjust=-0.4) + xlab('Difference in median heteroplasmy') +
-  ylab('-log10(p-value)')  + scale_color_manual(labels=c('SA535PDX','SA1035PDX','SA609PDX'),limits=c('SA535PDX','SA1035PDX','SA609PDX'),values=c('#AA2900','#78A66F','#4E5AD2')) +
-  theme(
-    legend.position = 'bottom',
-    legend.title = element_blank()
-        )
+## cell_lines
+fig3b <- ggplot(cell_lines, aes(x=group, y=MNR)) + geom_violin(aes(fill=ploidylab), position = position_dodge(width = 0.6), trim = F, linewidth=0.2) +
+  scale_y_continuous(limits=c(0,1300),expand=c(0,0)) + #stat_compare_means(aes(label = paste0("p = ", after_stat(p.format))), label.y = 1200,size=2) +
+  geom_boxplot(aes(group=interaction(group,ploidylab)), fill="white", position = position_dodge(width = 0.6), width=0.1, linewidth=0.2, outlier.size = -1) + theme_classic() + scale_fill_manual(name="Ploidy",values=c("#5074AF","#F1AF31")) +
+  ylab("MNR")
 
-fig3b
+fig3b <- fig3b + theme(axis.text.y = element_text(size=7),
+                       axis.text.x = element_blank(), # element_text(size=7,angle = 45, vjust=0.5, hjust=0.5),
+                       axis.title = element_text(size=7),
+                       axis.title.x = element_blank(),
+                       legend.position='none',
+                       axis.line = element_line(linewidth=0.4),
+                       axis.ticks = element_line(linewidth=0.4),
+                       strip.background = element_blank())
+
+fig3b_legend <- as_ggplot(get_legend(fig3b))
+
+fig3b <- fig3b + theme(legend.position='none')
+
+comparisonresult <- cell_lines %>% 
+  group_by(group,ploidylab) %>%
+  dplyr::summarise(
+    n=n(), # number of cells
+    median=median(MNR), # median MNR
+    sd=sd(MNR) # standard deviation of MNR
+  ) %>%
+  mutate(se=sd/sqrt(n)) %>% # standard error of MNR calculated by dividing standard deviation of MNR by the sqrt of sample size
+  group_by(group) %>%
+  filter(all(c(2, 4) %in% ploidylab))
+
+diffresult <- comparisonresult %>%
+  dplyr::mutate(diffVal = (median[ploidylab == 4] - median[ploidylab == 2])/median[ploidylab == 2] * 100) %>%
+  dplyr::mutate(sediffVal = abs(median[ploidylab == 4] / median[ploidylab == 2]) * sqrt((se[ploidylab == 4]^2) / (median[ploidylab == 4]^2) + (se[ploidylab == 2]^2) / (median[ploidylab == 2]^2)) * 100) %>%
+  group_by(group) %>%
+  dplyr::mutate(uci = diffVal + 1.65 * sediffVal, lci = diffVal - 1.65 * sediffVal) %>%
+  dplyr::select(c("group","diffVal","sediffVal","uci","lci")) %>%
+  distinct()
+
+diffresult$Type = 'cell_lines'
+diffresult$label = ''
+diffresult$label[which(diffresult$diffVal == max(diffresult$diffVal))] = strsplit(as.character(diffresult$group[which(diffresult$diffVal == max(diffresult$diffVal))]),'\n')[[1]][1]
+side_fig3b <- ggplot(diffresult, aes(x=Type,y=diffVal)) + geom_boxplot(outlier.size = -1) + geom_jitter(size=0.7,width=0.2) +
+  scale_y_continuous(limits = c(-5,40), expand=c(0.01,0.01)) +
+  ylab("% Change") + theme_bw() + geom_hline(yintercept = 0) +
+  theme(axis.text.x = element_blank(),
+        axis.title.y = element_text(size=7),
+        axis.title.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        panel.grid.major.x = element_blank())
+
+## Cell lines
+fig3b_cell_lines <- plot_grid(fig3b, side_fig3b, nrow=1, align = 'h', rel_widths = c(0.82,0.18))
+
+fig3b_cell_lines
+
 
 ```
 
 
 ## 3c
 
-```{r panel_3c,fig.height=1.5,fig.width=2,eval=T}
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Pre- and Post- comparison of the heteroplasmy levels in SA535 PDX model
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+```{r panel_3c,fig.height=2,fig.width=4,eval=T}
 
-# Use only the somatic mutations
-pre_t_alt_frac = SA535PDX_un[which(SA535PDX_un$somaticstatus=='somatic'),24:ncol(SA535PDX_un)]
+## tetraploid comparison
+filtresultfile = resultfile[-which((resultfile$clone_UMAP == 'nonmal') | (resultfile$group == 'GM18507')),]
+filtresultfile = filtresultfile[which(filtresultfile$ploidylab %in% c(2,4)),]
+filtresultfile$ploidylab = factor(filtresultfile$ploidylab, levels=c(2,4))
 
-# Converting to numeric values
-pre_t_alt_frac = apply(pre_t_alt_frac,c(1,2),function(x) eval(parse(text = x)))
+PDXfile = filtresultfile[grep('PDX',filtresultfile$group),]
+untreated = PDXfile[grep('untreated',PDXfile$group),]
+PDXfile = PDXfile[-grep('treated',PDXfile$group),]
+PDXfile = rbind(PDXfile, untreated)
+PDXfile$group = gsub('untreated ','',PDXfile$group)
+PDXfile$group = gsub('PDX','',PDXfile$group)
+PDXfile$group = gsub('TNBC ','',PDXfile$group)
+PDXfile$group = gsub("[()]", "", PDXfile$group)
 
-# Order the variants
-pre_t_alt_frac <- data.frame(t(as.matrix(pre_t_alt_frac['G:822:A',])))
-pre_t_alt_frac = pre_t_alt_frac[order(rowSums(pre_t_alt_frac,na.rm = T)/ncol(pre_t_alt_frac)),]
+# Diploid and tetraploid analysis with marginal histogram
+# Count the number of diploid and tetraploid cells
+filtfinalres_n1 = PDXfile %>% group_by(group, ploidylab) %>% filter(ploidylab == 4) %>% dplyr::mutate(n1 = n()) %>% filter(n1 >= 10) %>% dplyr::select(group,ploidylab,n1) %>% distinct()
+filtfinalres_n2 = PDXfile %>% group_by(group, ploidylab) %>% filter(ploidylab == 2) %>% dplyr::mutate(n2 = n()) %>% filter(n2 >= 10) %>% dplyr::select(group,ploidylab,n2) %>% distinct()
 
-# Use only the somatic mutations
-post_t_alt_frac = SA535PDX_t[which(SA535PDX_t$somaticstatus=='somatic'),24:ncol(SA535PDX_t)]
+# Keep those groups that have both diploid and tetraploid cells
+filtfinalres_n1 = filtfinalres_n1[which(filtfinalres_n1$group %in% intersect(filtfinalres_n2$group, filtfinalres_n1$group)),]
+filtfinalres_n2 = filtfinalres_n2[which(filtfinalres_n2$group %in% intersect(filtfinalres_n1$group, filtfinalres_n2$group)),]
 
-# Converting to numeric values
-post_t_alt_frac = apply(post_t_alt_frac,c(1,2),function(x) eval(parse(text = x)))
+# Concatenating the sample size for diploid and tetraploid cells
+filtfinalres_n = data.frame(intersect(filtfinalres_n2$group, filtfinalres_n1$group))
+filtfinalres_n$n = paste0("n=",filtfinalres_n1$n1,",n=",filtfinalres_n2$n2)
+colnames(filtfinalres_n) = c("group","n")
 
-# Order the variants
-post_t_alt_frac <- data.frame(t(as.matrix(post_t_alt_frac['G:822:A',])))
-post_t_alt_frac = post_t_alt_frac[order(rowSums(post_t_alt_frac,na.rm = T)/ncol(post_t_alt_frac)),]
+# Reassign the group label to include sample size
+PDXfile = PDXfile[which(PDXfile$group %in% intersect(PDXfile$group, filtfinalres_n$group)),]
+PDXfile$group = paste0(PDXfile$group, "\n", filtfinalres_n$n[match(PDXfile$group, filtfinalres_n$group)])
 
-# Calculating the heteroplasmy difference across each clone
-changehet = data.frame(t(c(1,1,1)))
-colnames(changehet) = c('clone','het','treatment')
-for (eachclone in c('A','B','C','D','E','F','G','H','I')){
-  # Untreated SA535 sample
-  pre_t_resfile <- pre_t_alt_frac[,which(colnames(pre_t_alt_frac) %in% gsub('-','.',allcellsfile$cell_id[which((allcellsfile$suplibrary == 'SA535_un') & (allcellsfile$clone == eachclone))]))]
-  tempres = data.frame(eachclone,as.numeric(pre_t_resfile),'Untreated')
-  colnames(tempres) = colnames(changehet)
-  changehet = rbind(changehet,tempres)
-  
-  # Treated SA535 sample
-  post_t_resfile <- post_t_alt_frac[,which(colnames(post_t_alt_frac) %in% gsub('-','.',allcellsfile$cell_id[which((allcellsfile$suplibrary == 'SA535_t') & (allcellsfile$clone == eachclone))]))]
-  tempres = data.frame(eachclone,as.numeric(post_t_resfile),'Treated')
-  colnames(tempres) = colnames(changehet)
-  changehet = rbind(changehet,tempres)
-}
-changehet = changehet[-1,]
+PDXes <- PDXfile[,c('cell_id','ploidylab','MNR','group')]
+colnames(PDXes) = c('cell_id','ploidylab','MNR','group')
 
-# Filter for clones that have sufficient number of cells
-changehet.m = reshape2::melt(changehet)
-changehet.m$treatment = factor(changehet.m$treatment,levels=c('Untreated','Treated'))
-changehet.m = changehet.m %>% group_by(clone,treatment) %>% mutate(n=n()) %>% filter(n>10)
+primary <- filtresultfile[grep('primary',filtresultfile$group),]
 
-# Change the labels to account for the number of cells within treated and untreated samples
-clones = changehet.m %>% group_by(clone,treatment) %>% select(clone,treatment,n) %>% distinct()
-clones = clones %>% group_by(clone) %>% mutate(newn=paste0('n=',n[treatment=='Untreated'],'\nn=',n[treatment=='Treated']))
-clones$labels = paste0(clones$clone,'\n',clones$newn)
-changehet.m = changehet.m[-which(changehet.m$clone %in% names(which(table(clones$clone)==1))),]
-changehet.m$clone = clones$labels[match(changehet.m$clone,clones$clone)]
+# Diploid and tetraploid analysis with marginal histogram
+# Count the number of diploid and tetraploid cells
+filtfinalres_n1 = primary %>% group_by(group, ploidylab) %>% filter(ploidylab == 4) %>% dplyr::mutate(n1 = n()) %>% filter(n1 >= 10) %>% dplyr::select(group,ploidylab,n1) %>% distinct()
+filtfinalres_n2 = primary %>% group_by(group, ploidylab) %>% filter(ploidylab == 2) %>% dplyr::mutate(n2 = n()) %>% filter(n2 >= 10) %>% dplyr::select(group,ploidylab,n2) %>% distinct()
 
-# Plot
-fig3c <- ggplot(changehet.m,aes(x=clone,y=value,fill=treatment)) + geom_boxplot(position=position_dodge(0.75),width=0.5) +
-  stat_compare_means(aes(group=treatment),label = 'p.signif',label.y = c(1.02,1.02,1.02,1.02,1.02)) + theme_classic() +
-  scale_y_continuous(limits = c(0,1.1),breaks=c(0,0.2,0.4,0.6,0.8,1),expand=c(0,0)) + ylab('Heteroplasmy') +
-  scale_fill_manual(values = c('Untreated'='#7A4644','Treated'='#89C4B5'),name = 'Treatment\nStatus') +
-  theme(axis.line=element_line(colour = 'black',linetype=1),
-        panel.grid.major.y=element_line(linetype=1),
-        axis.title.x=element_blank(),
-        legend.title = element_blank(),
-        legend.position = 'bottom'
-        )
+# Keep those groups that have both diploid and tetraploid cells
+filtfinalres_n1 = filtfinalres_n1[which(filtfinalres_n1$group %in% intersect(filtfinalres_n2$group, filtfinalres_n1$group)),]
+filtfinalres_n2 = filtfinalres_n2[which(filtfinalres_n2$group %in% intersect(filtfinalres_n1$group, filtfinalres_n2$group)),]
 
-fig3c
+# Concatenating the sample size for diploid and tetraploid cells
+filtfinalres_n = data.frame(intersect(filtfinalres_n2$group, filtfinalres_n1$group))
+filtfinalres_n$n = paste0("n=",filtfinalres_n1$n1,",n=",filtfinalres_n2$n2)
+colnames(filtfinalres_n) = c("group","n")
+
+# Reassign the group label to include sample size
+primary = primary[which(primary$group %in% intersect(primary$group, filtfinalres_n$group)),]
+primary$group = paste0(primary$group, "\n", filtfinalres_n$n[match(primary$group, filtfinalres_n$group)])
+
+primary <- primary[,c('cell_id','ploidylab','MNR','group')]
+finalfile = rbind(PDXes,primary)
+
+finalfile$group = factor(finalfile$group,levels = c("SA1035\nn=178,n=3040",
+                                                    "TNBC primary(SA1135)\nn=76,n=73",
+                                                    "SA1142\nn=33,n=2475",
+                                                    "SA501\nn=121,n=2264",
+                                                    "SA535\nn=41,n=1861",
+                                                    "SA609\nn=55,n=4689",
+                                                    "HGSC primary(OV-022)\nn=109,n=1382",
+                                                    "HGSC primary(OV-081)\nn=456,n=274"))
+
+## PDX and primary
+fig3c <- ggplot(finalfile, aes(x=group, y=MNR)) + geom_violin(aes(fill=ploidylab), position = position_dodge(width = 0.6), trim = F, linewidth=0.2) +
+  scale_y_continuous(limits=c(0,1300),expand=c(0,0)) + #stat_compare_means(aes(label = paste0("p = ", after_stat(p.format))), label.y = 1200,size=2) +
+  geom_boxplot(aes(group=interaction(group,ploidylab)), fill="white", position = position_dodge(width = 0.6), width=0.1, linewidth=0.2, outlier.size = -1) +
+  theme_classic() + scale_fill_manual(name="Ploidy",values=c("#5074AF","#F1AF31")) + ylab("MNR")
+
+fig3c <- fig3c + theme(axis.text.y = element_text(size=7),
+                       axis.text.x = element_blank(), # element_text(size=7,angle = 45, vjust=0.5, hjust=0.5),
+                       axis.title = element_text(size=7),
+                       axis.title.x = element_blank(),
+                       legend.title=element_text(size=3.5),
+                       legend.text=element_text(size=3.5),
+                       legend.key.size = unit(0.3, 'cm'), #change legend key size
+                       legend.key.height = unit(0.3, 'cm'), #change legend key height
+                       legend.key.width = unit(0.3, 'cm'), #change legend key width
+                       axis.line = element_line(size=0.4),
+                       axis.ticks = element_line(size=0.4),
+                       strip.background = element_blank())
+
+fig3c_legend <- as_ggplot(get_legend(fig3c))
+
+fig3c <- fig3c + theme(legend.position='none')
+
+comparisonresult <- finalfile %>% 
+  group_by(group,ploidylab) %>%
+  dplyr::summarise(
+    n=n(), # number of cells
+    median=median(MNR), # median MNR
+    sd=sd(MNR) # standard deviation of MNR
+  ) %>%
+  mutate(se=sd/sqrt(n)) %>% # standard error of MNR calculated by dividing standard deviation of MNR by the sqrt of sample size
+  group_by(group) %>%
+  filter(all(c(2, 4) %in% ploidylab))
+
+diffresult <- comparisonresult %>%
+  dplyr::mutate(diffVal = (median[ploidylab == 4] - median[ploidylab == 2])/median[ploidylab == 2] * 100) %>%
+  dplyr::mutate(sediffVal = abs(median[ploidylab == 4] / median[ploidylab == 2]) * sqrt((se[ploidylab == 4]^2) / (median[ploidylab == 4]^2) + (se[ploidylab == 2]^2) / (median[ploidylab == 2]^2)) * 100) %>%
+  group_by(group) %>%
+  dplyr::mutate(uci = diffVal + 1.65 * sediffVal, lci = diffVal - 1.65 * sediffVal) %>%
+  dplyr::select(c("group","diffVal","sediffVal","uci","lci")) %>%
+  distinct()
+
+diffresult$Type = 'tumor'
+diffresult$label = ''
+diffresult$label[which(diffresult$diffVal == max(diffresult$diffVal))] = strsplit(as.character(diffresult$group[which(diffresult$diffVal == max(diffresult$diffVal))]),'\n')[[1]][1]
+side_fig3c <- ggplot(diffresult, aes(x=Type,y=diffVal)) + geom_boxplot(outlier.size = -1) + geom_jitter(size=0.7,width=0.2) +
+  scale_y_continuous(limits = c(-5,18), expand=c(0.01,0.01)) +
+  ylab("% Change") + theme_bw() + geom_hline(yintercept = 0) +
+  theme(axis.title.y = element_text(size=7),
+        axis.title.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        panel.grid.major.x = element_blank())
+
+## PDX and primary
+fig3c_tumor <- plot_grid(fig3c, side_fig3c, nrow=1, align = 'h', rel_widths = c(0.78,0.22))
+fig3c_tumor
 
 
 ```
 
 
+## 3d
+
+```{r panel_3d,fig.height=5,fig.width=4,eval=T}
+
+## Iterate through the clones and plot the nuDNA copy number profiles
+clonefigslist = c()
+for (eachclone in SA906a_allclones){
+  figlab <- ggdraw() + draw_label(paste0('n=',SA906a_clonelabels$Freq[which(SA906a_clonelabels$Var1 == eachclone)]), size=12, x = 0.95, angle = 90, vjust = -0.1, hjust = 0) + theme(plot.margin = margin(0, 0, 0, 0))
+  fig <- plotCNprofile(CNbins = SA906a_CNbins[which(SA906a_CNbins$cell_id == eachclone),], legend.position = "none", pointsize = 0.6) +
+    theme(axis.text = element_text(size=10), axis.title = element_blank())
+  assign(paste0('fig',eachclone), plot_grid(fig, figlab, rel_widths = c(1,0.03)))
+  clonefigslist = append(clonefigslist,paste0('fig',eachclone))
+}
+
+fig3d <- plot_grid(plotlist=mget(rev(clonefigslist)), nrow = length(SA906a_allclones))
+fig3d
+
+```
+
+## 3e
+
+```{r panel_3e,fig.height=2.5,fig.width=2,eval=T}
+
+## MNR plot and nuDNA plot across tetraploid and diploid for SA906a
+SA906a_mtDNAcopynumber = resultfile[which(resultfile$group == "184hTERT(TP53-/-)(SA906a)"),]
+SA906a_mtDNAcopynumber$clone_id = paste0(SA906a_mtDNAcopynumber$ploidylab,'N ',SA906a_mtDNAcopynumber$clone_UMAP)
+SA906a_mtDNAcopynumber = SA906a_mtDNAcopynumber[which(SA906a_mtDNAcopynumber$clone_id %in% SA906a_allclones),]
+SA906a_mtDNAcopynumber$clone_id = factor(SA906a_mtDNAcopynumber$clone_id,levels = SA906a_allclones)
+
+log2FC = c()
+for (eachclone in c('A','C','D','G')){
+  log2FC = append(log2FC,
+                  round(log2(median(SA906a_mtDNAcopynumber$MNR[which(SA906a_mtDNAcopynumber$clone_id == paste0('4N ',eachclone))])/
+                               median(SA906a_mtDNAcopynumber$MNR[which(SA906a_mtDNAcopynumber$clone_id == paste0('2N ',eachclone))])), digits = 4))
+}
+log2FC_2N_AD = round(log2(median(SA906a_mtDNAcopynumber$MNR[which(SA906a_mtDNAcopynumber$clone_id == '2N A')])/
+                      median(SA906a_mtDNAcopynumber$MNR[which(SA906a_mtDNAcopynumber$clone_id == '2N D')])),digits = 2)
+
+my_comparisons <- list(c("2N A","2N D"),c("2N A","4N A"),c("2N C","4N C"),c("2N D","4N D"),c("2N G","4N G"))
+
+# Plot the mtDNA copy number
+fig3e = ggplot(SA906a_mtDNAcopynumber, aes(x=clone_id, y=MNR, fill = clone_id)) + geom_violin(width = 0.8, trim=FALSE) +
+  geom_boxplot(fill="white", width=0.08, outlier.size=-1) + theme_classic() +
+  stat_compare_means(aes(label = after_stat(p.signif)),comparisons = my_comparisons, label.y = c(1100, 970, 970, 970, 970), size = 2, method = 'wilcox.test') +
+  annotate("text", label = paste0("log2(FC)=",log2FC), x = rev(seq(from=1.5,by=2,to=1.5+2*(length(SA906a_allclones)/2-1))), y = rep(1500,length(SA906a_allclones)/2), size = 2) +
+  annotate("text", label = paste0("log2(FC)=",log2FC_2N_AD), x = 4.9, y = 1600, size = 2) +
+  theme(axis.text = element_text(size=8),
+        axis.text.y = element_blank(),
+        axis.title = element_blank(),
+        panel.grid.major.y = element_line(colour = "grey",linetype="dashed",size=0.5),
+        legend.position = "none") +
+  scale_y_continuous(expand = c(0,0), limits = c(0,1800)) + xlab(label = "Clones") + ylab(label = "MNR") +
+  coord_flip() +
+  scale_fill_manual(values = c("4N A" = "#7A4644", "2N A" = "#7A4644",
+                               "4N C" = "#A56937", "2N C" = "#A56937",
+                               "4N D" = "#843D8D", "2N D" = "#843D8D",
+                               "4N G" = "#859071", "2N G" = "#859071"))
+
+fig3e
+
+
+```
+
+
+## 3f
+
+```{r panel_3f,fig.height=5,fig.width=4,eval=T}
+
+## MNR plot and nuDNA plot across tetraploid and diploid for OV-081
+## Iterate through the clones and plot the nuDNA copy number profiles
+clonefigslist = c()
+for (eachclone in OV081_allclones){
+  figlab <- ggdraw() + draw_label(paste0('n=',OV081_clonelabels$Freq[which(OV081_clonelabels$Var1 == eachclone)]), size=12, x = 0.95, angle = 90, vjust = -0.1, hjust = 0) + theme(plot.margin = margin(0, 0, 0, 0))
+  fig <- plotCNprofile(CNbins = OV081_CNbins[which(OV081_CNbins$cell_id == eachclone),], legend.position = "none", pointsize = 0.6) +
+    theme(axis.text = element_text(size=10), axis.title = element_blank())
+  assign(paste0('fig',eachclone), plot_grid(fig, figlab, rel_widths = c(1,0.03)))
+  clonefigslist = append(clonefigslist,paste0('fig',eachclone))
+}
+
+fig3f <- plot_grid(plotlist=mget(rev(clonefigslist)), nrow = length(OV081_allclones))
+fig3f
+
+
+```
+
+## 3g
+
+```{r panel_3g,fig.height=2,fig.width=3,eval=T}
+
+# Plot the mtDNA copy number
+## MNR plot and nuDNA plot across tetraploid and diploid for OV-081
+OV081_mtDNAcopynumber = resultfile[which(resultfile$group == "HGSC primary(OV-081)"),]
+OV081_mtDNAcopynumber$clone_id = paste0(OV081_mtDNAcopynumber$ploidylab,'N ',OV081_mtDNAcopynumber$clone_UMAP)
+OV081_mtDNAcopynumber = OV081_mtDNAcopynumber[which(OV081_mtDNAcopynumber$clone_id %in% OV081_allclones),]
+OV081_mtDNAcopynumber$clone_id = factor(OV081_mtDNAcopynumber$clone_id,levels = OV081_allclones)
+
+log2FC = round(log2(median(OV081_mtDNAcopynumber$MNR[which(OV081_mtDNAcopynumber$clone_id == '4N C')])/
+                               median(OV081_mtDNAcopynumber$MNR[which(OV081_mtDNAcopynumber$clone_id == '2N C')])), digits = 4)
+
+log2FC_AC = round(log2(median(OV081_mtDNAcopynumber$MNR[which(OV081_mtDNAcopynumber$clone_id == '2N C')])/
+                               median(OV081_mtDNAcopynumber$MNR[which(OV081_mtDNAcopynumber$clone_id == '2N A')])), digits = 4)
+
+my_comparisons <- list(c("2N A","2N C"),c("2N C","4N C"))
+
+# Plot the mtDNA copy number
+mtDNAfig = ggplot(OV081_mtDNAcopynumber, aes(x=clone_id, y=MNR, fill = clone_id)) + geom_violin(width = 0.8, trim=FALSE) +
+  geom_boxplot(fill="white", width=0.08, outlier.size=-1) + theme_classic() +
+  stat_compare_means(aes(label = after_stat(p.signif)),comparisons = my_comparisons, label.y = c(1100, 970), size = 2, method = 'wilcox.test') +
+  annotate("text", label = paste0("log2(FC)=",log2FC), x = 1.5, y = 1500, size = 2) +
+  annotate("text", label = paste0("log2(FC)=",log2FC_AC), x = 2.5, y = 1500, size = 2) +
+  theme(axis.text = element_text(size=8),
+        axis.text.y = element_blank(),
+        axis.title = element_blank(),
+        panel.grid.major.y = element_line(colour = "grey",linetype="dashed",size=0.5),
+        legend.position = "none") +
+  scale_y_continuous(expand = c(0,0), limits = c(0,1800)) + xlab(label = "Clones") + ylab(label = "MNR") +
+  coord_flip() +
+  scale_fill_manual(values = c("2N A" = "#7A4644", "2N B" = "#89C4B5",
+                               "4N C" = "#C9B2D4", "2N C" = "#C9B2D4"))
+
+mtDNAfig
+
+
+```
 
 
 ***
 
-# Fig. 4
+# Figure 4
 
-## 4a
 
-```{r panel_4a,fig.height=3,fig.width=2,eval=T}
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Median Pearson correlation coefficient for cell diameter across libraries
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+```{r eval=T, echo=F}
 
-# cell size ~ mtDNA ploidy (without lymphoblastoid and 184hTERT)
-filtcells = allcellsfile[-which(allcellsfile$group %in% c('184hTERT','GM18507')),]
-micron_filtcells = filtcells[which(filtcells$spotter=='rachael'),] # Sort by rachael spotter
-pixel_filtcells = filtcells[which(filtcells$spotter=='deckard'),] # Sort by deckard spotter
+OV022_scRNA <- read.table(paste0('../data/processed_data/OV022_scRNA.tsv'), header=T, sep='\t', stringsAsFactors=F)
+OV081_scRNA <- read.table(paste0('../data/processed_data/OV081_scRNA.tsv'), header=T, sep='\t', stringsAsFactors=F)
 
-# Collect total cell count information
-totcells = c()
-
-# Bonferroni correction
-newalpha = 0.05/length(c(unique(micron_filtcells$library),unique(pixel_filtcells$library)))
-
-# Collect coefficients and p-values from all libraries
-siggroups = data.frame(t(c(1,1,1,1,1,1,1)))
-colnames(siggroups) = c('library_id','numbcell','group','coefficient','lowerconfint','upperconfint','pval')
-
-# Iterate through libraries with micron measurements
-for (eachlib in unique(micron_filtcells$library)){
-  filtmicron_result <- micron_filtcells[which((micron_filtcells$library==eachlib) & (micron_filtcells$ploidylab==2)),]
-  if (nrow(filtmicron_result) >= 10){
-    totcells = append(totcells,nrow(filtmicron_result))
-    testres = cor.test(filtmicron_result$diameter,filtmicron_result$copynumber,method = 'pearson')
-    tempres = data.frame(eachlib,nrow(filtmicron_result),unique(micron_filtcells$group[which(micron_filtcells$library==eachlib)]),testres$estimate,testres$conf.int[1],testres$conf.int[2],testres$p.value)
-    colnames(tempres) = colnames(siggroups)
-    siggroups = rbind(siggroups,tempres)
-  }
-}
-
-# Iterate through libraries with pixel measurements
-for (eachlib in unique(pixel_filtcells$library)){
-  filtpixel_result <- pixel_filtcells[which((pixel_filtcells$library==eachlib) & (pixel_filtcells$ploidylab==2)),]
-  if (nrow(filtpixel_result) >= 10){
-    totcells = append(totcells,nrow(filtmicron_result))
-    testres = cor.test(filtpixel_result$diameter,filtpixel_result$copynumber,method = 'pearson')
-    tempres = data.frame(eachlib,nrow(filtpixel_result),unique(pixel_filtcells$group[which(pixel_filtcells$library==eachlib)]),testres$estimate,testres$conf.int[1],testres$conf.int[2],testres$p.value)
-    colnames(tempres) = colnames(siggroups)
-    siggroups = rbind(siggroups,tempres)
-  }
-}
-siggroups = siggroups[-1,]
-
-# Order the groups by decreasing coefficient
-df = reshape2::melt(siggroups[order(siggroups$coefficient,decreasing=T),c(1,2,4)])
-
-# Indicate the significance with Bonferroni correction
-siggroups$signif = siggroups$pval < newalpha
-
-# Update the labels
-siggroups$status = apply(data.frame(siggroups$group),1,function(x) strsplit(x,'SA')[[1]][1])
-siggroups$library_id = apply(data.frame(siggroups$library_id),1,function(x)strsplit(x,'-')[[1]][2])
-ordering = siggroups %>% group_by(group) %>% mutate(medcoeff = median(coefficient)) %>% select(group,medcoeff) %>% distinct()
-
-# Iterating through the reordered groups and determining the order of the libraries within each group
-reorderedgroups = data.frame(t(rep(1,length(colnames(siggroups)))))
-colnames(reorderedgroups) = colnames(siggroups)
-for (eachgroup in ordering$group[order(ordering$medcoeff,decreasing = F)]){
-  currgroup = siggroups[which(siggroups$group==eachgroup),]
-  currgroup = currgroup[order(currgroup$coefficient,decreasing = F),]
-  reorderedgroups = rbind(reorderedgroups,currgroup)
-}
-reorderedgroups = reorderedgroups[-1,]
-
-# Setting the levels
-reorderedgroups$library_id = factor(reorderedgroups$library_id,level = unique(reorderedgroups$library_id))
-
-# Plot
-fig4a <- ggplot(reorderedgroups,aes(x=library_id,y=coefficient,ymin=lowerconfint,ymax=upperconfint,color=group)) +
-  ylab('Coefficient') +
-  geom_hline(yintercept = 0,lty='dashed') +
-  geom_pointrange() +
-  scale_color_manual(values = customcolors$samples) +
-  theme_bw() +
-  geom_errorbar(width=0.4) +
-  coord_flip() +
-  theme(axis.title.y = element_blank(),
-        axis.text.y = element_text(size=10),
-        axis.text.x = element_text(size=10),
-        axis.title.x = element_text(size=10),
-        axis.line = element_line(size = 0.5,colour = 'black'),
-        panel.grid.minor = element_blank(),
-        legend.position = 'none',
-        panel.border = element_blank())
-
-fig4a
+tumor_fgseafile = read.csv(paste0('../data/processed_data/tumor_fgseacombined.tsv'), header=T, sep='\t', stringsAsFactors=F)
 
 ```
 
 
+## 4a
+
+```{r panel_4a,fig.height=3,fig.width=4,eval=T}
+
+## Plot UMAP
+fig4a <- ggplot(OV022_scRNA, aes(x=UMAP_1,y=UMAP_2,color=clonealign_id)) + geom_point(size=0.5) + 
+  scale_color_manual(values=customcolors$clones) +scale_x_continuous(limits= c(-6,-2)) + scale_y_continuous(limits= c(1,4)) + theme_minimal() +
+  theme(axis.text = element_blank(),
+        axis.title = element_blank(),
+        panel.grid = element_blank(),
+        plot.title = element_text(size = 14),
+        legend.key.size = unit(1, 'cm'),
+        legend.text = element_text(size=8),
+        legend.title = element_blank())
+fig4a
+
+```
+
 ## 4b
 
-```{r panel_4b,fig.height=2,fig.width=2,eval=T}
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Distribution of per-cell mtDNA copy number, colored by nuDNA ploidy
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+```{r panel_4b,fig.height=3,fig.width=4,eval=T}
 
-# Comparing the mtDNA copy number across ploidy
-di_tetra_pair = allcellsfile[which(allcellsfile$ploidylab %in% c(2,4)),]
-di_tetra_pair$ploidylab = factor(di_tetra_pair$ploidylab,levels=c(2,4))
+## Import final master file
+filtresultfile = resultfile[which(resultfile$group == "HGSC primary(OV-022)"),]
+filtresultfile = filtresultfile[-which(is.na(filtresultfile$treealign_id)),]
+filtresultfile = filtresultfile[which(filtresultfile$treealign_id %in% levels(Idents(Ovarian.cancer))),]
 
-# Keep only the libraries that have both diploid and tetraploid cells
-keepthesepairs = di_tetra_pair %>% group_by(library) %>% distinct(library,ploidylab) %>% mutate(n=n()) %>% filter(n==2) %>% distinct(library)
-di_tetra_pair = di_tetra_pair[which(di_tetra_pair$library %in% keepthesepairs$library),]
-
-# Calculate the number of cells for each diploid and tetraploid
-ploidyinfo = di_tetra_pair %>% group_by(library,ploidylab) %>% mutate(n = n()) %>% distinct(library,n)
-
-# Calculate the relevant metrics
-res_summary = di_tetra_pair %>% group_by(library) %>% mutate(medtet=median(copynumber[ploidylab==4]),meddip=median(copynumber[ploidylab==2]),sdtet=sd(copynumber[ploidylab==4]),sddip=sd(copynumber[ploidylab==2]),diffmed=median(copynumber[ploidylab==4])-median(copynumber[ploidylab==2]),diffsd=sd(copynumber[ploidylab==4])-sd(copynumber[ploidylab==2])) %>% distinct(library,meddip,medtet,sddip,sdtet,diffmed,diffsd)
-
-# Separate the diploid and tetraploid cells
-diploidinfo = ploidyinfo[which(ploidyinfo$ploidylab==2),]
-tetraploidinfo = ploidyinfo[which(ploidyinfo$ploidylab==4),]
-
-# Obtain the sample size
-res_summary$ndip = diploidinfo$n[match(res_summary$library,diploidinfo$library)]
-res_summary$ntet = tetraploidinfo$n[match(res_summary$library,tetraploidinfo$library)]
-
-# Filter for libraries with at least 15 cells in both groups
-res_summary = res_summary[which((res_summary$ndip >= 15) & (res_summary$ntet >= 15)),]
-table(res_summary$medtet > res_summary$meddip*2)
-
-# Comparing the MNR
-di_tetra_pair$MNR = di_tetra_pair$copynumber/di_tetra_pair$ploidy
-di_tetra_pair = di_tetra_pair[which(di_tetra_pair$library %in% res_summary$library),]
-
-# Iterated through diploid and tetraploid libraries to perform a Wilcoxon test for each pair
-signiflibs = c()
-for (eachlib in unique(di_tetra_pair$library)){
-  currlib = di_tetra_pair[which(di_tetra_pair$library==eachlib),]
-  tetdata = data.frame('4N',currlib$MNR[which(currlib$ploidylab==4)])
-  colnames(tetdata) = c('ploidy','MNR')
-  dipdata = data.frame('2N',currlib$MNR[which(currlib$ploidylab==2)])
-  colnames(dipdata) = c('ploidy','MNR')
-  currdata = rbind(tetdata,dipdata)
-  
-  test <- wilcox.test(currdata$MNR ~ currdata$ploidy)
-  if (test$p.value < 0.05){
-    signiflibs = append(signiflibs,eachlib)
-  }
-}
-
-# Label the diploid cells as 2N and tetraploid cells as 4N
-di_tetra_pair <- di_tetra_pair[order(as.numeric(di_tetra_pair$copynumber),decreasing = T),]
-di_tetra_pair$cell_id <- factor(di_tetra_pair$cell_id,levels = unique(di_tetra_pair$cell_id))
-di_tetra_pair <- di_tetra_pair[which(di_tetra_pair$ploidylab %in% c(2,4)),]
-di_tetra_pair$newploidylab <- as.character(di_tetra_pair$ploidylab)
-di_tetra_pair$newploidylab[which(di_tetra_pair$newploidylab==4)] <- '4N'
-di_tetra_pair$newploidylab[which(di_tetra_pair$newploidylab==2)] <- '2N'
-di_tetra_pair$newploidylab <- factor(di_tetra_pair$newploidylab,levels = c('2N','4N'))
-
-# Plot
-fig4b <- ggplot(di_tetra_pair,aes(x=cell_id,y=copynumber,color=newploidylab)) + geom_point(alpha=0.8) +
-  scale_color_manual(values=c('black','red')) + theme_classic() + xlab('Cells') +
-  ylab('mtDNA copy number') + guides(col=guide_legend('Ploidy',override.aes=list(size=3)))
-
-fig4b <- fig4b + theme(axis.text = element_text(size=10),
-                     axis.title.x = element_text(size=10),
-                     axis.ticks.x = element_blank(),
-                     axis.title.y = element_text(size=10),
-                     axis.text.x = element_blank(),
-                     legend.title=element_text(size=10),
-                     legend.text=element_text(size=10),
-                     legend.key.size = unit(0.7,'cm'),
-                     legend.position=c(0.75,0.7)
-)
-
+fig4b <- ggplot(filtresultfile, aes(x=reorder(treealign_id,-MNR),y=MNR)) + geom_violin(aes(fill=treealign_id),trim = F) + geom_boxplot(width=0.2,outlier.size = -1) + theme_classic() +
+  scale_y_continuous(limits = c(0,1600),expand = c(0,0)) + scale_fill_manual(values=customcolors$clones) +
+  theme(axis.text = element_text(size=8),
+        axis.title.x = element_blank(),
+        axis.title.y = element_text(size=8),
+        legend.title = element_blank(),
+        legend.position = 'none')
 fig4b
 
 ```
@@ -880,34 +1204,18 @@ fig4b
 
 ## 4c
 
-```{r panel_4c,fig.height=2,fig.width=2,eval=T}
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Violin plot of MNR in diploid and tetraploid cells of SA039-A73044B library
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+```{r panel_4c,fig.height=3,fig.width=4,eval=T}
 
-# Filter for cells with appropriate ploidy information and calculate the MNR
-dip_tetra_cells = allcellsfile[-which((is.na(allcellsfile$ploidylab)) | (allcellsfile$ploidylab==1)),]
-dip_tetra_cells$MNR = dip_tetra_cells$copynumber/dip_tetra_cells$ploidy
-dip_tetra_cells = dip_tetra_cells[order(as.numeric(dip_tetra_cells$copynumber),decreasing = T),]
-dip_tetra_cells$cell_id = factor(dip_tetra_cells$cell_id,levels = unique(dip_tetra_cells$cell_id))
-
-# Subset the SA039-A73044B library
-dip_tetra_cells = dip_tetra_cells[which(dip_tetra_cells$library=='SA039-A73044B'),]
-dip_tetra_cells = dip_tetra_cells[which(dip_tetra_cells$ploidylab %in% c(2,4)),]
-dip_tetra_cells$ploidylab = paste0(dip_tetra_cells$ploidylab,'N')
-dip_tetra_cells$ploidylab = factor(dip_tetra_cells$ploidylab,levels = c('2N','4N'))
-
-# Plot
-fig4c <- ggplot(dip_tetra_cells,aes(x=ploidylab,y=MNR)) + geom_violin(aes(fill=ploidylab),trim = F) + scale_y_continuous(limits=c(0,2080)) +
-  geom_boxplot(width=0.1) + theme_classic() + theme(legend.position = 'none') + scale_fill_manual(name='Ploidy',values=c('#5074AF','#F1AF31')) +
-  stat_compare_means(label.y = 2030) + xlab('Ploidy') + ylab('mtDNA copies per nuDNA')
-
-fig4c <- fig4c + theme(axis.text = element_text(size=10),
-                     axis.title = element_text(size=10),
-                     legend.title=element_text(size=10),
-                     legend.text=element_text(size=10)
-)
-
+## Plot CO2 gene expression
+fig4c <- ggplot(OV022_scRNA, aes(x=UMAP_1,y=UMAP_2,color=MT.CO2)) + geom_point(size=0.5) +
+  scale_color_gradientn(colours = c("blue", "blue", "white", "red"), values = rescale(x = c(0, 2.5, 3.8, 5)), name = 'Expression') +
+  ggtitle('MT-CO2') + scale_x_continuous(limits= c(-6,-2)) + scale_y_continuous(limits= c(1,4)) + theme_minimal() +
+  theme(axis.text = element_blank(),
+        axis.title = element_blank(),
+        panel.grid = element_blank(),
+        plot.title = element_text(size = 14),
+        legend.key.size = unit(0.6, 'cm'),
+        legend.text = element_text(size=8))
 fig4c
 
 ```
@@ -915,106 +1223,153 @@ fig4c
 
 ## 4d
 
-```{r panel_4d,fig.height=2,fig.width=3,eval=T}
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Violin plots of mtDNA ploidy distribution for both tetraploid and diploid cells across the engineered 184-hTERT cell lines
-# The corresponding relative percent change in mtDNA ploidy between tetraploid and diploid
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+```{r panel_4d,fig.height=3,fig.width=4,eval=T}
 
-# Comparing the MNR
-cell_lines = allcellsfile[-which(allcellsfile$group %in% c('GM18507','HER2+','TNBC')),]
-cell_lines = cell_lines[which((cell_lines$ploidylab==2) | (cell_lines$ploidylab==4)),]
-cell_lines$ploidylab = factor(cell_lines$ploidylab,levels = c(2,4))
-cell_lines$MNR = cell_lines$copynumber/cell_lines$ploidy
-
-# Diploid and tetraploid analysis with marginal histogram
-# Count the number of diploid and tetraploid cells
-filtfinalres_n1 = cell_lines %>% group_by(group,ploidylab) %>% filter(ploidylab==4) %>% dplyr::mutate(n1 = n(),medcn = median(copynumber)) %>% filter(n1 >= 10) %>% dplyr::select(group,ploidylab,n1,medcn) %>% distinct()
-filtfinalres_n2 = cell_lines %>% group_by(group,ploidylab) %>% filter(ploidylab==2) %>% dplyr::mutate(n2 = n(),medcn = median(copynumber)) %>% filter(n2 >= 10) %>% dplyr::select(group,ploidylab,n2,medcn) %>% distinct()
-
-# Keep those groups that have both diploid and tetraploid cells
-filtfinalres_n1 = filtfinalres_n1[which(filtfinalres_n1$group %in% intersect(filtfinalres_n2$group,filtfinalres_n1$group)),]
-filtfinalres_n2 = filtfinalres_n2[which(filtfinalres_n2$group %in% intersect(filtfinalres_n1$group,filtfinalres_n2$group)),]
-filtres = merge(filtfinalres_n1,filtfinalres_n2,by='group')
-
-# Concatenating the sample size for diploid and tetraploid cells
-filtfinalres_n = data.frame(intersect(filtfinalres_n2$group,filtfinalres_n1$group))
-filtfinalres_n$n = paste0('n=',filtfinalres_n1$n1,',n=',filtfinalres_n2$n2)
-colnames(filtfinalres_n) = c('group','n')
-
-# Reassign the group label to include sample size
-cell_lines = cell_lines[which(cell_lines$group %in% intersect(cell_lines$group,filtfinalres_n$group)),]
-cell_lines$group = paste0(cell_lines$group,'\n',filtfinalres_n$n[match(cell_lines$group,filtfinalres_n$group)])
-
-# Calculate standard error of MNR
-comparisonresult <- cell_lines %>% 
-  group_by(group,ploidylab) %>%
-  dplyr::summarise(
-    n=n(),# number of cells
-    median=median(mtploidy),# median MNR
-    sd=sd(mtploidy) # standard deviation of MNR
-  ) %>%
-  mutate(se=sd/sqrt(n)) %>% # standard error of MNR calculated by dividing standard deviation of MNR by the sqrt of sample size
-  group_by(group) %>%
-  filter(all(c(2,4) %in% ploidylab))
-
-# Calculate the confidence interval of the median MNR values
-diffresult <- comparisonresult %>%
-  dplyr::mutate(diffVal = (median[ploidylab==4] - median[ploidylab==2])/median[ploidylab==2] * 100) %>%
-  dplyr::mutate(sediffVal = abs(median[ploidylab==4] / median[ploidylab==2]) * sqrt((se[ploidylab==4]^2) / (median[ploidylab==4]^2) + (se[ploidylab==2]^2) / (median[ploidylab==2]^2)) * 100) %>%
-  group_by(group) %>%
-  dplyr::mutate(uci = diffVal + 1.65 * sediffVal,lci = diffVal - 1.65 * sediffVal) %>%
-  dplyr::select(c('group','diffVal','sediffVal','uci','lci')) %>%
-  distinct()
-
-# Filter for libraries in both
-cell_lines = cell_lines[which(cell_lines$group %in% unique(diffresult$group)),]
-cell_lines$ploidylab = factor(cell_lines$ploidylab,levels = c(2,4))
-diffresult$group = factor(diffresult$group,levels = unique(diffresult$group[order(diffresult$diffVal)]))
-cell_lines$group = factor(cell_lines$group,levels = unique(diffresult$group[order(diffresult$diffVal)]))
-
-# Plotting the violin plots
-original_plot <- ggplot(cell_lines,aes(x = group,y = mtploidy,fill = ploidylab)) + geom_violin(aes(fill = ploidylab),position = position_dodge(width = 0.6),width = 0.6,color = NA,trim=F) +
-  stat_summary(fun.y=median,geom='point',color='black',size=2,position = position_dodge(width = 0.6)) + theme_bw() +
-  coord_flip() + labs(fill = 'Ploidy') + scale_fill_manual(values = c('#5074AF','#F1AF31')) + scale_y_continuous(expand = c(0,0),limits = c(0,2400)) + xlab('Libraries') + ylab('mtDNA copies per nuDNA')
-
-# Plot
-original_plot <- original_plot + theme(axis.text = element_text(size=10),
-                                       axis.title.x = element_text(size=10),
-                                       axis.title.y = element_text(size=10),
-                                       axis.text.x = element_text(size=10,angle = 60,hjust = 1,vjust = 1),
-                                       panel.grid.major = element_line(colour = 'grey',size=0.1),
-                                       axis.line=element_line(colour='black'),
-                                       plot.title = element_text(lineheight=1.5,face='bold',size=10,hjust=0.5),
-                                       plot.subtitle = element_text(lineheight=1.5,face='bold',size=10,hjust=0.5),
-                                       legend.position = 'none'
-)
-
-# Plotting the percent change
-marginal_bar <- ggplot(diffresult,aes(group,diffVal,label = group)) + geom_bar(stat = 'identity',width = .4) +
-  coord_flip() + ylab('Percent\nChange') + theme_bw() +
-  geom_hline(yintercept=0) +
-  geom_errorbar(aes(x = group,ymin=lci,ymax=uci),width=0.25,colour='orange',alpha=0.9,size=1.1)
-
-marginal_bar <- marginal_bar + theme(axis.text = element_text(size=10),
-                                     panel.grid.minor.x = element_blank(),
-                                     axis.text.x = element_text(size=10,angle = 60,hjust = 1,vjust = 1),
-                                     axis.text.y=element_blank(),
-                                     axis.title.x = element_text(size=10),
-                                     axis.title.y=element_blank(),
-                                     axis.ticks.y = element_blank(),
-                                     axis.line=element_line(colour='black'),
-                                     plot.subtitle = element_text(lineheight=1.5,face='bold',size=10,hjust=0.5)
-)
-
-# Plot
-marginal_bar <- marginal_bar+theme(plot.margin=unit(c(7,7,7,-0.5),'pt'))
-original_plot <- original_plot+theme(plot.margin=unit(c(7,-0.5,7,7),'pt'))
-combined_plot <- plot_grid(original_plot,marginal_bar,axis='tblr',align='h',rel_widths=c(0.8,0.2))
-fig4d <- ggdraw(combined_plot)
-
+## Plot UMAP
+fig4d <- ggplot(OV081_scRNA, aes(x=UMAP_1,y=UMAP_2,color=clonealign_id)) + geom_point(size=0.5) + 
+  scale_color_manual(values=customcolors$clones) +scale_x_continuous(limits= c(-6,-2)) + scale_y_continuous(limits= c(1,4)) + theme_minimal() +
+  theme(axis.text = element_blank(),
+        axis.title = element_blank(),
+        panel.grid = element_blank(),
+        plot.title = element_text(size = 14),
+        legend.key.size = unit(1, 'cm'),
+        legend.text = element_text(size=8),
+        legend.title = element_blank())
 fig4d
 
+```
+
+
+## 4e
+
+```{r panel_4e,fig.height=3,fig.width=4,eval=T}
+
+## Import final master file
+filtresultfile = resultfile[which(resultfile$group == "HGSC primary(OV-022)"),]
+filtresultfile = filtresultfile[-which(is.na(filtresultfile$treealign_id)),]
+filtresultfile = filtresultfile[which(filtresultfile$treealign_id %in% levels(Idents(Ovarian.cancer))),]
+
+fig4e <- ggplot(filtresultfile, aes(x=reorder(treealign_id,-MNR),y=MNR)) + geom_violin(aes(fill=treealign_id),trim = F) + geom_boxplot(width=0.2,outlier.size = -1) + theme_classic() +
+  scale_y_continuous(limits = c(0,1600),expand = c(0,0)) + scale_fill_manual(values=customcolors$clones) +
+  theme(axis.text = element_text(size=8),
+        axis.title.x = element_blank(),
+        axis.title.y = element_text(size=8),
+        legend.title = element_blank(),
+        legend.position = 'none')
+
+fig4e
+
+```
+
+
+## 4f
+
+```{r panel_4f,fig.height=3,fig.width=4,eval=T}
+
+## Plot ND3 gene expression
+fig4f <- ggplot(OV081_scRNA, aes(x=UMAP_1,y=UMAP_2,color=MT.ND3)) + geom_point(size=0.5) +
+  scale_color_gradientn(colours = c("blue", "blue", "white", "red"), values = rescale(x = c(0, 2.5, 3.8, 5)), name = 'Expression') +
+  ggtitle('MT-ND3') + scale_x_continuous(limits= c(-6,-2)) + scale_y_continuous(limits= c(1,4)) + theme_minimal() +
+  theme(axis.text = element_blank(),
+        axis.title = element_blank(),
+        panel.grid = element_blank(),
+        plot.title = element_text(size = 14),
+        legend.key.size = unit(0.6, 'cm'),
+        legend.text = element_text(size=8))
+
+fig4f
+
+
+```
+
+
+## 4g
+
+```{r panel_4g,fig.height=2.5,fig.width=2.5,eval=T}
+
+summarize_signature <- function(m) {
+  mid <- median(m$stat)
+  n <- sum(abs(m$stat) > 2) #/ nrow(m)
+  m <- m[order(stat,decreasing=F),]
+  m$n <- n
+  m$mid <- mid
+  m$pos <- ((1:nrow(m))/nrow(m))
+  m
+}
+tumor_fgseafile.dt <- adt(tumor_fgseafile)
+tumor_fgseafile.dt <- tumor_fgseafile.dt[,summarize_signature(.SD), by=pathway]
+tumor_fgseafile.dt <- tumor_fgseafile.dt[order(mid,pos,decreasing=F),]
+tumor_fgseafile.dt <- tumor_fgseafile.dt[n >= 2,]
+tumor_fgseafile.dt$pathway <- factor(tumor_fgseafile.dt$pathway, levels=unique(tumor_fgseafile.dt$pathway))
+tumor_fgseafile.dt$label <- tumor_fgseafile.dt$pathway
+tumor_fgseafile.dt$pos <- as.integer(tumor_fgseafile.dt$pathway) + tumor_fgseafile.dt$pos - 0.5
+info <- tumor_fgseafile.dt[!duplicated(pathway),]
+
+tumor_fgseafile.dt$n = factor(tumor_fgseafile.dt$n, levels = sort(unique(tumor_fgseafile.dt$n)))
+
+fig4g <- ggplot(tumor_fgseafile.dt, aes(x=pos,y=stat)) +
+  scale_y_continuous(limits=c(-10,10)) + 
+  geom_bar(data=info, stat='identity',aes(x=pathway, y=mid),color='black',fill='#4675b4') +
+  theme_classic() +
+  coord_flip() +
+  theme(axis.text.x=element_text(size=5),
+        axis.text.y = element_text(size=6),
+        axis.title = element_text(size=8),
+        legend.key.size = unit(0.4,'cm'),
+        legend.key.height = unit(0.4,'cm'),
+        legend.key.width = unit(0.4,'cm'),
+        legend.title = element_text(size=5),
+        legend.text = element_text(size=5),
+        legend.position = 'bottom') + 
+  labs(x=NULL,y=expression('-log10(Q-value)*\u394(NES)'))
+fig4g
+
+
+```
+
+
+## 4h
+
+```{r panel_4h,fig.height=3,fig.width=4,eval=T}
+
+## Plot PROGENy Hypoxia signature
+fig4h <- ggplot(OV022_scRNA, aes(x=UMAP_1,y=UMAP_2,color=Hypoxia.pathway)) + geom_point(size=0.5) +
+  scale_color_gradientn(colours = c("blue", "blue", "white", "red", "red"), 
+                        values = rescale(x = c(-1, 0, 0.5, 2.5, 6)),
+                        name = 'PROGENy score') +
+  ggtitle('Hypoxia pathway') +
+  scale_x_continuous(limits= c(-6,-2)) + scale_y_continuous(limits= c(1,4)) + theme_minimal() +
+  theme(axis.text = element_blank(),
+        axis.title = element_blank(),
+        panel.grid = element_blank(),
+        plot.title = element_text(size = 14),
+        legend.key.size = unit(0.6, 'cm'),
+        legend.text = element_text(size=8))
+
+fig4h
+
+```
+
+
+## 4i
+
+```{r panel_4i,fig.height=3,fig.width=4,eval=T}
+
+## Plot PROGENy Hypoxia signature
+fig4i <- ggplot(OV081_scRNA, aes(x=UMAP_1,y=UMAP_2,color=Hypoxia.pathway)) + geom_point(size=0.5) +
+  scale_color_gradientn(colours = c("blue", "blue", "white", "red", "red"), 
+                        values = rescale(x = c(-1, 0, 0.5, 2.5, 6)),
+                        name = 'PROGENy score') +
+  ggtitle('Hypoxia pathway') +
+  scale_x_continuous(limits= c(-6,-2)) + scale_y_continuous(limits= c(1,4)) + theme_minimal() +
+  theme(axis.text = element_blank(),
+        axis.title = element_blank(),
+        panel.grid = element_blank(),
+        plot.title = element_text(size = 14),
+        legend.key.size = unit(0.6, 'cm'),
+        legend.text = element_text(size=8))
+
+fig4i
 
 ```
 
@@ -1022,93 +1377,71 @@ fig4d
 
 ***
 
-# Fig. 5
+# Figure 5
 
-```{r setup,include = FALSE,echo = FALSE}
+```{r eval=T, echo=F}
 
-# Import the annotations for the group for aesthetics
-dat_annot <- read.table('../data/group_annot.tsv',header=T,sep='\t')
+# Import the master result file across all cells
+resultfile = read.csv(paste0('../data/processed_data/final_master.tsv'), header=T, sep='\t', stringsAsFactors=F)
+filtresultfile = resultfile[-which((resultfile$library_label == 'SA928-ALL') | (resultfile$group %in% c("treated TNBC PDX(SA1035)","treated TNBC PDX(SA535)","treated TNBC PDX(SA609)"))),]
+filtresultfile = filtresultfile[-which(filtresultfile$clone_UMAP == 'nonmal'),]
 
-# Getting clonal fitness coefficient
-fitnessfile <- read.delim('../data/processed_data/fitnesscoeff.txt',header=T,sep='\t',stringsAsFactors=F)
+# Import multiallele file
+allvars = read.table(paste0('../data/processed_data/SA1047_genotype.tsv'),sep='\t',header=T,check.names=FALSE,stringsAsFactors=F)
 
-# Clone-specific nuDNA copy number profiles for clones A, F, G, and K
-cnfile <- read.table('../data/processed_data/ModeCNVfile.tsv',header=T,sep='\t',quote='',stringsAsFactors=F)
-statefile <- read.table('../data/processed_data/StateCNVfile.tsv',header=T,sep='\t',quote='',stringsAsFactors=F)
+# Import varmatrix file from Zenodo (https://zenodo.org/records/6998936)
+varmatrix = read.table('../data/processed_data/varmatrix.tsv',header=T, sep='\t')
+
+# Import the truncating variants matrix
+truncvars = read.table('../data/processed_data/trunc_matrix.tsv',header=T, sep='\t')
+
+# Import the expression correlation file
+OV081_corr = read.table('../data/processed_data/OV-081_corr.txt',sep='\t',header=T, stringsAsFactors=F)
+
+# Import the expression correlation file
+combined_corr = read.table('../data/processed_data/combined_corr.txt',sep='\t',header=T, stringsAsFactors=F)
+
+# Import the mitochondrial genes
+genelist <- read.table("../data/ext/mtgenes.txt", header=T, quote = "", stringsAsFactors=F)
+genelist <- genelist$KEGG_OXIDATIVE_PHOSPHORYLATION
+MTgenes <- genelist[grep("MT-",genelist)]
+nuMTgenes <- genelist[-grep("MT-",genelist)]
+
+# Pathway enrichment analysis for clones
+pathways.hallmark <- gmtPathways("../data/ext/h.all.v7.2.symbols.gmt")
 
 ```
 
 
 ## 5a
 
-```{r panel_5a,fig.height=2,fig.width=2,eval=T}
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Median per-cell mtDNA copy number of diploid and tetraploid cells from the 184-hTERT breast epithelial cell line
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+```{r panel_5a,fig.height=4,fig.width=4,eval=T}
 
-# Distribution of per-cell mtDNA copy number with perturbations
-cell_lines = allcellsfile[-which(allcellsfile$group %in% c('GM18507','HER2+','TNBC')),]
-cell_lines = cell_lines[which(cell_lines$ploidylab %in% c(2,4)),]
-cell_lines$ploidylab = paste0(cell_lines$ploidylab,'N')
+## SA1047 m.302A vs. m.302A>AC
+order1 = allvars$cell_id[order(allvars$`m.302A`)]
+order2 = allvars$cell_id[order(allvars$`m.302A>AC`)]
+order3 = allvars$cell_id[order(allvars$`m.302A>ACC`)]
+order4 = allvars$cell_id[order(allvars$`m.302A>ACCC`)]
+neworder = unique(c(order1,order2,order3,order4))
+allvars$cell_id = factor(allvars$cell_id,level = rev(neworder))
+allvars.m = reshape2::melt(allvars)
+colnames(allvars.m) = c("cell_id","variant_id","heteroplasmy")
 
-# Specifying the order of samples in incremental perturbations
-allgroups = c('SA039','SA906a','SA906b','SA1101a','SA1101b','SA1188','SA1055','SA1056','SA1054')
-
-# Calculate the median copy number and standard deviations across the cell lines
-res = cell_lines %>% group_by(suplibrary,ploidylab) %>% mutate(medcn=median(copynumber),secn=sd(copynumber)/sqrt(length(copynumber)),group=strsplit(suplibrary,'-')[[1]][1]) %>% select(suplibrary,group,ploidylab,medcn,secn) %>% distinct()
-res$group=factor(res$group,levels=allgroups)
-
-# Median per-cell mtDNA copy number for diploid and tetraploid cells
-fig5a1 <- ggplot(data=res,aes(x=group,y=medcn,fill=ploidylab)) + geom_bar(stat='identity',position=position_dodge()) +
-  geom_errorbar(aes(ymin=medcn-secn,ymax=medcn+secn),width=.2,position=position_dodge(.9)) + scale_y_continuous(expand=c(0,0),limits=c(0,4200)) +
-  theme_classic() + labs(fill='Tissue of Origin') + ylab(label='mtDNA copy number') +
-  coord_flip() + scale_fill_manual(values=c('#5074AF','#F1AF31')) +
-  theme(axis.text.y=element_blank(),
-        axis.ticks.y=element_blank(),
-        axis.title.y=element_blank(),
-        axis.title.x=element_text(size=10),
-        strip.background=element_blank(),
-        strip.text.x=element_blank(),
-        panel.grid.minor=element_blank(),
-        panel.grid.major.x=element_blank(),
-        panel.spacing=unit(0.1,'lines'),
-        legend.position=c(0.9,0.2),
-        legend.title=element_blank(),
-        legend.text=element_text(size=8)
-  )
-
-res_summary <- reshape2::melt(cell_lines[,c('copynumber','library','group')],id=c('library','group'))
-
-# Iterate through each group and update the labels
-grouplevels = c()
-for (eachgroup in allgroups){
-  newlabel = paste0(eachgroup,'\n(n=',length(res_summary$group[which(res_summary$group==as.character(eachgroup))]),')')
-  res_summary$group[which(res_summary$group==as.character(eachgroup))] = newlabel
-  grouplevels = append(grouplevels,newlabel)
-}
-
-# Annotation labels
-fig5a2 <- ggplot(data=dat_annot,mapping=aes(x=x,y=y,fill=t)) + geom_polygon(color = 'black') + scale_y_continuous(breaks = c(1.5,2.5,3.5),labels = c('TP53','BRCA2','BRCA1'),expand = c(0,0)) + scale_x_continuous(breaks = c(1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5),labels = levels(res$group),expand = c(0,0)) +
-  theme_minimal() + coord_flip() +
-  theme(axis.title = element_blank(),
-        axis.text.x = element_text(size=10,angle=55,hjust=1),
-        axis.text.y = element_text(size=10),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        axis.ticks = element_line(),
-        legend.position='none') +
-  scale_fill_manual(values=c('white','white','white',
-                             '#4A3D8F','white','#832825',
-                             '#4A3D8F','#238E19','white',
-                             '#4A3D8F','#238E19','white',
-                             '#4A3D8F','white','white',
-                             '#4A3D8F','white','white',
-                             '#4A3D8F','#238E19','white',
-                             '#4A3D8F','white','white',
-                             '#4A3D8F','white','white'))
-
-# Plot
-fig5a = plot_grid(fig5a2,fig5a1,nrow=1,align='h',axis='b',rel_widths=c(0.5,0.5))
+fig5a <- ggplot(data=allvars.m, aes(x=cell_id, y=heteroplasmy, fill=variant_id)) +
+  geom_bar(position="fill", stat="identity") +
+  scale_y_continuous(expand = c(0,0)) +
+  xlab('Cells') + ylab('Heteroplasmy') + scale_fill_manual(values = customcolors$multiallele) + 
+  guides(fill=guide_legend(title="Variant ID")) +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.text = element_text(size=6),
+        axis.title = element_text(size=12),
+        legend.key.size = unit(0.4,'cm'),
+        legend.text = element_text(size=8),
+        legend.title = element_blank(),
+        legend.position = 'bottom',
+        legend.margin=margin(0,0,0,0),
+        legend.box.margin=margin(-5,0,0,-25))
 
 fig5a
 
@@ -1117,40 +1450,28 @@ fig5a
 
 ## 5b
 
-```{r panel_5a,fig.height=3,fig.width=2,eval=T}
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Violin plot of mtDNA copy number distribution for each clone defined by nuDNA copy number profile
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+```{r panel_5b,fig.height=2,fig.width=2,eval=T}
 
-# Subset cells in SA906a cell line with clone labels
-SA906a_cells = allcellsfile[which(allcellsfile$group=='184hTERT(TP53-/-)(SA906a)'),]
-SA906a_cells = SA906a_cells[-which((SA906a_cells$clone=='Un') | (SA906a_cells$clone=='')),]
+## Violin plot of the m.302A vs. m.302A>AC
+filtvars = allvars[-which((allvars$`m.302A>ACC` > 0) | (allvars$`m.302A>ACCC` > 0)),]
+filtvars$assignment = 'm.302A'
+filtvars$heteroplasmy = filtvars$`m.302A`
+filtvars$assignment[which(filtvars$`m.302A` < filtvars$`m.302A>AC`)] = 'm.302A>AC'
+filtvars$heteroplasmy[which(filtvars$`m.302A` < filtvars$`m.302A>AC`)] = filtvars$`m.302A>AC`[which(filtvars$`m.302A` < filtvars$`m.302A>AC`)]
+filtvars$copynumber = filtresultfile$copynumber[match(filtvars$cell_id,filtresultfile$cell_id)]
+filtvars$ploidylab = filtresultfile$ploidylab[match(filtvars$cell_id,filtresultfile$cell_id)]
+filtvars$clone_UMAP = filtresultfile$clone_UMAP[match(filtvars$cell_id,filtresultfile$cell_id)]
 
-# mtDNA copy number across clones
-fig5b1 <- ggplot(SA906a_cells,aes(x=reorder(clone,-copynumber),y=copynumber,fill=clone)) + geom_violin(width=0.8,trim=FALSE) +
-  geom_boxplot(fill='white',width=0.08,outlier.size=-1) + theme_classic() +
-  theme(axis.text=element_text(size=10),
-        axis.text.x=element_blank(),
-        axis.title=element_text(size=10),
-        axis.title.x=element_blank(),
-        panel.grid.major.y=element_line(colour='grey',linetype='dashed',size=0.5),
-        legend.position='none') +
-  scale_y_continuous(expand=c(0,0),limits=c(0,5500)) + xlab(label='Clones') + ylab(label='mtDNA copy number') +
-  scale_fill_manual(values=customcolors$nuDNAclones)
+filtvarsummary = filtvars %>% group_by(assignment) %>% mutate(medianval = median(copynumber)) %>% select(assignment,medianval) %>% distinct()
 
-# Plotting clonal fitness coefficient
-fitnessfile$clone_name = factor(fitnessfile$clone_name, levels = levels(reorder(SA906a_cells$clone,-SA906a_cells$copynumber)))
-fig5b2 <- ggplot(fitnessfile,aes(x=clone_name,y=variable,fill=value)) + geom_tile(color='white',size=0.1,width=0.65,height=0.65) + coord_equal() +
-  labs(x='Clones',y=NULL) + scale_y_discrete(limits=c('mean_1_plus_s'),labels=c('Fitness')) + theme_minimal() +
-  scale_fill_gradientn(colors=c('#5F96FB','white','red','red4'),breaks=c(1,1.02,1.04),name=NULL,labels=c(1,1.02,1.04)) +
-  theme(axis.text=element_text(size=10),
-        axis.title=element_text(size=10),
-        legend.position='bottom'
-        )
-
-# Plot
-fig5b <- plot_grid(fig5b1,NULL,fig5b2,nrow=3,axis='tblr',align='v',rel_heights=c(0.8,-0.05,0.5))
-
+fig5b <- ggplot(filtvars, aes(x=assignment,y=copynumber)) + geom_quasirandom(aes(color = assignment), width = 0.2, size = 0.2) +
+  stat_summary(fun.y = median, fun.ymin = median, fun.ymax = median, geom = "crossbar", width = 0.3) +
+  scale_color_manual(values = customcolors$multiallele) + theme_classic() + 
+  stat_compare_means(label.x = 1.1, size = 2.5) + ylab('mtDNA copy number') +
+  theme(legend.position = 'none',
+        axis.title.x = element_blank(),
+        axis.text = element_text(size=6),
+        axis.title = element_text(size=8))
 fig5b
 
 ```
@@ -1158,497 +1479,421 @@ fig5b
 
 ## 5c
 
-```{r panel_5c,fig.height=2,fig.width=2,eval=T}
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# nuDNA copy number profile for clones A, F, G, and K
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+```{r panel_5c,fig.height=2.5,fig.width=2.5,eval=T}
 
-# Subsetting SA906a sample and removing any cells that are not assigned to a clone
-SA906a_cells = allcellsfile[which(allcellsfile$group=='184hTERT(TP53-/-)(SA906a)'),]
-SA906a_cells = SA906a_cells[-which((SA906a_cells$clone=='Un') | (SA906a_cells$clone=='')),]
+## Heteroplasmy against m.302A
+allvars$copynumber = resultfile$copynumber[match(allvars$cell_id,resultfile$cell_id)]
 
-# Getting the number of cells in each clone
-numbcloneA <- as.numeric(table(SA906a_cells$clone)[which(names(table(SA906a_cells$clone))=='A')])
-numbcloneF <- as.numeric(table(SA906a_cells$clone)[which(names(table(SA906a_cells$clone))=='F')])
-numbcloneG <- as.numeric(table(SA906a_cells$clone)[which(names(table(SA906a_cells$clone))=='G')])
-numbcloneK <- as.numeric(table(SA906a_cells$clone)[which(names(table(SA906a_cells$clone))=='K')])
-
-# Plotting the clone-specific nuDNA copy number profile across all clones
-# clone A
-cloneA <- cnfile[,c('chrom','start','stop')]
-cloneA$cell_id <- 'cloneA'
-cloneA$state <- statefile$cloneA
-cloneA$copy <- cnfile$cloneA
-cloneA <- cloneA[,c('cell_id','chrom','start','stop','state','copy')]
-colnames(cloneA) <- c('cell_id','chr','start','end','state','copy')
-
-figA <- plotCNprofile(CNbins=cloneA,legend.position='none') + theme(axis.text=element_text(size=10),
-                                                                         axis.title=element_blank())
-
-# clone F
-cloneF = cnfile[,c('chrom','start','stop')]
-cloneF$cell_id = 'cloneF'
-cloneF$state = statefile$cloneF
-cloneF$copy = cnfile$cloneF
-cloneF = cloneF[,c('cell_id','chrom','start','stop','state','copy')]
-colnames(cloneF) = c('cell_id','chr','start','end','state','copy')
-
-figF <- plotCNprofile(CNbins = cloneF,legend.position = 'none') + theme(axis.text = element_text(size=10),
-                                                                         axis.title = element_blank())
-
-# clone G
-cloneG = cnfile[,c('chrom','start','stop')]
-cloneG$cell_id = 'cloneG'
-cloneG$state = statefile$cloneG
-cloneG$copy = cnfile$cloneG
-cloneG = cloneG[,c('cell_id','chrom','start','stop','state','copy')]
-colnames(cloneG) = c('cell_id','chr','start','end','state','copy')
-
-figG <- plotCNprofile(CNbins = cloneG,legend.position = 'none') + theme(axis.text = element_text(size=10),
-                                                                         axis.title = element_blank())
-
-# clone K
-cloneK = cnfile[,c('chrom','start','stop')]
-cloneK$cell_id = 'cloneK'
-cloneK$state = statefile$cloneK
-cloneK$copy = cnfile$cloneK
-cloneK = cloneK[,c('cell_id','chrom','start','stop','state','copy')]
-colnames(cloneK) = c('cell_id','chr','start','end','state','copy')
-
-# Add a 0 copy to chrY for asthetic consistency
-cloneK$copy[which((cloneK$chr=='Y') & (cloneK$start==59000001))] = 0
-
-figK <- plotCNprofile(CNbins = cloneK) + theme(axis.text = element_text(size=10),
-                                               axis.title.y = element_blank(),
-                                               axis.title.x = element_text(size=12),
-                                               legend.position = 'none')
-
-# Plot
-figAlab <- ggdraw() + draw_label(paste0('Clone A\n(n=',numbcloneA,')'),size=10,x = 0.95,angle = 90,vjust = -0.1,hjust = 0) + theme(plot.margin = margin(0,0,0,0))
-A_plot <- plot_grid(figA,figAlab,rel_widths = c(1,0.03))
-
-figFlab <- ggdraw() + draw_label(paste0('Clone F\n(n=',numbcloneF,')'),size=10,x = 0.95,angle = 90,vjust = -0.1,hjust = 0) + theme(plot.margin = margin(0,0,0,0))
-F_plot <- plot_grid(figF,figFlab,rel_widths = c(1,0.03))
-
-figGlab <- ggdraw() + draw_label(paste0('Clone G\n(n=',numbcloneG,')'),size=10,x = 0.95,angle = 90,vjust = -0.1,hjust = 0) + theme(plot.margin = margin(0,0,0,0))
-G_plot <- plot_grid(figG,figGlab,rel_widths = c(1,0.03))
-
-figKlab <- ggdraw() + draw_label(paste0('Clone K\n(n=',numbcloneK,')'),size=10,x = 0.95,angle = 90,vjust = -0.1,hjust = 0) + theme(plot.margin = margin(0,0,0,0))
-K_plot <- plot_grid(figK,figKlab,rel_widths = c(1,0.03))
-
-fig5c <- plot_grid(A_plot,NULL,F_plot,NULL,G_plot,NULL,K_plot,rel_heights = c(1,-0.1,1,-0.1,1,-0.1,1.15),align = 'hv',labels = c('','','','','','',''),label_size = 20,nrow = 7)
+fig5c <- ggplot(data=allvars, aes(x=`m.302A`, y=copynumber)) +
+  geom_point() + geom_smooth(method = 'lm') + stat_cor() +
+  theme_classic() + xlab('Heteroplasmy') + ylab('mtDNA copy number')
 
 fig5c
 
 ```
 
 
-***
+## 5d
 
-# Fig. 6
+```{r panel_5d,fig.height=2,fig.width=2,eval=T}
 
-```{r setup,include = FALSE,echo = FALSE}
+# Distinct library and variant
+vargroups = truncvars %>% group_by(sample_id,variant_id) %>% mutate(start = strsplit(variant_id,':')[[1]][2]) %>% select(sample_id,variant_id,start) %>% distinct()
+vargroups$start = as.numeric(vargroups$start)
+vargroups_summary = vargroups %>% group_by(start) %>% mutate(n = n()) %>% select(start,n) %>% distinct()
+vargroups_summary$start = as.numeric(vargroups_summary$start)
 
-# mtDNA-encoded and nuDNA-encoded OXPHOS genes
-genelist <- read.table('../data/ext/mtgenes.txt',header=T,quote='',stringsAsFactors=F)
-genelist = genelist$KEGG_OXIDATIVE_PHOSPHORYLATION
-mtOXPHOS = genelist[grep('MT-',genelist)]
-mtOXPHOS = gsub('-','.',mtOXPHOS)
-nuOXPHOS = gsub('-','.',genelist)[-which(gsub('-','.',genelist) %in% intersect(gsub('-','.',genelist),mtOXPHOS))]
-OXPHOSgenes = c(mtOXPHOS,nuOXPHOS)
+mitomap$xstart = mitomap$start
+mitomap$xend = mitomap$end
+mitomap$ystart = 0.255
+mitomap$yend = 0.285
+mitomap$ystart[which(mitomap$strand == -1)] = 0.225
+mitomap$yend[which(mitomap$strand == -1)] = 0.255
 
-# Importing clone labels
-clonelabels <- read.table('../data/processed_data/clonelabels.tsv',header=T,quote='',stringsAsFactors=F)
+y_offset <- 0.3
 
-# Importing result from metabolic pathway analysis
-mean_expression_noshuffle <- read.table('../data/processed_data/KEGGpathway_activity_noshuffle2000.txt',header=T,row.names=1,sep='\t')
-mean_expression_shuffle <- read.table('../data/processed_data/KEGGpathway_activity_shuffle2000.txt',header=T,row.names=1,sep='\t')
-pvalres <- read.table('../data/processed_data/KEGGpathway_activity_shuffle_pvalue2000.txt',header=T,row.names=1,sep='\t')
+vargroups = merge(vargroups,vargroups_summary,by='start')
+vargroups$n = vargroups$n/10 + y_offset
+vargroups_summary$n = vargroups_summary$n/10 + 0.3
 
-# Import the clone-specific MYC expression information for SA906a
-clonalexp_MYC = read.table('../data/processed_data/clonalexpMYC.tsv',header=T,row.names=1,sep='\t')
+# plot
+fig5d <- ggplot(mitomap) +
+  geom_segment(data=vargroups,x=0.4,xend=0.4,y=1,yend=16569,color='grey',linetype=2,size=0.5) +
+  geom_segment(data=vargroups,x=0.7,xend=0.7,y=1,yend=16569,color='grey',linetype=2,size=0.5) +
+  geom_segment(data=vargroups,x=0.8*y_offset,xend=0.8*y_offset,y=1,yend=16569,color='black',size=0.5) +
+  geom_segment(data=vargroups,x=0.9*y_offset,xend=0.9*y_offset,y=1,yend=16569,color='black',size=0.5) +
+  
+  geom_segment(data=vargroups,x=y_offset,
+               aes(xend=n,y=start,yend=start),color='black',size=0.25) +
+  geom_point(data=vargroups,
+             aes(x=n,y=start),pch=21,color='black') +
+  # Actual genes
+  geom_rect(aes(ymin=xstart,ymax=xend,xmin=ystart,xmax=yend,fill=gene),color='black',size=0.5) +
+  
+  # Customization
+  scale_x_continuous(limits=c(0,max(vargroups$n))) +
+  scale_y_continuous(position='left') +
+  coord_polar(theta="y") + theme_classic() +
+  theme(
+    axis.line.x=element_blank(), axis.ticks.x=element_blank(), axis.text.x=element_blank(),
+    axis.line.y=element_blank(),axis.ticks.y=element_blank(), axis.text.y=element_blank(),
+    legend.position = 'none') +
+  geom_text_repel(data=vargroups_summary,color='black',aes(x=n,y=start,label=start),size=2) +
+  labs(x=NULL,y=NULL,title=NULL)
 
-# Import the UMAP coordinate of the SA906a scRNA-seq data
-umapdat <- read.table('../data/processed_data/umap_coord.txt',header = T,sep='\t',stringsAsFactors=F)
+fig5d
 
-# Import the correlation matrix of the OXPHOS genes in SA906a scRNA-seq data
-corres <- read.table('../data/processed_data/sa906a_corrmat.tsv',header=T,quote='',sep='\t',stringsAsFactors=F)
 
-## Following script is from Xiao, Z., Dai, Z. & Locasale, J. W. Metabolic landscape of the tumor microenvironment at single cell resolution. Nat. Commun. 10, 3763 (2019).
+```
 
-# Function to count the number of times the genes show up in the pathways
-num_of_pathways <- function (gmtfile,overlapgenes){
-  pathways <- gmtPathways(gmtfile)
-  pathway_names <- names(pathways)
-  filter_pathways <- list()
-  for (p in pathway_names){
-    genes <- pathways[[p]]
-    common_genes <- intersect(genes,overlapgenes)
-    if(length(common_genes>=5)){
-      filter_pathways[[p]] <- common_genes
-    }
-  }
 
-  all_genes <- unique(as.vector(unlist(filter_pathways)))
-  gene_times <- data.frame(num =rep(0,length(all_genes)),row.names = all_genes)
-  for(p in pathway_names){
-    for(g in filter_pathways[[p]]){
-      gene_times[g,'num'] = gene_times[g,'num']+1
-    }
-  }
-  gene_times
+
+## 5e
+
+```{r panel_5e,fig.height=3,fig.width=4,eval=T}
+
+# Varmatrix
+filtvarmatrix = varmatrix
+filtvarmatrix = filtvarmatrix[-which(filtvarmatrix$heteroplasmy > 0.95),]
+filtvarmatrix = filtvarmatrix[-which(filtvarmatrix$heteroplasmy < 0.05),]
+if (length(which(is.na(filtvarmatrix$mtDNAcopynumber))) > 0){
+  filtvarmatrix = filtvarmatrix[-which(is.na(filtvarmatrix$mtDNAcopynumber)),]
 }
 
-#
-metabolicanalysis <- function(){
+# Filtering by threshold
+readthreshold = 10
+filtvarmatrix = filtvarmatrix[which(filtvarmatrix$totalread >= readthreshold),]
 
-  # Selecting which genes are involved in metabolism based on KEGG metabolism pathway
-  pathways <- gmtPathways('../data/ext/KEGG_metabolism.gmt')
-  pathway_names <- names(pathways)
-  metabolics <- unique(as.vector(unname(unlist(pathways))))
-  row_data <- data.frame(metabolic=rep(FALSE,nrow(sa906a_expr)),row.names = rownames(sa906a_expr))
-  row_data[rownames(row_data) %in% metabolics,'metabolic']=TRUE
-  
-  # All the clone labels and total clones
-  all_clones <- as.vector(clonelabels$clone[match(colnames(sa906a_expr),clonelabels$cell_id)])
-  clones <- unique(all_clones)
-  
-  # Counting the number of times the metabolic genes show up in the KEGG metabolic pathways
-  gene_pathway_number <- num_of_pathways('../data/ext/KEGG_metabolism.gmt',rownames(row_data)[which(row_data$metabolic==TRUE)])
-  
-  # Initialize the mean expression for each pathway
-  mean_expression_shuffle <- matrix(NA,nrow=length(pathway_names),ncol=length(clones),dimnames = list(pathway_names,clones))
-  mean_expression_noshuffle <- matrix(NA,nrow=length(pathway_names),ncol=length(clones),dimnames = list(pathway_names,clones))
-  
-  # Calculate the pvalues using shuffle method
-  pvalues_mat <- matrix(NA,nrow=length(pathway_names),ncol=length(clones),dimnames = (list(pathway_names,clones)))
-  
-  # Iterate each pathway 2000 times 
-  shuffletimes = 2000
-  for(p in pathway_names){
-    genes <- pathways[[p]]
-    genes_comm <- intersect(genes,rownames(sa906a_expr))
-    if(length(genes_comm) < 5) next
-  
-    # select common genes that are in the pathway and filter for genes with no expression
-    pathway_metabolic_tpm <- sa906a_expr[genes_comm,]
-    pathway_metabolic_tpm <- pathway_metabolic_tpm[rowSums(pathway_metabolic_tpm)>0,]
-  
-    # Calculate the mean expression level for each clone
-    mean_exp_eachClone <- apply(pathway_metabolic_tpm,1,function(x) by(x,all_clones,mean))
-  
-    # Remove genes which are zeros in any clone to avoid extreme ratio value
-    # Keep only the genes that have expression greater than 0.001 across all clones
-    keep <- colnames(mean_exp_eachClone)[colAlls(mean_exp_eachClone>0.001)]
-  
-    if(length(keep)<3) next
-  
-    #using the loweset value to replace zeros for avoiding extreme ratio value
-    pathway_metabolic_tpm <- pathway_metabolic_tpm[keep,]
-    pathway_metabolic_tpm <- t(apply(pathway_metabolic_tpm,1,function(x) {x[x<=0] <- min(x[x>0]);x}))
-  
-    pathway_number_weight = 1 / gene_pathway_number[keep,]
-  
-    mean_exp_eachClone <- apply(pathway_metabolic_tpm,1,function(x)by(x,all_clones,mean))
-    ratio_exp_eachClone <- t(mean_exp_eachClone) / colMeans(mean_exp_eachClone)
+# Add the sample_id, library_id, and clone information
+filtvarmatrix$sample_id = filtvarmatrix$library_id
+filtvarmatrix$library_id = apply(data.frame(filtvarmatrix$cell_id), 1, function(x) strsplit(x,'[.]')[[1]][2])
+filtvarmatrix$clone_UMAP = resultfile$clone_UMAP[match(gsub('[.]','-',filtvarmatrix$cell_id),resultfile$cell_id)]
+if (length(which(filtvarmatrix$clone_UMAP == 'nonmal')) > 0){
+  filtvarmatrix = filtvarmatrix[-which(filtvarmatrix$clone_UMAP == 'nonmal'),]
+}
+
+# Filter based on heteroplasmy range
+filtvarmatrix = filtvarmatrix %>% group_by(library_id,variant_id) %>% dplyr::mutate(hetrange = max(heteroplasmy) - min(heteroplasmy)) %>% dplyr::filter(hetrange >= 0.15) %>% select(library_id,variant_id,cell_id,ploidylab,heteroplasmy,altread,totalread,mtDNAcopynumber,type,group,datatype,sample_id,clone_UMAP,hetrange) %>% distinct()
+
+addtocombinedres <- function(eachtype,eachvartype,eachvar,filtcurrentres,currentsample,whichtype){
+  if(whichtype == 'group_id'){
+    subsetcurrentres = filtcurrentres[grep(currentsample,filtcurrentres$group),]
     
-    #exclude the extreme ratios
-    col_quantile <- apply(ratio_exp_eachClone,2,function(x) quantile(x,na.rm=T))
-    col_q1 <- col_quantile['25%',]
-    col_q3 <- col_quantile['75%',]
-    col_upper <- col_q3 * 3
-    col_lower <- col_q1 / 3
-    outliers <- apply(ratio_exp_eachClone,1,function(x) {any( (x>col_upper)|(x<col_lower) )} )
-  
-    if(sum(!outliers) < 3) next
-  
-    keep <- names(outliers)[!outliers]
-    pathway_metabolic_tpm <- pathway_metabolic_tpm[keep,]
-    pathway_number_weight = 1 / gene_pathway_number[keep,]
-    mean_exp_eachClone <- apply(pathway_metabolic_tpm,1,function(x)by(x,all_clones,mean))
-    ratio_exp_eachClone <- t(mean_exp_eachClone) / colMeans(mean_exp_eachClone)
-    mean_exp_pathway <- apply(ratio_exp_eachClone,2,function(x) weighted.mean(x,pathway_number_weight/sum(pathway_number_weight)))
-    mean_expression_shuffle[p,] <-  mean_exp_pathway[clones]
-    mean_expression_noshuffle[p,] <-  mean_exp_pathway[clones]
-  
-    ##shuffle multiple times:
-    ##define the functions
-    group_mean <- function(x){
-      sapply(clones,function(y) rowMeans(pathway_metabolic_tpm[,shuffle_clones_list[[x]]==y,drop=F]))
-    }
-    column_weigth_mean <- function(x){
-      apply(ratio_exp_eachClone_list[[x]],2,function(y) weighted.mean(y,weight_values))
-    }
+    # Determine the weights based on 1/n
+    subsetcurrentres = subsetcurrentres %>% dplyr::group_by(ploidylab,library_id) %>% dplyr::mutate(n=n(),weight = n/nrow(subsetcurrentres))
     
-    times <- 1:shuffletimes
-    weight_values <- pathway_number_weight/sum(pathway_number_weight)
-    shuffle_clones_list <- lapply(times,function(x) sample(all_clones))
-    names(shuffle_clones_list) <- times
-    mean_exp_eachClone_list <- lapply(times,function(x) group_mean(x))
-    ratio_exp_eachClone_list <- lapply(times,function(x) mean_exp_eachClone_list[[x]] / rowMeans(mean_exp_eachClone_list[[x]]))
-    mean_exp_pathway_list <- lapply(times,function(x) column_weigth_mean(x))
-  
-    shuffle_results <- matrix(unlist(mean_exp_pathway_list),ncol=length(clones),byrow = T)
-    rownames(shuffle_results) <- times
-    colnames(shuffle_results) <- clones
-    for(c in clones){
-      if(is.na(mean_expression_shuffle[p,c])) next
-      if(mean_expression_shuffle[p,c]>1){
-        pval <- sum(shuffle_results[,c] > mean_expression_shuffle[p,c]) / shuffletimes
-      }else if(mean_expression_shuffle[p,c]<1){
-        pval <- sum(shuffle_results[,c] < mean_expression_shuffle[p,c]) / shuffletimes
+    if (nrow(subsetcurrentres) >= 10){
+      # Determine the concordance value, accounting for the ploidy (strata(ploidylab)), library ID (library_id), clone ID (clone_UMAP)
+      concres = survival::concordance(mtDNAcopynumber ~ heteroplasmy + strata(ploidylab) + strata(library_id), data=subsetcurrentres, weights = weight)
+      
+      # p-value calculation based on z-score
+      zscore = (concres$concordance - 0.5)/sqrt(concres$var)
+      p_value = 2*pnorm(-abs(zscore))
+      
+      # Store result
+      tempres = data.frame(eachtype,currentsample,eachvartype,eachvar,concres$concordance,concres$var,p_value)
+      colnames(tempres) = c('datatype','sample_id','vartype','variant_id','concordance','var','pval')
+      return(tempres)
+    }
+  }
+  else if(whichtype == 'sample_id'){
+    tottempres = data.frame(t(rep(1,7)))
+    colnames(tottempres) = c('datatype','sample_id','vartype','variant_id','concordance','var','pval')
+    for (eachsample in currentsample){
+      subsetcurrentres = filtcurrentres[which(filtcurrentres$sample_id == eachsample),]
+      
+      # Determine the weights based on 1/n
+      subsetcurrentres = subsetcurrentres %>% dplyr::group_by(ploidylab,library_id) %>% dplyr::mutate(n=n(),weight = n/nrow(subsetcurrentres))
+      
+      if (nrow(subsetcurrentres) >= 10){
+        # Determine the concordance value, accounting for the ploidy (strata(ploidylab)), library ID (library_id), clone ID (clone_UMAP)
+        concres = survival::concordance(mtDNAcopynumber ~ heteroplasmy + strata(ploidylab) + strata(library_id), data=subsetcurrentres, weights = weight)
+        
+        # p-value calculation based on z-score
+        zscore = (concres$concordance - 0.5)/sqrt(concres$var)
+        p_value = 2*pnorm(-abs(zscore))
+        
+        # Store result
+        tempres = data.frame(eachtype,eachsample,eachvartype,eachvar,concres$concordance,concres$var,p_value)
+        colnames(tempres) = c('datatype','sample_id','vartype','variant_id','concordance','var','pval')
+        tottempres = rbind(tottempres, tempres)
       }
-      if(pval>0.01) mean_expression_shuffle[p,c] <- NA  ### NA is  blank in heatmap
-      pvalues_mat[p,c] <- pval
+    }
+    tottempres = tottempres[-1,]
+    return(tottempres)
+  }
+}
+
+# Initialize the result dataframe
+combinedres = data.frame(t(rep(1,7)))
+colnames(combinedres) = c('datatype','sample_id','vartype','variant_id','concordance','var','pval')
+
+for (eachtype in c('cell_lines','tumors')){
+  for (eachvartype in c('silent','truncating','nontruncating')){
+    filtres = filtvarmatrix[which((filtvarmatrix$datatype == eachtype) & (filtvarmatrix$type == eachvartype)),]
+    
+    for (eachvar in unique(filtres$variant_id)){
+      currsample = unique(filtres$sample_id[which(filtres$variant_id == eachvar)])
+      if(length(currsample) > 1){ # more than 1 sample
+        if (length(currsample[which(currsample %in% hTERT_group)]) > 0){ # hTERT samples
+          if (length(currsample[-which(currsample %in% hTERT_group)]) > 0){ # other than hTERT samples
+            # iterate through the other samples
+            for (othersample in currsample[-which(currsample %in% hTERT_group)]){
+              filtcurrentres = filtres[which((filtres$variant_id == eachvar) & (filtres$sample_id == othersample)),]
+              tempres = addtocombinedres(eachtype,eachvartype,eachvar,filtcurrentres,othersample,whichtype = 'sample_id')
+              combinedres = rbind(combinedres,tempres)
+            }
+            # hTERT samples
+            filtcurrentres = filtres[which((filtres$variant_id == eachvar) & (filtres$sample_id %in% hTERT_group)),]
+            tempres = addtocombinedres(eachtype,eachvartype,eachvar,filtcurrentres,'184hTERT',whichtype = 'group_id')
+            combinedres = rbind(combinedres,tempres)
+          }else{
+            # hTERT samples only but multiple samples
+            filtcurrentres = filtres[which((filtres$variant_id == eachvar) & (filtres$sample_id %in% hTERT_group)),]
+            tempres = addtocombinedres(eachtype,eachvartype,eachvar,filtcurrentres,'184hTERT',whichtype = 'group_id')
+            combinedres = rbind(combinedres,tempres)
+          }
+        }else{
+          # iterate through the samples
+          for (onesample in currsample){
+            filtcurrentres = filtres[which((filtres$variant_id == eachvar) & (filtres$sample_id == onesample)),]
+            tempres = addtocombinedres(eachtype,eachvartype,eachvar,filtcurrentres,onesample,whichtype = 'sample_id')
+            combinedres = rbind(combinedres,tempres)
+          }
+        }
+      }else{ # Single sample variant
+        filtcurrentres = filtres[which(filtres$variant_id == eachvar),]
+        currentsample = unique(filtcurrentres$sample_id)
+        tempres = addtocombinedres(eachtype,eachvartype,eachvar,filtcurrentres,currentsample,whichtype = 'sample_id')
+        combinedres = rbind(combinedres,tempres)
+      }
     }
   }
-  
-  all_NA <- rowAlls(is.na(mean_expression_shuffle))
-  mean_expression_shuffle <- mean_expression_shuffle[!all_NA,]
-  
-  #heatmap
-  dat <- mean_expression_shuffle
-  
-  sort_row <- c()
-  sort_column <- c()
-  
-  for(i in colnames(dat)){
-    select_row <- which(rowMaxs(dat,na.rm = T)==dat[,i])
-    tmp <- rownames(dat)[select_row][order(dat[select_row,i],decreasing = T)]
-    sort_row <- c(sort_row,tmp)
-  }
-  sort_column <- apply(dat[sort_row,],2,function(x) order(x)[nrow(dat)])
-  sort_column <- names(sort_column)
-  dat[is.na(dat)] <- 1
-  
+}
+combinedres = combinedres[-1,]
+
+# Change the labels
+ref = apply(data.frame(combinedres$variant_id),1,function(x) strsplit(x,':')[[1]][1])
+pos = as.numeric(apply(data.frame(combinedres$variant_id),1,function(x) strsplit(x,':')[[1]][2]))
+alt = apply(data.frame(combinedres$variant_id),1,function(x) strsplit(x,':')[[1]][3])
+combinedres$variant_id = paste0('m.',pos,ref,'>',alt)
+
+# Adjusted p-values
+combinedres$padj = p.adjust(combinedres$pval,method='BH')
+combinedres$p10 = -log10(combinedres$padj)
+combinedres$signif = combinedres$padj <= 0.05
+combinedres$label = ''
+combinedres$label[which((combinedres$padj < 0.15) |
+                          (combinedres$concordance > 0.55) |
+                          (combinedres$concordance < 0.4))] = combinedres$variant_id[which((combinedres$padj < 0.15) |
+                                                                                             (combinedres$concordance > 0.55) |
+                                                                                             (combinedres$concordance < 0.4))]
+
+# Plot the volcano plot
+fig5e <- ggplot(combinedres, aes(x = concordance, y = p10, label = label, color = vartype, alpha = signif)) +
+  geom_vline(xintercept = 0.5, color = 'grey') +
+  geom_hline(yintercept = 0, color = 'grey') +
+  geom_point(aes(shape = datatype), size = 1.4) +
+  scale_alpha_manual(values=c(0.4,1)) +
+  scale_shape_manual(values=c(2,16)) +
+  scale_color_manual(values = c("#0186BA",'#CE2B19',"#D38842")) +
+  geom_text_repel(size = 2) +
+  scale_x_continuous(limits = c(0.3,0.8), expand=c(0,0)) +
+  scale_y_continuous(limits = c(0,2.6), expand=c(0,0)) +
+  geom_hline(yintercept = -log10(0.05), 
+             linetype = 'dashed', color = 'grey') +
+  guides(alpha=guide_legend(title = 'Significant'),color=guide_legend(title = 'Variant type'),shape=guide_legend(title = 'Data type')) +
+  xlab('Concordance') +
+  ylab('-log10(Q-value)') +
+  theme_classic() +
+  theme(axis.text = element_text(size=6),
+        axis.title = element_text(size=8),
+        legend.key.size = unit(0.4,'cm'),
+        legend.title = element_text(size=6),
+        legend.text = element_text(size=6),
+        legend.margin=margin(0,0,0,0),
+        legend.box.margin=margin(0,0,0,-5))
+fig5e
+
+```
+
+## 5f and 5g from IGV
+
+## 5h
+
+```{r panel_5h,fig.height=2,fig.width=2.5,eval=T}
+
+### FIX THIS ###
+## varmatrix
+
+filtvarmatrix = varmatrix
+filtvarmatrix = filtvarmatrix[-which(filtvarmatrix$heteroplasmy > 0.95),]
+filtvarmatrix = filtvarmatrix[-which(filtvarmatrix$heteroplasmy < 0.05),]
+if (length(which(is.na(filtvarmatrix$mtDNAcopynumber))) > 0){
+  filtvarmatrix = filtvarmatrix[-which(is.na(filtvarmatrix$mtDNAcopynumber)),]
 }
 
-# Pathway enrichment analysis for clones
-pathways.hallmark <- gmtPathways("../data/ext/h.all.v7.2.symbols.gmt")
-
-# Differentially expressed gene list
-GvsAdeg <- read.table('../data/processed_data/GvsA_genelist.tsv', header = T, quote = "", stringsAsFactors = F)
-GvsFdeg <- read.table('../data/processed_data/GvsF_genelist.tsv', header = T, quote = "", stringsAsFactors = F)
-GvsKdeg <- read.table('../data/processed_data/GvsK_genelist.tsv', header = T, quote = "", stringsAsFactors = F)
-
-fgseanalysis <- function(deg,pathways.hallmark,mtOXPHOS,nuOXPHOS){
-  # Comparing clones
-  deg$MTgenes = "None"
-  rownames(deg) = deg$gene
-  deg[intersect(deg$gene, mtOXPHOS),"MTgenes"] = "mtDNA-encoded"
-  deg[intersect(deg$gene, nuOXPHOS),"MTgenes"] = "nuDNA-encoded"
-  deg["TFAM","MTgenes"] = "TFAM"
-  deg = deg[which((deg$adj_pval < 0.01) & (abs(deg$log_fc) > 0.01)),]
-  deg$size = 1
-  deg$size[which(deg$MTgenes != "None")] = 1.1
-  deg$logp = -log10(deg$adj_pval)
-  deg[which(deg$logp > 300),"logp"] = 300
-  deg <- deg[order(deg$size),]
-  
-  rank = deg[order(deg$log_fc, decreasing=T),]
-  ranks <- rank$log_fc
-  names(ranks) <- rank$gene
-  
-  fgseaRes <- fgseaMultilevel(pathways=pathways.hallmark, stats=ranks)
-  
-  fgseaResTidy <- fgseaRes %>%
-    as_tibble() %>%
-    arrange(desc(NES))
-  
-  fgseaResTidy %>%
-    dplyr::select(-leadingEdge, -ES) %>%
-    arrange(padj)
-  
-  return(c(fgseaResTidy$NES[which(fgseaResTidy$pathway == "HALLMARK_MT_OXIDATIVE_PHOSPHORYLATION")],fgseaResTidy$NES[which(fgseaResTidy$pathway == "HALLMARK_OXIDATIVE_PHOSPHORYLATION")]))
+if (length(which(filtvarmatrix$clone_UMAP == 'nonmal')) > 0){
+  filtvarmatrix = filtvarmatrix[-which(filtvarmatrix$clone_UMAP == 'nonmal'),]
 }
 
-# Import Pearson correlation coefficients for TCGA
-TCGAcorr <- read.table('../dat/processed_data/corrTCGA.tsv',header=T,quote='',stringsAsFactors=F)
+# Filter based on heteroplasmy range
+filtvarmatrix = filtvarmatrix %>% group_by(library_id,variant_id) %>% dplyr::mutate(hetrange = max(heteroplasmy) - min(heteroplasmy)) %>% dplyr::filter(hetrange >= 0.15) %>% select(library_id,variant_id,cell_id,ploidylab,heteroplasmy,altread,totalread,mtDNAcopynumber,type,group,datatype,sample_id,clone_UMAP,hetrange) %>% distinct()
+
+filtvarmatrix = filtvarmatrix[which((filtvarmatrix$sample_id == "SPECTRUM-OV-081") & (filtvarmatrix$variant_id == "G:6708:A")),]
+
+fig5h <- ggplot(filtvarmatrix,aes(x=heteroplasmy,y=mtDNAcopynumber)) + geom_point(size=0.6) + theme_classic() +
+  geom_smooth(method = 'lm') + stat_cor() +
+  xlab('Heteroplasmy') + ylab('mtDNA copy number') +
+  theme(strip.text.x = element_text(size=10),
+        strip.background = element_blank())
+
+fig5h
+
 
 ```
 
 
-## 6a
+## 5i
 
-```{r panel_6a,fig.height=1,fig.width=1.5,eval=T}
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# UMAP of the scRNA-seq of the SA906a cell line with cells clustered based on mapping against DLP+-defined clones
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+```{r panel_5i,fig.height=2.5,fig.width=2.5,eval=T}
 
-fig6a <- ggplot(umapdat, aes(x=UMAP1, y=UMAP2,col=clone)) + geom_point() + scale_color_manual(values=c('A'='#7A4644','F'='#E7BA5C','G0'='#FF886B','G1'='#D6514D','K'='#B077B6')) + guides(color=guide_legend(title="Clone")) + theme_bw()
+# Heteroplasmy correlation
+fig5i <- ggplot(subset(OV081_corr,gene_id == 'MT-ND3'),aes(x=Heteroplasmy,y=gene_exp)) + geom_point() +
+  theme_classic() + geom_smooth(method='lm') + stat_cor() + 
+  ylab('MT-ND3 Expression')
 
-fig6a
+fig5i
+
 
 ```
 
 
-## 6b
 
-```{r panel_6b,fig.height=1,fig.width=1.5,eval=T}
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# MYC expression shown by clones
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## 5j
 
-# Comparisons across subclone G1 vs. rest of the clones
-my_comparisons = list(c("G1","G0"),c("G1","A"),c("G1","K"),c("G1","F"))
+```{r panel_5j,fig.height=2.5,fig.width=2.5,eval=T}
 
-# Setting the order of the clones
-clonalexp_MYC$Clone = factor(clonalexp_MYC$Clone, levels = c("G0","G1","F","K","A"))
-
-# Plot
-fig6b = ggplot(clonalexp_MYC, aes(x=Clone,y=Expression)) + scale_y_continuous(limits = c(0,4.2)) + geom_violin(aes(fill=Clone)) + geom_boxplot(width = 0.05) +
-  stat_compare_means(comparisons = my_comparisons, label.y = c(3.8,3.4,3)) + theme_classic() + xlab("Clones") + ylab("MYC gene expression") +
-  scale_fill_manual(values=c("#FF886B","#D6514D","#E7BA5C","#B077B6","#7A4644"))
-
-fig6b <- fig6b + theme(axis.text = element_text(size=10),
-                     axis.title.x = element_text(size=10),
-                     axis.title.y = element_text(size=10),
-                     axis.text.x = element_text(size=10),
-                     panel.grid.major = element_blank(),
-                     axis.line=element_line(colour='black'),
-                     plot.title = element_text(lineheight=1.5,face='bold',size=10,hjust=0.5),
-                     plot.subtitle = element_text(lineheight=1.5,face='bold',size=10,hjust=0.5),
-                     legend.position = 'none'
-)
-
-fig6b
-
-```
-
-
-## 6c
-
-```{r panel_6c,fig.height=1.5,fig.width=2,eval=T}
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Comparison of clone G against clones A, F, and K
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-# Subsetting SA906a sample and removing any cells that are not assigned to a clone
-SA906a_cells = allcellsfile[which(allcellsfile$group=='184hTERT(TP53-/-)(SA906a)'),]
-SA906a_cells = SA906a_cells[-which((SA906a_cells$clone=='Un') | (SA906a_cells$clone=='')),]
-
-# Calculate the median mtDNA copy number across clones
-SA906a_clones <- SA906a_cells %>% group_by(clone) %>% mutate(medcopynumber = median(copynumber)) %>%
-  select(clone,medcopynumber) %>% distinct()
-
-# Calculate the relative mtDNA copy number
-compare_clones = SA906a_clones$medcopynumber[which(SA906a_clones$clone == 'G')]/SA906a_clones$medcopynumber
-names(compare_clones) = paste0('G vs. ',SA906a_clones$clone)
-
-# Initialize relative mtDNA copy number variable
-comparison.1 <- read.table(text='
-clones,variable
-G vs. A,relativeCN
-G vs. F,relativeCN
-G vs. K,relativeCN',header=T,sep=',')
-comparison.1$value = log2(compare_clones[match(comparison.1$clones,names(compare_clones))])
-comparison.1$variable = as.character(comparison.1$variable)
-comparison.1$variable[which(comparison.1$variable=='relativeCN')] = 'mtDNA\ncopy number'
-
-# Calculate the relative OXPHOS enrichment
-cloneres <- matrix(data=NA,nrow=2,ncol=3)
-colnames(cloneres) <- c('GvsA','GvsF','GvsK')
-rownames(cloneres) <- c('mtOXPHOS','nuOXPHOS')
-
-# Clone-specific scRNA-seq Normalized Enrichment Score
-for (eachcomparison in colnames(cloneres)){
-  cloneres[,eachcomparison] <- fgseanalysis(get(paste0(eachcomparison,'deg')), pathways.hallmark,mtOXPHOS,nuOXPHOS)
+filtcombined_corr = combined_corr[which((combined_corr$sample_id == 'SPECTRUM-OV-081') & (combined_corr$variant_id == 'G:6708:A')),]
+filtcombined_corr = filtcombined_corr[order(filtcombined_corr$coeff,decreasing = T),]
+if (length(which(is.na(filtcombined_corr$coeff))) > 0){
+  filtcombined_corr = filtcombined_corr[-which(is.na(filtcombined_corr$coeff)),]
 }
-comparison.2 <- reshape2::melt(cloneres)
-colnames(comparison.2) = c('variable','clones','value')
+filtcombined_corr$Index = 1:nrow(filtcombined_corr)
+filtcombined_corr$genome = 'nuDNA'
+filtcombined_corr$genome[grep('MT-',filtcombined_corr$gene_id)] = 'mtDNA'
+MTres = filtcombined_corr[which(filtcombined_corr$genome == 'mtDNA'),]
+filtcombined_corr = filtcombined_corr[-which(filtcombined_corr$genome == 'mtDNA'),]
+filtcombined_corr$label = ''
+MTres$label = MTres$gene_id
 
-# Plot
-fig6c1 <- ggplot(data = comparison.1,aes(x = variable,y = value,fill = clones)) + geom_bar(position='dodge',stat='identity',color = 'black') + theme_bw() +
-  theme(axis.title.x = element_blank(),
-        axis.text.x = element_text(size=10,angle = 35,hjust = 1,vjust = 1),
-        axis.line = element_blank(),
-        panel.grid.major.x = element_blank(),
-        panel.grid.minor = element_blank(),
-        legend.position = 'none') +
-  scale_fill_manual(values = c('#7A4644','#E7BA5C','#B077B6')) + ylab('Relative mtDNA copy number') + scale_y_continuous(limits = c(-1.8,2.6))
-
-fig6c2 <- ggplot(data = comparison.2,aes(x = variable,y = value,fill = clones)) + geom_bar(position='dodge',stat='identity',color = 'black') + theme_bw() + labs(fill = 'Comparisons') +
-  theme(axis.title.x = element_blank(),
-        axis.text.x = element_text(size=10,angle = 35,hjust = 1,vjust = 1),
-        axis.line = element_blank(),
-        legend.title = element_text(size = 8),
-        panel.grid.major.x = element_blank(),
-        panel.grid.minor = element_blank(),
-        legend.text = element_text(size = 8),
-        legend.key.size = unit(0.5,'cm')) +
-  scale_fill_manual(values = c('#7A4644','#E7BA5C','#B077B6')) + ylab('Relative Enrichment Score') + scale_y_continuous(limits = c(-1.8,2.6))
-
-fig6c <- plot_grid(fig6c1,fig6c2,align = 'h',nrow = 1,rel_widths = c(.33,.66))
-
-fig6c
+fig5j <- ggplot(filtcombined_corr, aes(x=Index,y=coeff,color=genome)) + geom_point(size=0.2) + geom_hline(yintercept = 0, linetype = 'dashed') +
+  scale_color_manual(values=c('nuDNA'='black','mtDNA'='red')) + theme_classic() +
+  geom_point(data=MTres,aes(x=Index,y=coeff,color=genome),inherit.aes = F) +
+  xlab('Rank sorted genes') + ylab('Correlation coefficient with heteroplasmy') +
+  theme(legend.position=c(0.2,0.2),
+        axis.title = element_text(size=8),
+        axis.text = element_text(size=8),
+        legend.key.size = unit(0.4,'cm'),
+        legend.title = element_blank(),
+        legend.text = element_text(size=6))
+fig5j
 
 ```
 
-## 6d
 
-```{r panel_6d,fig.height=1,fig.width=2.5,eval=T}
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Heatmap of the KEGG metabolic pathway analysis of clones A, F, and G
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-# Keeping pathways that are significant in clone G
-keeptheserows <- rownames(pvalres[which(pvalres$G==0),])
-dat <- as.matrix(mean_expression_noshuffle[keeptheserows,])
+## 5k
 
-sort_row <- c()
-sort_column <- c()
-# Iterating through the clones to sort rows and columns
-for(i in colnames(dat)){
-  select_row <- which(matrixStats::rowMaxs(dat,na.rm = T)==dat[,i])
-  tmp <- rownames(dat)[select_row][order(dat[select_row,i],decreasing = T)]
-  sort_row <- c(sort_row,tmp)
+```{r panel_5k,fig.height=3,fig.width=2.5,eval=T}
+
+combinedres = data.frame(t(rep(1,9)))
+colnames(combinedres) = c("sample","pathway","pval","padj","log2err","ES","NES","size","stat")
+
+resummary = combined_corr %>% group_by(sample_id,variant_id) %>% select(sample_id,variant_id) %>% distinct()
+
+filtres = combined_corr[which((combined_corr$sample_id == 'SPECTRUM-OV-081') & (combined_corr$variant_id == 'G:6708:A')),]
+
+checkres = filtres %>% group_by(gene_id) %>% mutate(medcoeff = median(coeff,na.rm=T)) %>% select(gene_id,medcoeff) %>% distinct()
+checkres = checkres[order(checkres$medcoeff,decreasing = T),]
+if (length(which(is.na(checkres$medcoeff))) > 0){
+  checkres = checkres[-which(is.na(checkres$medcoeff)),]
 }
-sort_column <- apply(dat[sort_row,],2,function(x) order(x)[nrow(dat)])
-sort_column <- names(sort_column)
-dat[is.na(dat)] <- 1
+checkres$Index = 1:nrow(checkres)
+checkres$genome = 'Nuclear'
+checkres$genome[grep('MT-',checkres$gene_id)] = 'MT'
+MTcheckres = checkres[which(checkres$genome == 'MT'),]
+checkres = checkres[-which(checkres$genome == 'MT'),]
+checkres$label = ''
+MTcheckres$label = MTcheckres$gene_id
 
-# Plot
-fig6d <- Heatmap(as.matrix(dat[sort_row,sort_column]),name = ' ',col = colorRamp2(c(0.95,1,1.05),c('blue','white','red')),cluster_columns = F,na_col = 'black',border = T,show_column_names = T,cluster_rows = F,row_names_max_width = unit(9,'cm'))
+rownames(filtres) = filtres$gene_id
+filtres$MTgenes = "None"
+filtres[intersect(filtres$gene_id, MTgenes),"MTgenes"] = "mtDNA-encoded"
+filtres[intersect(filtres$gene_id, nuMTgenes),"MTgenes"] = "nuDNA-encoded"
+rank = filtres[order(filtres$coeff, decreasing=T),]
+if (length(which(is.na(rank$coeff))) > 0){
+  rank = rank[-which(is.na(rank$coeff)),]
+}
+ranks <- rank$coeff
+names(ranks) <- rank$gene_id
 
-fig6d
+fgseaRes <- fgseaMultilevel(pathways=pathways.hallmark, stats=ranks)
+
+fgseaResTidy <- fgseaRes %>%
+  as_tibble() %>%
+  arrange(desc(NES))
+
+fgseaResTidy %>%
+  dplyr::select(-leadingEdge, -ES) %>%
+  arrange(padj)
+
+fgseaResTidy$pathway = gsub('HALLMARK_','',fgseaResTidy$pathway)
+fgseaResTidy$pathway = gsub('_',' ',fgseaResTidy$pathway)
+fgseaResTidy$Significant = fgseaResTidy$padj<=0.05
+fgseaResTidy$Significant = factor(fgseaResTidy$Significant, levels=c("TRUE","FALSE"))
+
+fgseaResTidy$stat = -log10(fgseaResTidy$padj)*sign(fgseaResTidy$NES)
+fgseaResTidy$sample = 'SPECTRUM-OV-081'
+fgseaResTidy = fgseaResTidy[,c("sample","pathway","pval","padj","log2err","ES","NES","size","stat")]
+
+combinedres = fgseaResTidy
+combinedres$pathway = gsub('HALLMARK_','',combinedres$pathway)
+combinedres$pathway = gsub('_',' ',combinedres$pathway)
+
+summarize_signature <- function(m) {
+  mid <- median(m$stat)
+  n <- sum(abs(m$stat) > 2) #/ nrow(m)
+  m <- m[order(stat,decreasing=F),]
+  m$n <- n
+  m$mid <- mid
+  m$pos <- ((1:nrow(m))/nrow(m))
+  m
+}
+
+combinedres <- adt(combinedres)
+combinedres <- combinedres[,summarize_signature(.SD), by=pathway]
+combinedres <- combinedres[order(mid,pos,decreasing=F),]
+combinedres <- combinedres[which((combinedres$stat <= -2) | (combinedres$stat >= 2)),]
+combinedres$pathway <- factor(combinedres$pathway, levels=unique(combinedres$pathway))
+
+fig5k <- ggplot(combinedres, aes(x=stat,y=pathway)) +
+  scale_x_continuous(limits=c(-10,20)) + 
+  geom_bar(stat='identity',fill='#4675b4') +
+  theme_classic() +
+  theme(axis.text.y = element_text(size=6),
+        axis.title = element_text(size=8),
+        legend.key.size = unit(0.3,'cm'),
+        legend.key.height = unit(0.3,'cm'),
+        legend.key.width = unit(0.3,'cm'),
+        legend.title = element_text(size=5),
+        legend.text = element_text(size=5)) + 
+  labs(x=expression('-log10(Q-value)*sign(NES)'),y=NULL)
+
+fig5k
 
 ```
 
 
-## 6e
 
-```{r panel_6e,fig.height=2,fig.width=2,eval=T}
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Heatmap of the correlation coefficient between all OXPHOS genes in TP53-/- 184-hTERT breast cell line, SA906a
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-# Plot
-fig6e <- Heatmap(as.matrix(corres), name = "Corr", col = colorRamp2(c(-1, 0, 1), c('blue','white','firebrick')), cluster_columns = F, na_col = "black", border = T, show_column_names = F, show_row_names = F, cluster_rows = F)
-
-fig6e
-
-```
-
-
-## 6f
-
-```{r panel_6f,fig.height=1,fig.width=2,eval=T}
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Distribution of Pearson correlation coefficient between mtDNA copy number and mtDNA-encoded or nuDNA-encoded OXPHOS genes in TCGA breast cancer samples
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-# Wilcoxon test of correlation coefficients between mtDNA-encoded OXPHOS genes and nuDNA-encoded OXPHOS genes
-res <- wilcox.test(TCGAcorr$corr[which(TCGAcorr$col=='mtOXPHOS')],TCGAcorr$corr[which(TCGAcorr$col=='nuOXPHOS')])
-label = paste0('Wilcoxon,p = ',formatC(res$p.value,format = 'e',digits = 2))
-
-# Plot
-fig6f <- ggplot(TCGAcorr,aes(x=corr,fill=col)) + geom_histogram(aes(y=(..density..)/sum(..density..)),alpha = 0.8,position='identity',lwd=0.2) + xlab('Correlation Coefficient') + ylab('Proportion') +
-  theme_classic() + scale_fill_manual(name='Pairwise Corr',labels=c('nuOXPHOS','mtOXPHOS','mtDNAcopy'),values=c('#00798c','#edae49','#d1495b')) + annotate(geom='text',x=0,y=0.1,label=label) +
-  theme(legend.position = c(0.2,0.85),
-        legend.title=element_blank())
-
-fig6f
-
-
-```
 

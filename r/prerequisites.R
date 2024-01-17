@@ -5,7 +5,7 @@ set.seed(22)
 # load required packages
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-required.packages <- c('ape','circlize','ComplexHeatmap','cowplot','data.table','dplyr','fgsea','ggplot2','ggpubr','ggrepel','Matrix','RColorBrewer','reshape2','scater','signals','tidyr','viridis','reticulate','zellkonverter','SingleCellExperiment')
+required.packages <- required.packages <- c('ape','circlize','ComplexHeatmap','cowplot','scales','survival','data.table','dplyr','fgsea','ggbeeswarm','ggplot2','ggpubr','ggrepel','Matrix','RColorBrewer','reshape2','scater','signals','tidyr','viridis','reticulate','Seurat')
 hide <- suppressMessages(lapply(required.packages, require, character.only = TRUE))
 missing.packages <- required.packages[!required.packages %in% (.packages())]
 if(length(missing.packages)>0) stop(paste('Could not load required packages:',paste(missing.packages,collapse=', ')))
@@ -21,11 +21,6 @@ mtdna_classes <- unique(c(coding_classes,truncating_classes,'tRNA','rRNA'))
 mtdna_classes <- mtdna_classes[mtdna_classes!='Silent']
 `%nin%` <- Negate(`%in%`)
 nontruncating_classes <- mtdna_classes[mtdna_classes %nin% truncating_classes]
-
-trna_labels <- data.table(aa=c('A','R','N','D','C','Q','E','G','H','I','L1','L2','K','M','F','P','S1','S2','T','W','Y','V'),
-                          label=c('Ala','Arg','Asn','Asp','Cys','Gln','Glu','Gly','His','Ile','Leu1','Leu2','Lys','Met','Phe','Pro','Ser1','Ser2','Thr','Trp','Tyr','Val'))
-trna_labels$Hugo_Symbol <- paste0('MT-T',trna_labels$aa)
-
 
 ## ggplot theme
 theme_std <- function(base_size = 11, base_line_size = base_size/22, base_rect_size = base_size/22) {
@@ -88,31 +83,6 @@ extract_gglegend <- function(p){
   plot <- p + theme(legend.position='none')
   list(plot=plot,legend=legend)
 }
-
-
-## function to split HGVSp_Short field in MAF into Amino_Acid_Position, Reference_Amino_Acid, Variant_Amino_Acid, Amino_acids
-HGVSp_Short_parse <- function(x,cpus=1) {
-  x1 <- gsub('p.','',x)
-  m <- gregexpr('[0-9]+',x1)
-  nums <- regmatches(x1,m)
-  get.aa <- function(num) num[1]
-  aas <- sapply(nums,get.aa,USE.NAMES=F)
-  tmp <- data.table(HGVSp_Short=x1,aa=aas)
-  tmp$i <- 1:nrow(tmp)
-  split <- function(d) {
-    s <- strsplit(d$HGVSp_Short,d$aa)[[1]]
-    s[2] <- gsub('_sice','splice',s[2])
-    list(Reference_Amino_Acid=s[1],Variant_Amino_Acid=s[2])
-  }
-  info <- tmp[,split(.SD),by=i]
-  info$HGVSp_Short <- x
-  info$Amino_Acid_Position=as.integer(aas)
-  info <- info[,c(4,2,5,3),with=F]
-  info$Amino_acids <- paste(info$Reference_Amino_Acid,info$Variant_Amino_Acid,sep='/')
-  info$Amino_acids[is.na(info$Amino_Acid_Position)] <- NA
-  info
-}
-
 
 ## creates a data.table with histogram of values in a vector 
 table.freq <- function(value) {
