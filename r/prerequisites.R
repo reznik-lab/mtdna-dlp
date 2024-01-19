@@ -14,6 +14,11 @@ if(length(missing.packages)>0) stop(paste('Could not load required packages:',pa
 # define commonly used objects and helper functions
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+# library groups
+cell_lines = c("SA039-ALL","SA1044-ALL","SA1054-A95632A","SA1055-A95621A","SA1056-A95635A","SA1090-A96213A","SA1101a-ALL","SA1101b-ALL","SA1188-ALL","SA1292-A118389B","SA906a-ALL","SA906b-ALL")
+tumors = c("SA1035U-ALL","SA604-ALL","SA605-ALL","SA610-ALL","SA1047-ALL","SA1162-ALL","SA501-ALL","SA530-ALL","SA535U-ALL","SA609U-ALL","SA1052-ALL","SA1135-ALL","SA1142-ALL",'SPECTRUM-OV-022','SPECTRUM-OV-081')
+hTERT_group = c("SA039-ALL","SA1054-A95632A","SA1055-A95621A","SA1056-A95635A","SA1101a-ALL","SA1101b-ALL","SA1292-A118389B","SA1188-ALL","SA906a-ALL","SA906b-ALL")
+
 coding_classes <- c('Missense_Mutation','Nonsense_Mutation','Splice_Site','In_Frame_Del','In_Frame_Ins','Frame_Shift_Del','Frame_Shift_Ins','Translation_Start_Site','Nonstop_Mutation','Silent')
 truncating_classes <- c('Nonsense_Mutation','Frame_Shift_Del','Frame_Shift_Ins','Splice_Site')
 

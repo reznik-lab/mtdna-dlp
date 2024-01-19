@@ -1,13 +1,13 @@
 ---
-output: 
-    html_document:
-        css: style.css
+title: "`r params$set_title`"
 chunk_output_type: console
-header-includes:
-- \pagenumbering{gobble}
+header-includes: \pagenumbering{gobble}
+output:
+  pdf_document: default
+  html_document:
+    css: style.css
 params:
-    set_title: 'Article figures'
-title: '`r params$set_title`'
+  set_title: Article figures
 ---
 
 ```{r}
@@ -708,12 +708,14 @@ resultfile = read.csv(paste0('../data/processed_data/final_master.tsv'), header=
 # Load clone label file
 clonelabels <- read.table(paste0('../data/processed_data/clonelabels.tsv'), header=T, sep='\t', stringsAsFactors=F)
 
-## Load SA906a file
+## Load SA906a file: can also import SA906a_combined.RData file from Zenodo (https://zenodo.org/records/10498240)
+# load("SA906a_combined.RData")
 SA906a_CNbins <- read.table(paste0('../data/processed_data/SA906a_CNbins.tsv'), header=T, sep='\t', stringsAsFactors=F)
 SA906a_clonelabels <- clonelabels[which(clonelabels$sample_id == 'SA906a'),]
 SA906a_allclones <- c("2N D","4N D","2N C","4N C","2N G","4N G","2N A","4N A")
 
-## Load OV-081 file
+## Load OV-081 file: can also import OV081_combined.RData file from Zenodo (https://zenodo.org/records/10498240)
+# load("OV081_combined.RData")
 OV081_CNbins <- read.table(paste0('../data/processed_data/OV081_CNbins.tsv'), header=T, sep='\t', stringsAsFactors=F)
 OV081_clonelabels <- clonelabels[which(clonelabels$sample_id == 'OV-081'),]
 OV081_allclones <- c("2N C","4N C","2N B","2N A")
@@ -1029,9 +1031,11 @@ fig3c_tumor
 ## Iterate through the clones and plot the nuDNA copy number profiles
 clonefigslist = c()
 for (eachclone in SA906a_allclones){
-  figlab <- ggdraw() + draw_label(paste0('n=',SA906a_clonelabels$Freq[which(SA906a_clonelabels$Var1 == eachclone)]), size=12, x = 0.95, angle = 90, vjust = -0.1, hjust = 0) + theme(plot.margin = margin(0, 0, 0, 0))
-  fig <- plotCNprofile(CNbins = SA906a_CNbins[which(SA906a_CNbins$cell_id == eachclone),], legend.position = "none", pointsize = 0.6) +
-    theme(axis.text = element_text(size=10), axis.title = element_blank())
+  figlab <- ggdraw() + draw_label(paste0('n=',SA906a_clonelabels$ncells[which(SA906a_clonelabels$clone_id == eachclone)]), size=12, x = 0.95, angle = 90, vjust = -0.1, hjust = 0) + theme(plot.margin = margin(0, 0, 0, 0))
+  fig <- plotCNprofile(CNbins = SA906a_CNbins[which(SA906a_CNbins$cell_id == eachclone),], maxCN = 8, pointsize = 0.4, legend.position = "none") +
+    theme(axis.text.y = element_text(size=8),
+          axis.text.x = element_text(size=10),
+          axis.title = element_blank())
   assign(paste0('fig',eachclone), plot_grid(fig, figlab, rel_widths = c(1,0.03)))
   clonefigslist = append(clonefigslist,paste0('fig',eachclone))
 }
@@ -1090,20 +1094,35 @@ fig3e
 
 ```{r panel_3f,fig.height=5,fig.width=4,eval=T}
 
-## MNR plot and nuDNA plot across tetraploid and diploid for OV-081
+## nuDNA plot across tetraploid and diploid for OV-081
 ## Iterate through the clones and plot the nuDNA copy number profiles
 clonefigslist = c()
 for (eachclone in OV081_allclones){
-  figlab <- ggdraw() + draw_label(paste0('n=',OV081_clonelabels$Freq[which(OV081_clonelabels$Var1 == eachclone)]), size=12, x = 0.95, angle = 90, vjust = -0.1, hjust = 0) + theme(plot.margin = margin(0, 0, 0, 0))
-  fig <- plotCNprofile(CNbins = OV081_CNbins[which(OV081_CNbins$cell_id == eachclone),], legend.position = "none", pointsize = 0.6) +
-    theme(axis.text = element_text(size=10), axis.title = element_blank())
-  assign(paste0('fig',eachclone), plot_grid(fig, figlab, rel_widths = c(1,0.03)))
+  figlab <- ggdraw() + draw_label(paste0('n=',OV081_clonelabels$ncells[which(OV081_clonelabels$clone_id == eachclone)]), size=12, x = 0.95, angle = 90, vjust = -0.1, hjust = 0) + theme(plot.margin = margin(0, 0, 0, 0))
+  assign(paste0('figlab',eachclone), figlab)
+  fig <- plotCNprofile(CNbins = OV081_CNbins[which(OV081_CNbins$cell_id == eachclone),], maxCN = 8, pointsize = 0.4, legend.position = "none") +
+    theme(axis.text.x = element_text(size=10),
+          axis.text.y = element_text(size=7),
+          axis.title = element_blank())
+  assign(paste0('fig',eachclone), fig)
   clonefigslist = append(clonefigslist,paste0('fig',eachclone))
 }
 
-fig3f <- plot_grid(plotlist=mget(rev(clonefigslist)), nrow = length(OV081_allclones))
-fig3f
+eachclone = '4N C'
+figlab <- ggdraw() + draw_label(paste0('n=',OV081_clonelabels$ncells[which(OV081_clonelabels$clone_id == eachclone)]), size=12, x = 0.95, angle = 90, vjust = -0.1, hjust = 0) + theme(plot.margin = margin(0, 0, 0, 0))
+assign(paste0('figlab',eachclone), figlab)
+fig <- plotCNprofile(CNbins = OV081_CNbins[which(OV081_CNbins$cell_id == eachclone),], maxCN = 10, pointsize = 0.4, legend.position = "none") +
+  theme(axis.text.x = element_text(size=10),
+        axis.text.y = element_text(size=7),
+        axis.title = element_blank())
+assign(paste0('fig',eachclone), fig)
 
+nuDNAfig <- plot_grid(plotlist=mget(rev(clonefigslist)), nrow = (length(OV081_allclones)), align = 'v')
+
+nuDNAfiglab <- plot_grid(plotlist=mget(rev(gsub('fig','figlab',clonefigslist))), nrow = (length(OV081_allclones)), align = 'v')
+
+fig3f <- plot_grid(nuDNAfig, nuDNAfiglab, nrow = 1, rel_widths = c(1,0.03))
+fig3f
 
 ```
 
@@ -1188,7 +1207,7 @@ fig4a
 ## Import final master file
 filtresultfile = resultfile[which(resultfile$group == "HGSC primary(OV-022)"),]
 filtresultfile = filtresultfile[-which(is.na(filtresultfile$treealign_id)),]
-filtresultfile = filtresultfile[which(filtresultfile$treealign_id %in% levels(Idents(Ovarian.cancer))),]
+filtresultfile = filtresultfile[which(filtresultfile$treealign_id %in% sort(unique(filtresultfile$treealign_id))),]
 
 fig4b <- ggplot(filtresultfile, aes(x=reorder(treealign_id,-MNR),y=MNR)) + geom_violin(aes(fill=treealign_id),trim = F) + geom_boxplot(width=0.2,outlier.size = -1) + theme_classic() +
   scale_y_continuous(limits = c(0,1600),expand = c(0,0)) + scale_fill_manual(values=customcolors$clones) +
@@ -1227,7 +1246,7 @@ fig4c
 
 ## Plot UMAP
 fig4d <- ggplot(OV081_scRNA, aes(x=UMAP_1,y=UMAP_2,color=clonealign_id)) + geom_point(size=0.5) + 
-  scale_color_manual(values=customcolors$clones) +scale_x_continuous(limits= c(-6,-2)) + scale_y_continuous(limits= c(1,4)) + theme_minimal() +
+  scale_color_manual(values=customcolors$clones) +scale_x_continuous(limits=c(-10.5,-6.5)) + scale_y_continuous(limits = c(10.5,14)) + theme_minimal() +
   theme(axis.text = element_blank(),
         axis.title = element_blank(),
         panel.grid = element_blank(),
@@ -1247,7 +1266,7 @@ fig4d
 ## Import final master file
 filtresultfile = resultfile[which(resultfile$group == "HGSC primary(OV-022)"),]
 filtresultfile = filtresultfile[-which(is.na(filtresultfile$treealign_id)),]
-filtresultfile = filtresultfile[which(filtresultfile$treealign_id %in% levels(Idents(Ovarian.cancer))),]
+filtresultfile = filtresultfile[which(filtresultfile$treealign_id %in% sort(unique(filtresultfile$treealign_id))),]
 
 fig4e <- ggplot(filtresultfile, aes(x=reorder(treealign_id,-MNR),y=MNR)) + geom_violin(aes(fill=treealign_id),trim = F) + geom_boxplot(width=0.2,outlier.size = -1) + theme_classic() +
   scale_y_continuous(limits = c(0,1600),expand = c(0,0)) + scale_fill_manual(values=customcolors$clones) +
@@ -1269,7 +1288,7 @@ fig4e
 ## Plot ND3 gene expression
 fig4f <- ggplot(OV081_scRNA, aes(x=UMAP_1,y=UMAP_2,color=MT.ND3)) + geom_point(size=0.5) +
   scale_color_gradientn(colours = c("blue", "blue", "white", "red"), values = rescale(x = c(0, 2.5, 3.8, 5)), name = 'Expression') +
-  ggtitle('MT-ND3') + scale_x_continuous(limits= c(-6,-2)) + scale_y_continuous(limits= c(1,4)) + theme_minimal() +
+  ggtitle('MT-ND3') + scale_x_continuous(limits=c(-10.5,-6.5)) + scale_y_continuous(limits = c(10.5,14)) + theme_minimal() +
   theme(axis.text = element_blank(),
         axis.title = element_blank(),
         panel.grid = element_blank(),
@@ -1361,7 +1380,7 @@ fig4i <- ggplot(OV081_scRNA, aes(x=UMAP_1,y=UMAP_2,color=Hypoxia.pathway)) + geo
                         values = rescale(x = c(-1, 0, 0.5, 2.5, 6)),
                         name = 'PROGENy score') +
   ggtitle('Hypoxia pathway') +
-  scale_x_continuous(limits= c(-6,-2)) + scale_y_continuous(limits= c(1,4)) + theme_minimal() +
+  scale_x_continuous(limits= c(-10.5,-6.5)) + scale_y_continuous(limits = c(10.5,14)) + theme_minimal() +
   theme(axis.text = element_blank(),
         axis.title = element_blank(),
         panel.grid = element_blank(),
@@ -1389,7 +1408,7 @@ filtresultfile = filtresultfile[-which(filtresultfile$clone_UMAP == 'nonmal'),]
 # Import multiallele file
 allvars = read.table(paste0('../data/processed_data/SA1047_genotype.tsv'),sep='\t',header=T,check.names=FALSE,stringsAsFactors=F)
 
-# Import varmatrix file from Zenodo (https://zenodo.org/records/6998936)
+# Import varmatrix file from Zenodo (https://zenodo.org/records/10535512)
 varmatrix = read.table('../data/processed_data/varmatrix.tsv',header=T, sep='\t')
 
 # Import the truncating variants matrix
@@ -1564,10 +1583,7 @@ if (length(which(is.na(filtvarmatrix$mtDNAcopynumber))) > 0){
 readthreshold = 10
 filtvarmatrix = filtvarmatrix[which(filtvarmatrix$totalread >= readthreshold),]
 
-# Add the sample_id, library_id, and clone information
-filtvarmatrix$sample_id = filtvarmatrix$library_id
-filtvarmatrix$library_id = apply(data.frame(filtvarmatrix$cell_id), 1, function(x) strsplit(x,'[.]')[[1]][2])
-filtvarmatrix$clone_UMAP = resultfile$clone_UMAP[match(gsub('[.]','-',filtvarmatrix$cell_id),resultfile$cell_id)]
+# Keep only the malignant cells
 if (length(which(filtvarmatrix$clone_UMAP == 'nonmal')) > 0){
   filtvarmatrix = filtvarmatrix[-which(filtvarmatrix$clone_UMAP == 'nonmal'),]
 }
@@ -1723,9 +1739,7 @@ fig5e
 
 ```{r panel_5h,fig.height=2,fig.width=2.5,eval=T}
 
-### FIX THIS ###
-## varmatrix
-
+# varmatrix
 filtvarmatrix = varmatrix
 filtvarmatrix = filtvarmatrix[-which(filtvarmatrix$heteroplasmy > 0.95),]
 filtvarmatrix = filtvarmatrix[-which(filtvarmatrix$heteroplasmy < 0.05),]
@@ -1843,10 +1857,6 @@ fgseaRes <- fgseaMultilevel(pathways=pathways.hallmark, stats=ranks)
 fgseaResTidy <- fgseaRes %>%
   as_tibble() %>%
   arrange(desc(NES))
-
-fgseaResTidy %>%
-  dplyr::select(-leadingEdge, -ES) %>%
-  arrange(padj)
 
 fgseaResTidy$pathway = gsub('HALLMARK_','',fgseaResTidy$pathway)
 fgseaResTidy$pathway = gsub('_',' ',fgseaResTidy$pathway)
