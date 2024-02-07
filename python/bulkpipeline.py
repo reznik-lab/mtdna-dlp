@@ -75,7 +75,7 @@ def variant_calling_normal(resultsdir,tumordir,tumor_id,reffile,genome,minmapq,m
     # Output the overlap as final maf file
     combinedfile = pd.merge(tumorfile.loc[:,['Chromosome','Start_Position','Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Variant_Type']], 
                             normalfile.loc[:,['Chromosome','Start_Position','Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Variant_Type']], 
-                            how='inner', on=['Chromosome','Start_Position','Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Variant_Type'])
+                            how='left', on=['Chromosome','Start_Position','Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Variant_Type'])
     # Combined matrices together
     combinedfile.to_csv(f"{resultsdir}/MuTect2_results/{tumor_id}.bam.maf",sep = '\t',na_rep='NA',index=False)
     # Remove temporary files
@@ -131,7 +131,7 @@ def variant_processing(tumor_id,resultsdir):
 
     # Filter out variants falling in the repeat regions of 513-525, and 3105-3109 (black listed regions)
     # Make sure End_Position is also not in the region
-    rmregions = list(range(513,524)) + list(range(3105,3109))
+    rmregions = list(range(513,526)) + list(range(3105,3110))
     if len(mutectfile['Start_Position'][mutectfile['Start_Position'].isin(rmregions)]) > 0:
         mutectfile = mutectfile[~mutectfile['Start_Position'].isin(rmregions)]
     if len(MTvarfile['Start_Position'][MTvarfile['Start_Position'].isin(rmregions)]) > 0:
@@ -171,26 +171,6 @@ def variant_processing(tumor_id,resultsdir):
         "vcf_id_y":"vcf_id","vcf_qual_y":"vcf_qual","gnomAD_AF_y":"gnomAD_AF","gnomAD_AFR_AF_y":"gnomAD_AFR_AF","gnomAD_AMR_AF_y":"gnomAD_AMR_AF",
         "gnomAD_ASJ_AF_y":"gnomAD_ASJ_AF","gnomAD_EAS_AF_y":"gnomAD_EAS_AF","gnomAD_FIN_AF_y":"gnomAD_FIN_AF","gnomAD_NFE_AF_y":"gnomAD_NFE_AF",
         "gnomAD_OTH_AF_y":"gnomAD_OTH_AF","gnomAD_SAS_AF_y":"gnomAD_SAS_AF"})
-    
-    # Fix INDELs in the same position i.e. A:11866:AC and A:11866:ACC
-    aux = combinedfile.loc[combinedfile['Variant_Type'] == 'INS'].groupby('Start_Position').count()['Hugo_Symbol'].reset_index()
-    positions = list(aux['Start_Position'].loc[aux['Hugo_Symbol'] > 1])
-    variants = list(combinedfile['ShortVariantID'].loc[(combinedfile['Start_Position'].isin(positions)) & (combinedfile['Variant_Type'] == 'INS')])
-    if len(positions) != 0:
-        dff = combinedfile.loc[combinedfile['ShortVariantID'].isin(variants)]
-        # Create an auxuliary file only with the last rows to keep: keep unique positions with the highest TumorVAF
-        dffaux = dff.sort_values(by='TumorVAF', ascending = False)
-        dffaux = dffaux.drop_duplicates('Start_Position', keep = 'first')
-        for i in positions:
-            vals = dff[['t_alt_count_y', 't_alt_count_x']].loc[dff['Start_Position'] == i].sum(axis = 0).reset_index()
-            dvals = dict(zip(list(vals['index']),list(vals[0])))
-            dffaux.loc[dffaux['Start_Position'] == i,'t_alt_count_y'] = dvals['t_alt_count_y']
-            dffaux.loc[dffaux['Start_Position'] == i,'t_alt_count_x'] = dvals['t_alt_count_x']
-        #Remove all variants with duplicated indels
-        combinedfile = combinedfile.loc[(~combinedfile['ShortVariantID'].isin(variants))]
-        # Add unique indel variants with new values
-        combinedfile = pd.concat([combinedfile, dffaux])
-        combinedfile = combinedfile.sort_values(by='Start_Position', ascending = True)
         
     # Final annotation
     filloutfile = combinedfile.loc[:,['Hugo_Symbol','Entrez_Gene_Id','Center','NCBI_Build','Chromosome',
