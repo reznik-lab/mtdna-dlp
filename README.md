@@ -66,7 +66,6 @@ java -jar [your_directory]/mtdna-dlp/python/reference/picard.jar CreateSequenceD
 ### Running the bulk pipeline (in the command line)
 
 Subsetting for mitochondrial regions (where chrM can either be chrM or MT, depending on how it is annotated in the possorted_bam file):
-
 ```
 conda activate [environment]
 samtools view -b [library_id].bam chrM > [library_id]_chrM.bam
@@ -117,9 +116,15 @@ The bulk pipeline should have the following files and subdirectories in the resu
 
 ### Splitting the bam file into one file per cell
 
-Using the output from cellranger (i.e. /outs/filtered_feature_bc_matrix/barcodes.tsv.gz and /outs/possorted_genome_bam.bam), run the `split_bam.py` file. For example:
+Using the output from cellranger (i.e. /outs/filtered_feature_bc_matrix/barcodes.tsv.gz and /outs/possorted_genome_bam.bam), subset of mitochondrial regions, where chrM could also be MT depending on which genome it was aligned to. 
+
 ```
-python3 split_bam.py possorted_genome_bam.bam output_directory --barcode_csv barcodes.tsv.gz
+conda activate [environment]
+samtools view -b possorted_genome_bam.bam chrM > chrM.bam
+```
+Then, run the `split_bam.py` file. For example:
+```
+python3 split_bam.py chrM.bam output_directory --barcode_csv barcodes.tsv.gz
 ```
 
 ### Running the single cell pipeline (in the command line)
