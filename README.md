@@ -127,6 +127,11 @@ Then, run the `split_bam.py` file. For example:
 python3 split_bam.py chrM.bam output_directory --barcode_csv barcodes.tsv.gz
 ```
 
+Delete the undetermined.bam file:
+```
+rm -r [output_directory]/undetermined.bam
+```
+
 ### Running the single cell pipeline (in the command line)
 Note, check the limit of open files (ulimit -n), and adjust as needed. 
 
