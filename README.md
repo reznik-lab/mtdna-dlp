@@ -46,6 +46,20 @@ conda install -c conda-forge matplotlib
 
 Additionally, a VEP offline cache needs to be installed __(NOTE: CACHE MUST BE SAME VERSION AS VEP VERSION)__. Please refer to http://useast.ensembl.org/info/docs/tools/vep/script/vep_cache.html for instructions on how to install a VEP cache. Due to the size of the caches, it will likely take several hours to install.
 
+You will also need to ensure that the reference genome fasta has a dictionary. Afer downloading the correct reference genome (make sure the mitochondrial chromosome name matches the one in your bam file, i.e. chrM or MT). 
+
+To download the reference genome:
+
+```
+curl -O https://ftp.ensembl.org/pub/release-110/fasta/homo_sapiens/dna/
+```
+To make "genome.dict" file run the following in the same directory as your reference genome.fa file:
+
+```
+java -jar [your_directory]/mtdna-dlp/python/reference/picard.jar CreateSequenceDictionary R=genome.fa O=genome.dict
+```
+
+
 ## Bulk pipeline
 
 ### Running the bulk pipeline (in the command line)
