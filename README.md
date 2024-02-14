@@ -48,10 +48,11 @@ Additionally, a VEP offline cache needs to be installed __(NOTE: CACHE MUST BE S
 
 You will also need to ensure that the reference genome fasta has a dictionary. Afer downloading the correct reference genome (make sure the mitochondrial chromosome name matches the one in your bam file, i.e. chrM or MT). 
 
-To download the reference genome:
+To download the reference genome, create a directory [reference] to store it and run the following:
 
 ```
-curl -O https://ftp.ensembl.org/pub/release-110/fasta/homo_sapiens/dna/
+curl -O https://cf.10xgenomics.com/supp/cell-exp/refdata-gex-GRCh38-2020-A.tar.gz
+tar xzf refdata-gex-GRCh38-2020-A.tar.gz 
 ```
 To make "genome.dict" file run the following in the same directory as your reference genome.fa file:
 
