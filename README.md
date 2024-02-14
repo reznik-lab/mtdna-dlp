@@ -188,3 +188,29 @@ The single cell pipeline should have the following files and subdirectories in t
 - [sample]_heteroplasmy.pdf
 - [sample]_haplogroups.txt (only for human DNA)
 - filtered[sample]-merged.bam (only for human DNA)
+
+## Common Errors (and how to fix them)
+
+### 1. GenomeAnalysisTK.jar (mapping qualities conversion) failure
+
+Ensure that the reference file passed as input is the same as the one used in the alignment to create the bam. 
+Ensure you have a genome.dict file in the same directory as the genome.fa file. You can create one:
+```
+java -jar [your_directory]/mtdna-dlp/python/reference/picard.jar CreateSequenceDictionary R=genome.fa O=genome.dict
+```
+
+### 2. samtools merge failure
+
+Most likely, your system is throwing a too many files open error. Adjust the limit on the number of files like this:
+```
+ulimit -n 10000
+```
+
+### 3. perl vcf2maf.pl failure
+
+vcf2maf.pl will not automatically overwrite files, so if the output file already exists, either delete it or add the following argument:
+```
+--vep-overwrite
+```
+
+
