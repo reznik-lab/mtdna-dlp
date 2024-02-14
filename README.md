@@ -65,11 +65,17 @@ java -jar [your_directory]/mtdna-dlp/python/reference/picard.jar CreateSequenceD
 
 ### Running the bulk pipeline (in the command line)
 
-Index the input .bam file:
+Subsetting for mitochondrial regions (where chrM can either be chrM or MT, depending on how it is annotated in the possorted_bam file):
+
 ```
 conda activate [environment]
-samtools index [library_id].bam
+samtools view -b [library_id].bam chrM > [library_id]_chrM.bam
 ```
+Index the input .bam file:
+```
+samtools index [library_id]_chrM.bam
+```
+*The index file needs to always be newer than the bam file, otherwise the pipeline will throw an error
 
 Navigate to the directory with the `bulkpipeline.py` file and run the following (replace all brackets):
 ```
