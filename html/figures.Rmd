@@ -694,6 +694,23 @@ fig2e
 
 ```
 
+## 2f
+
+```{r panel_2f,fig.height=2,fig.width=2,eval=T}
+
+filtmicron_resultfile = micron_resultfile[which(micron_resultfile$library_id == 'SA1035X5XB03015-A95623A'),]
+
+fig2f <- ggplot(subset(filtmicron_resultfile, ploidylab == 2), aes(x=diameter, y=copynumber)) + stat_density2d(aes(fill = ..density..^0.25), geom = "tile", contour = FALSE, n = 400) +
+  geom_point(size=0.8, alpha = 0.3, shape = 16) + stat_cor(size = 4) + scale_fill_continuous(low = "white", high = "dodgerblue4") + geom_smooth(method = lm, size = 0.5, col= 'red', linetype = "dashed") + theme_classic() +
+  xlab('Cell diameter (in microns)') + ylab('mtDNA copy number') + ggtitle('SA1035-A95623A') +
+  theme(axis.text = element_text(size=10),
+        axis.title = element_text(size=10),
+        title = element_text(size=8),
+        legend.position = 'none')
+
+fig2f
+
+```
 
 
 ***
