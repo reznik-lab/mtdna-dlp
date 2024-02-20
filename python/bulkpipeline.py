@@ -78,9 +78,6 @@ def variant_calling_normal(resultsdir,tumordir,tumor_id,reffile,genome,minmapq,m
                             how='left', on=['Chromosome','Start_Position','Reference_Allele','Tumor_Seq_Allele2','Variant_Classification','Variant_Type'])
     # Combined matrices together
     combinedfile.to_csv(f"{resultsdir}/MuTect2_results/{tumor_id}.bam.maf",sep = '\t',na_rep='NA',index=False)
-    # Remove temporary files
-    subprocess.run(f"rm {resultsdir}/TEMPMAFfiles/*.bam_temp2.maf", shell=True)
-
 
 def variant_calling(resultsdir,tumordir,tumor_id,reffile,genome,minmapq,minbq,minstrand,workingdir,vepcache,mtchrom,ncbibuild,species,molecule,mincounts):
     try:
@@ -112,9 +109,6 @@ def variant_calling(resultsdir,tumordir,tumor_id,reffile,genome,minmapq,minbq,mi
     subprocess.run(f"perl {workingdir}/vcf2maf/vcf2maf.pl --species {species} --vep-data {vepcache} " +
         f"--ncbi-build {ncbibuild} --input-vcf {resultsdir}/MuTect2_results/{tumor_id}.bam.vcf " + 
         f"--output-maf {resultsdir}/MuTect2_results/{tumor_id}.bam.maf --ref-fasta {reffile}", shell=True, check=True)
-
-    subprocess.run(f"rm {resultsdir}/TEMPMAFfiles/*.bam_temp2.maf", shell=True)
-
 
 def variant_processing(tumor_id,resultsdir):
     """
@@ -294,7 +288,6 @@ if __name__ == "__main__":
     parser.add_argument("-q","--mapq",type=int,help="Minimum mapping quality, default = 20",default = 20)
     parser.add_argument("-Q","--baseq",type=int,help="Minimum base quality, default = 20",default = 20)
     parser.add_argument("-s","--strand",type=int,help="Minimum number of reads mapping to forward and reverse strand to call mutation, default=2",default = 2)
-    parser.add_argument("-th","--threshold",type=int,help="The critical threshold for calling a cell wild-type, default=0.1",default = 0.1)
     parser.add_argument("-vc", "--vepcache", type=str, help="Directory for vep cache", default="$HOME/.vep")
     parser.add_argument("-n", "--normal_id", type=str, help="Path of the normal sample",default="")
     parser.add_argument("-m", "--molecule",type=str, help="Type of molecule (dna or rna), default=dna", default="dna")
@@ -308,7 +301,6 @@ if __name__ == "__main__":
     minmapq = args.mapq
     minbq = args.baseq
     minstrand = args.strand
-    threshold = args.threshold
     workingdir = args.workingdir
     vepcache = args.vepcache
     resultsdir = args.resultsdir
