@@ -16,7 +16,6 @@ knitr::opts_chunk$set(echo = FALSE,message = FALSE,warning = FALSE,autodep = kni
 
 source(here::here('r/prerequisites.R'))
 
-
 ```
 
 
@@ -692,7 +691,9 @@ fig2e <- ggplot(subset(filtmicron_resultfile, ploidylab == 2), aes(x=diameter, y
 
 fig2e
 
+
 ```
+
 
 ## 2f
 
@@ -710,8 +711,181 @@ fig2f <- ggplot(subset(filtmicron_resultfile, ploidylab == 2), aes(x=diameter, y
 
 fig2f
 
+
 ```
 
+
+## 2g
+
+```{r panel_2g,fig.height=3,fig.width=2,eval=T}
+
+colorlist = c('184hTERT(TP53-/-)(SA906a)'='#A6CEE3',
+              'T-47D cell line(SA1044)'='#E7298A',
+              '184hTERT(BRCA2-/-;TP53-/-)(SA1056)'='#FFFF99',
+              'HGSC cell line(SA1090)'='#CBD5E8',
+              '184hTERT'='#FED9A6',
+              '184hTERT(TP53-/-)(SA906b)'='#E6F5C9',
+              '184hTERT(TP53-/-)(SA1101a)'='#E31A1C',
+              '184hTERT(TP53-/-)(SA1101b)'='#F4CAE4',
+              '184hTERT(BRCA1-/-;TP53-/-)(SA1054)'='#FB8072',
+              '184hTERT(BRCA2+/-;TP53-/-)(SA1188)'='#F0027F',
+              'GM18507'='#984EA3',
+              'TNBC PDX(SA501)'='#00427D',
+              'TNBC PDX(SA1142)'='#76BFBA',
+              'untreated TNBC PDX(SA609)'='#55B700',
+              'untreated TNBC PDX(SA535)'='#9404D2',
+              'untreated TNBC PDX(SA1035)'='#E3B172',
+              'HGSC primary(SA1047)'='#8B3415',
+              'HGSC primary(SA1162)'='#EEFFAA',
+              'HGSC primary(OV-022)'='#915549',
+              'HGSC primary(OV-081)'='#D38842',
+              'TNBC primary(SA1135)'='#362F37',
+              'white'='white')
+
+#### cell size ~ mtDNA ploidy (without lymphoblastoid and 184hTERT)
+micron_resultfile = resultfile[which(resultfile$spotter == "rachael"),] # Sort by rachael spotter
+pixel_resultfile = resultfile[which(resultfile$spotter == "deckard"),] # Sort by deckard spotter
+
+totcells = c()
+
+# Actual values
+siggroups = data.frame(t(c(1,1,1,1,1,1,1,1,1)))
+colnames(siggroups) = c("library_id","library_label","numbcell","group","coefficient","lowerconfint","upperconfint","spotter","pval")
+
+for (eachlib in unique(micron_resultfile$library_id)){
+  filtmicron_result <- micron_resultfile[which((micron_resultfile$library_id == eachlib) & (micron_resultfile$ploidylab == 2)),]
+  if (nrow(filtmicron_result) >= 12){
+    totcells = append(totcells, nrow(filtmicron_result))
+    testres = cor.test(filtmicron_result$diameter, filtmicron_result$copynumber, method = "pearson")
+    tempres = data.frame(eachlib,unique(filtmicron_result$library_label),nrow(filtmicron_result),unique(micron_resultfile$group[which(micron_resultfile$library_id == eachlib)]),testres$estimate,testres$conf.int[1],testres$conf.int[2],unique(filtmicron_result$spotter),testres$p.value)
+    colnames(tempres) = colnames(siggroups)
+    siggroups = rbind(siggroups, tempres)
+  }
+}
+
+for (eachlib in unique(pixel_resultfile$library_id)){
+  filtpixel_result <- pixel_resultfile[which((pixel_resultfile$library_id == eachlib) & (pixel_resultfile$ploidylab == 2)),]
+  if (nrow(filtpixel_result) >= 12){
+    totcells = append(totcells, nrow(filtpixel_result))
+    testres = cor.test(filtpixel_result$diameter, filtpixel_result$copynumber, method = "pearson")
+    tempres = data.frame(eachlib,unique(filtpixel_result$library_label),nrow(filtpixel_result),unique(pixel_resultfile$group[which(pixel_resultfile$library_id == eachlib)]),testres$estimate,testres$conf.int[1],testres$conf.int[2],unique(filtpixel_result$spotter),testres$p.value)
+    colnames(tempres) = colnames(siggroups)
+    siggroups = rbind(siggroups, tempres)
+  }
+}
+siggroups = siggroups[-1,]
+
+deckarddups = siggroups[which((siggroups$library_id %in% c("SA906-A96172B","SA1101-A95663B","SA1142X2XB09021-A95700B","SA609X10XB02454-A96219B") & (siggroups$spotter == 'deckard'))),]
+siggroups = siggroups[-which((siggroups$library_id %in% c("SA906-A96172B","SA1101-A95663B","SA1142X2XB09021-A95700B","SA609X10XB02454-A96219B") & (siggroups$spotter == 'deckard'))),]
+siggroups$padj <- p.adjust(siggroups$pval,method='BH')
+siggroups$signif = siggroups$padj <= 0.05
+siggroups$shortlibid = siggroups$library_id
+siggroups$shortlibid[which(apply(data.frame(siggroups$shortlibid),1,function(x) length(strsplit(x,'-')[[1]])) == 2)] = apply(data.frame(siggroups$shortlibid),1,function(x)strsplit(x,'-')[[1]][2])[which(apply(data.frame(siggroups$shortlibid),1,function(x) length(strsplit(x,'-')[[1]])) == 2)]
+
+ordering = siggroups %>% group_by(group) %>% mutate(medcoeff = median(coefficient)) %>% select(group, medcoeff) %>% distinct()
+
+reorderedgroups = data.frame(t(rep(1,length(colnames(siggroups)))))
+colnames(reorderedgroups) = colnames(siggroups)
+for (eachgroup in ordering$group[order(ordering$medcoeff, decreasing = F)]){
+  currgroup = siggroups[which(siggroups$group == eachgroup),]
+  currgroup = currgroup[order(currgroup$coefficient, decreasing = F),]
+  reorderedgroups = rbind(reorderedgroups, currgroup)
+}
+reorderedgroups = reorderedgroups[-1,]
+
+reorderedgroups$library_id[grep('SPECTRUM',reorderedgroups$group)] = paste0(gsub('SPECTRUM-','',reorderedgroups$group[grep('SPECTRUM',reorderedgroups$group)]),'-',reorderedgroups$library_id[grep('SPECTRUM',reorderedgroups$group)])
+reorderedgroups$library_id = factor(reorderedgroups$library_id, level = unique(reorderedgroups$library_id))
+labelcolor = data.frame(ordering$group[order(ordering$medcoeff, decreasing = F)],colorlist[match(ordering$group[order(ordering$medcoeff, decreasing = F)],names(colorlist))])
+colnames(labelcolor) = c('group','colors')
+
+PDXfile = reorderedgroups[grep('PDX',reorderedgroups$group),]
+primaryfile = reorderedgroups[c(grep('primary',reorderedgroups$group),grep('SPECTRUM',reorderedgroups$group)),]
+cell_linefile = reorderedgroups[-c(grep('primary',reorderedgroups$group),grep('SPECTRUM',reorderedgroups$group),grep('PDX',reorderedgroups$group)),]
+cell_linefile$fillcol = 'white'
+cell_linefile$fillcol[which(cell_linefile$signif == 1)] = cell_linefile$group[which(cell_linefile$signif == 1)]
+cell_linefile$library_id = factor(cell_linefile$library_id,levels = unique(cell_linefile$library_id))
+
+figcell_line = ggplot() +
+  geom_pointrange(data=cell_linefile, aes(x=library_id, y=coefficient, ymin=lowerconfint, ymax=upperconfint, color=group),size=0.2) +
+  geom_errorbar(data=cell_linefile, aes(x=library_id, y=coefficient, ymin=lowerconfint, ymax=upperconfint, color=group),width=0.4) +
+  geom_point(data=cell_linefile, aes(x=library_id, y=coefficient, color=fillcol), size=0.2) +
+  ylab("Pearson correlation coefficient") +
+  geom_hline(yintercept = 0, lty='dashed') +
+  scale_y_continuous(limits = c(-0.5,1.1)) +
+  theme_bw() +
+  coord_flip() +
+  scale_x_discrete(limits = levels(cell_linefile$library_id), labels = cell_linefile$shortlibid) +
+  scale_color_manual(values=colorlist) +
+  theme(axis.title.y = element_blank(),
+        axis.text = element_text(size=7),
+        axis.title.x = element_text(size=8),
+        strip.text.x = element_text(size=7),
+        strip.background = element_blank(),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        panel.grid.minor = element_blank(),
+        legend.position = "none",
+        panel.border = element_blank())
+
+PDXfile$fillcol = 'white'
+PDXfile$fillcol[which(PDXfile$signif == 1)] = PDXfile$group[which(PDXfile$signif == 1)]
+PDXfile$library_label = factor(PDXfile$library_label,levels = unique(PDXfile$library_label))
+
+figPDX = ggplot() +
+  geom_pointrange(data=PDXfile, aes(x=library_label, y=coefficient, ymin=lowerconfint, ymax=upperconfint, color=group),size=0.2) +
+  geom_errorbar(data=PDXfile, aes(x=library_label, y=coefficient, ymin=lowerconfint, ymax=upperconfint, color=group),width=0.4) +
+  geom_point(data=PDXfile, aes(x=library_label, y=coefficient, color=fillcol), size=0.2) +
+  ylab("Pearson correlation coefficient") +
+  geom_hline(yintercept = 0, lty='dashed') +
+  geom_pointrange() +
+  scale_color_manual(values = colorlist) +
+  scale_x_discrete(limits = levels(PDXfile$library_label), labels = PDXfile$shortlibid) +
+  scale_y_continuous(limits = c(-0.6,0.9)) +
+  theme_bw() +
+  coord_flip() +
+  theme(axis.title.y = element_blank(),
+        axis.text.y = element_text(size=6),
+        axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        panel.grid.minor = element_blank(),
+        legend.position = "none",
+        panel.border = element_blank())
+
+primaryfile$fillcol = 'white'
+primaryfile$fillcol[which(primaryfile$signif == 1)] = primaryfile$group[which(primaryfile$signif == 1)]
+primaryfile$library_label = factor(primaryfile$library_label,levels = unique(primaryfile$library_label))
+
+figprimary = ggplot() +
+  geom_pointrange(data=primaryfile, aes(x=library_label, y=coefficient, ymin=lowerconfint, ymax=upperconfint, color=group),size=0.2) +
+  geom_errorbar(data=primaryfile, aes(x=library_label, y=coefficient, ymin=lowerconfint, ymax=upperconfint, color=group),width=0.4) +
+  geom_point(data=primaryfile, aes(x=library_label, y=coefficient, color=fillcol), size=0.2) +
+  ylab("Pearson correlation coefficient") +
+  geom_hline(yintercept = 0, lty='dashed') +
+  geom_pointrange() +
+  scale_color_manual(values = colorlist) +
+  scale_x_discrete(limits = levels(primaryfile$library_label), labels = primaryfile$shortlibid) +
+  scale_y_continuous(limits = c(-0.6,0.9)) +
+  theme_bw() +
+  coord_flip() +
+  theme(axis.title.y = element_blank(),
+        axis.text.y = element_text(size=6),
+        axis.text.x = element_text(size=6),
+        axis.title.x = element_text(size=7.5),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        panel.grid.minor = element_blank(),
+        legend.position = "none",
+        panel.border = element_blank())
+
+
+print(figcell_line)
+
+print(plot_grid(figPDX,figprimary, nrow = 2, rel_heights = c(0.65,0.35), align = 'v'))
+
+
+
+
+
+```
 
 ***
 
@@ -805,6 +979,8 @@ fig3a <- ggplot(filtresultfile, aes(x=newploidylab, y=log2(copynumber))) + geom_
         legend.key.size = unit(0.4, 'cm'))
 
 fig3a
+
+
 
 ```
 
@@ -1509,6 +1685,7 @@ fig5b <- ggplot(filtvars, aes(x=assignment,y=copynumber)) + geom_quasirandom(aes
         axis.text = element_text(size=6),
         axis.title = element_text(size=8))
 fig5b
+
 
 ```
 
