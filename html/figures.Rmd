@@ -715,9 +715,9 @@ fig2f
 ```
 
 
-## 2g
+## 2g,h
 
-```{r panel_2g,fig.height=3,fig.width=2,eval=T}
+```{r panel_2gh,fig.height=3,fig.width=2,eval=T}
 
 colorlist = c('184hTERT(TP53-/-)(SA906a)'='#A6CEE3',
               'T-47D cell line(SA1044)'='#E7298A',
