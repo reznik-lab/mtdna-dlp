@@ -194,6 +194,23 @@ The single cell pipeline should have the following files and subdirectories in t
 - [sample]_haplogroups.txt (only for human DNA)
 - filtered[sample]-merged.bam (only for human DNA)
 
+## Clonal assignment model based on mtDNA mutations
+
+```
+python3 runmtclone.py -a [snv_alt] -d [snv_depth] -c [numberclone]
+```
+
+Parameter descriptions:
+
+- __SNV alternate__: Path of the matrix of alternate read counts across mtDNA variants (rows) by cells (columns)
+- __SNV depth__: Path of the matrix of total read counts across mtDNA variants (rows) by cells (columns)
+- __Number of clones__: Prior on the number of clones
+
+### Model outputs
+
+- __Clone labels__: Cell IDs along with the clone labels assigned to each cell, identifying the clonal population each cell belongs to.
+- __SNV weights__: Weights indicating the significance of each SNV in determining clonal populations.
+
 ## Common Errors (and how to fix them)
 
 ### 1. GenomeAnalysisTK.jar (mapping qualities conversion) failure
