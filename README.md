@@ -1,5 +1,9 @@
 # mtdna-dlp
 
+## Scripts to generate figures
+
+This directory contains scripts essential for the visualization of data figures as presented in the main text. The R Markdown file `html/figures.Rmd` can be compiled into an HTML document, which can then be viewed in any web browser. Please ensure you have the necessary packages installed to compile and view the figures as intended.
+
 ## Installation (in the command line)
 
 Clone this repository:
